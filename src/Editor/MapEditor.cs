@@ -382,10 +382,10 @@ public partial class MapEditor : Node2D
         _tool = Tools.First(t => t.Kind == Kinds.Road);
         _ghost.SetStroke(
             _tool,
-            [new(560, 190), new(575, 300), new(588, 380), new(600, 448)],
+            [new(600, 445), new(650, 380), new(700, 300), new(760, 230)],
             StrokeWidth()
         );
-        _ghost.SetSnap(new Vector2(600, 448));
+        _ghost.SetSnap(new Vector2(600, 445));
         for (var i = 0; i < 4; i++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         GetViewport().GetTexture().GetImage().SavePng(path);
