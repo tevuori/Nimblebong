@@ -72,9 +72,23 @@ public partial class FortifyPainter : Node2D
     /// a double parapet depending on the stroke model.</summary>
     void DrawWall(Vector2[] pts, double w, int model)
     {
-        var poly = Spline.StrokePolygon(pts, w);
-        Fill(poly, Mortar);
-        Fill(Spline.StrokePolygon(pts, Math.Max(2, w - 4)), Stone);
+        // Per-segment bands — StrokePolygon self-intersects on closed
+        // loops (paddock rings), per-segment quads survive them.
+        void Band(Vector2[] line, double ww, Color c)
+        {
+            for (var i = 0; i + 1 < line.Length; i++)
+            {
+                var a = line[i];
+                var b = line[i + 1];
+                var d = b - a;
+                if (d.Length() < 0.5f)
+                    continue;
+                var n = new Vector2(-d.Y, d.X).Normalized() * (float)(ww / 2);
+                Fill([a + n, b + n, b - n, a - n], c);
+            }
+        }
+        Band(pts, w, Mortar);
+        Band(pts, Math.Max(2, w - 4), Stone);
 
         if (model == 2)
         {

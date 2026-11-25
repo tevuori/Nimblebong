@@ -95,6 +95,19 @@ public partial class CrossingPainter : Node2D
         var lip = p + dir * w * 0.18f;
         DrawLine(lip + n * half, lip - n * half, WaterLight, w * 0.34f);
         DrawLine(lip + n * half, lip - n * half, Foam, w * 0.12f);
+        // Falling streaks — long white runnels streaming off the lip,
+        // the signature top-down waterfall read.
+        for (var k = -1; k <= 1; k++)
+        {
+            var off = lip + n * k * half * 0.55f;
+            var len = w * (1.15f - Math.Abs(k) * 0.3f);
+            DrawLine(
+                off,
+                off + dir * len,
+                Foam with { A = 0.55f },
+                w * (0.14f - Math.Abs(k) * 0.04f)
+            );
+        }
         // foam: two broken arcs on the downstream side of the lip
         var rng = new Random((int)(p.X * 31 + p.Y * 17));
         for (var i = 0; i < 3; i++)

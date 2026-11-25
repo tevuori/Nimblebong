@@ -34,9 +34,9 @@
     }
   },
   "palette": {
-    "ground": "#8aab54",
-    "cliff": "#b4b18a",
-    "water": "#298f99",
+    "ground": "#7db24d",
+    "cliff": "#c2bda0",
+    "water": "#14646f",
     "foliage": "#4e7440",
     "stone": "#a4a68e",
     "roof": "#ac6948",
@@ -50,7 +50,11 @@
   },
   "trees": {
     "style": "broadleaf",
-    "species": ["oak", "spruce", "birch"],
+    "species": [
+      "oak",
+      "spruce",
+      "birch"
+    ],
     "summerTint": [
       {
         "to": "#63b24b",
@@ -67,7 +71,13 @@
     "grass": 1,
     "stones": 0.8,
     "flowers": 1,
-    "flowerColors": ["#f6f3ea", "#f2d14b", "#d9534f", "#9b7fd1", "#f29ac0"],
+    "flowerColors": [
+      "#f6f3ea",
+      "#f2d14b",
+      "#d9534f",
+      "#9b7fd1",
+      "#f29ac0"
+    ],
     "patches": 1,
     "leaves": 1,
     "snow": 1,

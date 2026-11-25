@@ -55,11 +55,40 @@ public class ResolvedBiome
     public string Season = "summer";
     /// <summary>Season look applied (resolved via season entry).</summary>
     public string SeasonLook = "summer";
+    /// <summary>Active art pack id ("classic", "storybook", "ink") —
+    /// painters that have pack-specific dressing read this.</summary>
+    public string ArtPack = "classic";
     /// <summary>Bank style override from the active season entry.</summary>
     public string? WaterBank;
     /// <summary>ground.grassTile — strength of the hand-painted grass tile
     /// stamped under the ground speckle (0 = off: sand, ash, snow, cave).</summary>
     public double GrassTile;
+    /// <summary>ground.* scatter multipliers + extras for the ground pass
+    /// (dirt patches, tufts, pebbles, flowers, leaves, snow, extra).</summary>
+    public GroundTraits GroundCfg = new();
+    /// <summary>Season scatter multipliers applied on top of the biome
+    /// ground traits (frontend.json seasonScatter).</summary>
+    public static readonly Dictionary<string, GroundTraits> SeasonScatter = new()
+    {
+        ["spring"] = new() { Flowers = 1.8, Grass = 1.2, Leaves = 0, Snow = 0 },
+        ["summer"] = new() { Flowers = 1, Grass = 1, Leaves = 0, Snow = 0 },
+        ["autumn"] = new() { Flowers = 0.2, Grass = 0.8, Leaves = 1, Snow = 0 },
+        ["winter"] = new() { Flowers = 0, Grass = 0.45, Leaves = 0, Snow = 1 },
+    };
+
+    /// <summary>Numeric ground-scatter traits (all default like woodland
+    /// so biomes missing a key stay sensible).</summary>
+    public class GroundTraits
+    {
+        public double Grass = 1;
+        public double Stones = 1;
+        public double Flowers = 1;
+        public double Patches = 1;
+        public double Leaves = 0;
+        public double Snow = 0;
+        public string Extra = "none";
+        public List<Color> FlowerColors = [];
+    }
 
     /// <summary>Classic woodland fallback for palette lookups.</summary>
     static readonly Dictionary<string, Color> Defaults = new()
@@ -555,6 +584,17 @@ public static class SceneConfig
             var tile = Get(g, "grassTile");
             if (tile.VariantType == Variant.Type.Float || tile.VariantType == Variant.Type.Int)
                 b.GrassTile = tile.AsDouble();
+            b.GroundCfg = new ResolvedBiome.GroundTraits
+            {
+                Grass = Get(g, "grass").AsDouble(),
+                Stones = Get(g, "stones").AsDouble(),
+                Flowers = Get(g, "flowers").AsDouble(),
+                Patches = Get(g, "patches").AsDouble(),
+                Leaves = Get(g, "leaves").AsDouble(),
+                Snow = Get(g, "snow").AsDouble(),
+                Extra = Get(g, "extra").AsString(),
+                FlowerColors = [.. Get(g, "flowerColors").AsGodotArray().Select(ToColor)],
+            };
         }
         if (IsDict(Get(root, "water"), out var water) && IsColor(Get(water, "edge")))
             b.Named["water.edge"] = ToColor(Get(water, "edge"));
@@ -620,7 +660,18 @@ public static class SceneConfig
         else if (pack == "ink")
         {
             b.Named["ground"] = Palette.Mix(Palette.Desaturate(b.At("ground"), 0.65), H("#8c8478"), 0.12);
-            b.Named["water"] = Palette.Mix(Palette.Desaturate(b.At("water"), 0.6), H("#4e6066"), 0.22);
+            // Pale bone-white stone so the crack mesh reads — the 2mt
+            // canyon signature.
+            b.Named["cliff"] = Palette.Mix(
+                Palette.Desaturate(b.At("cliff"), 0.5),
+                H("#d8d4bc"),
+                0.45
+            );
+            b.Named["water"] = Palette.Mix(
+                Palette.Desaturate(b.At("water"), 0.35),
+                H("#3fb8c9"),
+                0.35
+            );
             b.Named["foliage"] = Palette.Mix(Palette.Desaturate(b.At("foliage"), 0.65), H("#8c8478"), 0.12);
             b.Named["stone"] = Palette.Mix(Palette.Desaturate(b.At("stone"), 0.65), H("#8c8478"), 0.12);
             b.Named["roof"] = Palette.Mix(Palette.Desaturate(b.At("roof"), 0.65), H("#8c8478"), 0.12);
@@ -760,8 +811,10 @@ public static class SceneConfig
             WinterSnow = b.WinterSnow,
             Season = ActiveSeason(b, season),
             SeasonLook = entry.Look,
+            ArtPack = pack,
             WaterBank = entry.WaterBank,
             GrassTile = b.GrassTile,
+            GroundCfg = b.GroundCfg,
         };
         foreach (var kv in b.Named)
             copy.Named[kv.Key] = kv.Value;

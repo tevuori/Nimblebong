@@ -77,6 +77,9 @@ public class PropPlacement
     /// a different deterministic look for kinds without discrete
     /// variant branches.</summary>
     public double VarSeed => Model >= 0 ? Seed + Model * 977 : Seed;
+    /// <summary>Tree species override — null = seed-picked from the
+    /// biome species list.</summary>
+    public string? Species;
     /// <summary>Caption — the "label" kind draws this.</summary>
     public string? Text;
 

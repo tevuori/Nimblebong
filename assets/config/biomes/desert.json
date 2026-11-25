@@ -11,9 +11,9 @@
     }
   },
   "palette": {
-    "ground": "#dabb85",
+    "ground": "#e0aa62",
     "cliff": "#bb7953",
-    "water": "#36a6ae",
+    "water": "#15707d",
     "foliage": "#648a44",
     "stone": "#ba8963",
     "roof": "#d1ad7b",

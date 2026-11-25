@@ -291,7 +291,7 @@ public partial class PropsPainter : Node2D
         var rand = new Jitter(p.VarSeed);
         var r = 24 * rand.Range(0.85, 1.15);
         var color = JitterGreen(Foliage, rand);
-        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.62);
+        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.5);
         var clump = rand.Next() < 0.3;
 
         ContactShadow(p, r * 0.95, r * 0.8);
@@ -319,7 +319,7 @@ public partial class PropsPainter : Node2D
         }
         // Base shade, then lit lobes shrunk toward the NW sun.
         foreach (var part in parts)
-            Fill(Xform(p, part), Palette.Mix(color, Colors.Black, 0.28));
+            Fill(Xform(p, part), Palette.Mix(color, Colors.Black, 0.2));
         var off = new Vector2((float)(-r * 0.06), (float)(-r * 0.08));
         foreach (var part in parts)
         {
@@ -372,7 +372,7 @@ public partial class PropsPainter : Node2D
         var rand = new Jitter(p.VarSeed);
         var r = 22 * rand.Range(0.85, 1.15);
         var color = colorOverride ?? JitterGreen(PineGreen, rand);
-        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.62);
+        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.5);
 
         ContactShadow(p, r * 0.9, r * 0.8);
 
@@ -386,7 +386,7 @@ public partial class PropsPainter : Node2D
             for (var k = 0; k < points * 2; k++)
             {
                 var a = rot + (k / (double)(points * 2)) * Math.PI * 2;
-                var rr = R * (k % 2 == 1 ? 0.6 + rand.Next() * 0.08 : 0.92 + rand.Next() * 0.1);
+                var rr = R * (k % 2 == 1 ? 0.7 + rand.Next() * 0.08 : 0.92 + rand.Next() * 0.1);
                 star[k] = new Vector2((float)(Math.Cos(a) * rr), (float)(Math.Sin(a) * rr));
             }
             var w = Xform(p, star);

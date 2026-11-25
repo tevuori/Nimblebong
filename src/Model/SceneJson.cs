@@ -116,6 +116,8 @@ public static class SceneJson
                 w.WriteNumber("seed", p.Seed);
                 if (p.Model >= 0)
                     w.WriteNumber("model", p.Model);
+                if (p.Species != null)
+                    w.WriteString("species", p.Species);
                 if (p.Text != null)
                     w.WriteString("text", p.Text);
                 w.WriteEndObject();
@@ -590,6 +592,9 @@ public static class SceneJson
             Seed = seed,
             Model = el.TryGetProperty("model", out var m) ? (int)Clamped(el, "model", 0, 8, -1) : -1,
             Text = el.TryGetProperty("text", out var t) ? t.GetString() : null,
+            Species = el.TryGetProperty("species", out var sp)
+                ? sp.GetString()
+                : null,
         };
     }
 }

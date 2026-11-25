@@ -189,6 +189,9 @@ public class Prop
     /// <summary>Explicit variant index (I/II/III = 0/1/2); -1 = seeded
     /// auto — the TS `prop.model`.</summary>
     public int Model = -1;
+    /// <summary>Tree species override (e.g. "palm" in a woodland map) —
+    /// null = seed-picked from the biome species list.</summary>
+    public string? Species;
     /// <summary>Caption text — only the "label" prop kind uses it.</summary>
     public string? Text;
 
@@ -203,6 +206,7 @@ public class Prop
             Rotation = Rotation,
             Seed = Seed,
             Model = Model,
+            Species = Species,
             Text = Text,
         };
 }

@@ -183,6 +183,32 @@ public partial class PropsPainter
                 }
             );
             Fill(body, cloth);
+            // Canvas stripes — the banded circus-cloth look of the
+            // reference tents, clipped to the body.
+            var stripe = Palette.Mix(cloth, Palette.Hex("#7d4a36"), 0.55);
+            foreach (
+                var quad in new[]
+                {
+                    new[]
+                    {
+                        new Vector2((float)(-r * 0.55), (float)(-r * 0.82)),
+                        new Vector2((float)(-r * 0.28), (float)(-r * 0.94)),
+                        new Vector2((float)(-r * 0.28), (float)(r * 0.92)),
+                        new Vector2((float)(-r * 0.55), (float)(r * 0.8)),
+                    },
+                    new[]
+                    {
+                        new Vector2((float)(r * 0.28), (float)(-r * 0.94)),
+                        new Vector2((float)(r * 0.55), (float)(-r * 0.82)),
+                        new Vector2((float)(r * 0.55), (float)(r * 0.8)),
+                        new Vector2((float)(r * 0.28), (float)(r * 0.92)),
+                    },
+                }
+            )
+                foreach (
+                    var piece in Geometry2D.IntersectPolygons(body, Xform(p, quad))
+                )
+                    Fill(piece, stripe);
             // Lit east face — tentHighlight (#ffffff25).
             Fill(
                 Xform(

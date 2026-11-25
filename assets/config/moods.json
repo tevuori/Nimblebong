@@ -15,8 +15,8 @@
     "day": {
       "sun": "high",
       "shadows": true,
-      "ambient": 0.66,
-      "sunColor": "#6b614d",
+      "ambient": 0.62,
+      "sunColor": "#7a6238",
       "strength": 1
     },
     "dawn": {

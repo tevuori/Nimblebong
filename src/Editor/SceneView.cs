@@ -58,6 +58,7 @@ public partial class SceneView : Node2D
         Scene.Biome = id;
         Biome = SceneConfig.ResolveArt(
             SceneConfig.LoadBiome(id), Scene.ArtPack, Scene.Season);
+        _massifsValid = false;
         Rebuild();
     }
 
@@ -80,6 +81,7 @@ public partial class SceneView : Node2D
             Scene.ArtPack,
             Scene.Season
         );
+        _massifsValid = false;
         Rebuild();
     }
 
@@ -114,6 +116,7 @@ public partial class SceneView : Node2D
             _lastShapes = shapes;
             _massifsValid = true;
             var albedo = Stage.Albedo;
+            albedo.Biome = Biome;
             albedo.Ground = Biome.Ground;
             albedo.Cliff = Biome.Cliff;
             albedo.Stone = Biome.Stone;
@@ -154,7 +157,13 @@ public partial class SceneView : Node2D
         AddLayer(Stage.AlbedoVp, interiors);
         AddLayer(Stage.HeightVp, interiorsH);
 
-        var water = new WaterPainter { Water = Biome.Water };
+        var water = new WaterPainter
+        {
+            Water = Biome.Water,
+            RoadDirt = Biome.At("road.dirt"),
+            RoadVerge = Biome.At("road.verge"),
+            RoadHalo = Biome.At("road.halo"),
+        };
         var waterH = new WaterHeight();
         var crossings = new CrossingPainter { WaterLight = Biome.Water };
         crossings.SetMassifs(massifs);
@@ -200,6 +209,7 @@ public partial class SceneView : Node2D
                 )
                 {
                     Model = p.Model,
+                    Species = p.Species,
                     Text = p.Text,
                 }
             )

@@ -20,6 +20,22 @@ public partial class AlbedoPainter : Node2D
     public double GrassTile;
     /// <summary>Winter look suppresses the grass tile (web parity).</summary>
     public bool Winter;
+    /// <summary>Resolved biome for the ground pass — fbm field blotches
+    /// plus the planned detail scatter (patches/tufts/pebbles/flowers).
+    /// Null → legacy flat fill (probes that don't set a biome).</summary>
+    ResolvedBiome _biome;
+    public ResolvedBiome Biome
+    {
+        get => _biome;
+        set
+        {
+            _biome = value;
+            _fieldTex = null;
+            QueueRedraw();
+        }
+    }
+    /// <summary>Cached fbm field texture (map-sized watercolor blotches).</summary>
+    ImageTexture _fieldTex;
 
     public override void _Ready() => TextureRepeat = TextureRepeatEnum.Enabled;
 
@@ -88,6 +104,60 @@ public partial class AlbedoPainter : Node2D
 
     Color FaceColor(Massif m) => FaceColor(m, Cliff);
 
+    /// <summary>Three-direction jittered line grid clipped to a stone
+    /// face piece — reads as the packed polygonal-slab crack pattern of
+    /// the 2mt ink pack. Deterministic via position-hashed wobble.</summary>
+    void CrackMesh(Vector2[] poly, Color face)
+    {
+        var (xs, ys) = BBox(poly);
+        var ink = Palette.TintAlpha(face, -40, 0.55);
+        const double spacing = 26;
+        foreach (var deg in new[] { 10.0, 70.0, -50.0 })
+        {
+            var rad = Mathf.DegToRad(deg);
+            var dir = new Vector2(
+                (float)System.Math.Cos(rad),
+                (float)System.Math.Sin(rad)
+            );
+            var n = new Vector2(-dir.Y, dir.X);
+            // Walk lines across the bbox in the normal direction.
+            var corners = new[]
+            {
+                new Vector2((float)xs.X, (float)ys.X),
+                new Vector2((float)xs.Y, (float)ys.X),
+                new Vector2((float)xs.X, (float)ys.Y),
+                new Vector2((float)xs.Y, (float)ys.Y),
+            };
+            double lo = double.MaxValue,
+                hi = double.MinValue,
+                alo = double.MaxValue,
+                ahi = double.MinValue;
+            foreach (var c in corners)
+            {
+                lo = System.Math.Min(lo, c.Dot(n));
+                hi = System.Math.Max(hi, c.Dot(n));
+                alo = System.Math.Min(alo, c.Dot(dir));
+                ahi = System.Math.Max(ahi, c.Dot(dir));
+            }
+            for (var d = lo; d <= hi; d += spacing)
+            {
+                var pts = new List<Vector2>();
+                for (var a = alo - 8; a <= ahi + 8; a += 14)
+                {
+                    var wob =
+                        (Rng.Noise(a * 0.23 + d * 0.41 + deg) - 0.5) * spacing * 0.5;
+                    pts.Add(dir * (float)a + n * (float)(d + wob));
+                }
+                Vector2[] line = [.. pts];
+                foreach (
+                    var seg in Geometry2D.ClipPolylineWithPolygon(line, (Vector2[])poly)
+                )
+                    if (seg.Length > 1)
+                        DrawPolyline(seg, ink, 1.2f, true);
+            }
+        }
+    }
+
     /// <summary>Fill a polygon only when it triangulates — clipper
     /// output can contain degenerate slivers the canvas renderer
     /// rejects.</summary>
@@ -103,6 +173,15 @@ public partial class AlbedoPainter : Node2D
     public override void _Draw()
     {
         DrawRect(new Rect2(Vector2.Zero, MapSize), Ground);
+        // Watercolor ground fields — low-res fbm blotches upscaled over
+        // the whole map (the mottled turf of the references), then the
+        // planned detail scatter. Under everything, like the web pass.
+        if (Biome is { } biome)
+        {
+            _fieldTex ??= GroundPass.FieldTexture(MapSize, GroundPass.BuildPalette(biome, biome.SeasonLook), 7);
+            DrawTextureRect(_fieldTex, new Rect2(Vector2.Zero, MapSize), false);
+            GroundPass.Features(this, MapSize, biome, GroundPass.BuildPalette(biome, biome.SeasonLook));
+        }
         // Hand-painted grass tile folded into the turf (web hybrid
         // pipeline) — faint source-over under the speckle, off in winter.
         if (GrassTile > 0 && !Winter)
@@ -127,16 +206,25 @@ public partial class AlbedoPainter : Node2D
             // band overlaps its top edge.
             var wall = TerrainGeometry.Subtract(m.Wall, higher);
             foreach (var poly in wall)
-                Fill(poly, Palette.Tint(face, dirt ? -10 : -15));
+                Fill(poly, Palette.Tint(face, dirt ? -10 : -28));
 
             // Slope band — pre-clipped pieces, punched out of higher tops.
-            foreach (var poly in TerrainGeometry.Subtract(m.Band, higher))
+            var bandPieces = TerrainGeometry.Subtract(m.Band, higher);
+            foreach (var poly in bandPieces)
             {
                 Fill(poly, face);
-                // Hand-painted stone tile folded into the rocky face.
-                if (!dirt)
+                // Hand-painted stone tile folded into the rocky face —
+                // the ink pack leaves the slab face clean so the crack
+                // mesh carries the texture.
+                if (!dirt && Biome?.ArtPack != "ink")
                     TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.38f, 0.55);
             }
+            // Ink-pack crack mesh — the 2minutetabletop signature:
+            // a jittered three-way grid of fracture lines covering the
+            // stone face like polygonal slabs.
+            if (!dirt && Biome?.ArtPack == "ink")
+                foreach (var poly in bandPieces)
+                    CrackMesh(poly, face);
 
             // Terrace rings — the sedimentary strata.
             foreach (var (ring, tone) in _strata[m])
@@ -190,19 +278,19 @@ public partial class AlbedoPainter : Node2D
             // Cobble mosaic — larger rounded stones with real gaps, the
             // hand-drawn packed-rock look of the reference.
             var (xs, ys) = BBox(m.Base);
-            for (var y = ys.X; y < ys.Y; y += 15)
-            for (var x = xs.X; x < xs.Y; x += 15)
+            for (var y = ys.X; y < ys.Y; y += 17)
+            for (var x = xs.X; x < xs.Y; x += 17)
             {
                 var seed = x * 0.37 + y * 0.53;
-                if (Rng.Noise(seed) < 0.3)
+                if (Rng.Noise(seed) < 0.24)
                     continue;
                 var p = new Vector2(
-                    (float)(x + (Rng.Noise(seed + 1) - 0.5) * 8),
-                    (float)(y + (Rng.Noise(seed + 2) - 0.5) * 8)
+                    (float)(x + (Rng.Noise(seed + 1) - 0.5) * 9),
+                    (float)(y + (Rng.Noise(seed + 2) - 0.5) * 9)
                 );
                 if (!InBand(m, p))
                     continue;
-                var r = 4.6 + Rng.Noise(seed + 3) * (dirt ? 2.4 : 4.2);
+                var r = 6.5 + Rng.Noise(seed + 3) * (dirt ? 3.4 : 6.5);
                 var pebble = Poly.Ellipse(
                     p.X,
                     p.Y,
@@ -214,7 +302,7 @@ public partial class AlbedoPainter : Node2D
                     pebble,
                     Palette.Tint(face, -3 + Rng.Noise(seed + 6) * (12 + m.Roughness / 100 * 12))
                 );
-                DrawPolyline(pebble, Palette.TintAlpha(face, -24, 0.4), 0.9f, true);
+                DrawPolyline(pebble, Palette.TintAlpha(face, -28, 0.7), 1.1f, true);
             }
 
             // Wall interior: AO under the rim + strata arcs + cracks.

@@ -149,7 +149,7 @@ public partial class BridgePainter : Node2D
         var L = b.Length;
         var W = b.Width;
         // Shadow under the deck (drops south).
-        DrawColoredPolygon(
+        Fill(
             Rect(-L / 2 - 3, -W / 2 + 8, L + 6, W),
             new Color(0.05f, 0.06f, 0.04f, 0.22f)
         );
@@ -191,7 +191,7 @@ public partial class BridgePainter : Node2D
         var L = b.Length;
         var W = b.Width;
         var stone = Stone;
-        DrawColoredPolygon(
+        Fill(
             Rect(-L / 2 - 5, -W / 2 + 4, L + 10, W + 16),
             new Color(0.05f, 0.06f, 0.04f, 0.22f)
         );
@@ -207,11 +207,11 @@ public partial class BridgePainter : Node2D
             );
         // Arch mouth — two nested half-ellipses under the south edge.
         var archR = Math.Min(L * 0.28, 30);
-        DrawColoredPolygon(
+        Fill(
             Poly.Ellipse(0, W / 2 + 6, archR, 9, 0, 16)[..8],
             Palette.Hex("#2e3b34")
         );
-        DrawColoredPolygon(
+        Fill(
             Poly.Ellipse(0, W / 2 + 6, archR * 0.68, 5.5, 0, 16)[..8],
             Palette.Hex("#15211c")
         );
@@ -236,7 +236,7 @@ public partial class BridgePainter : Node2D
     {
         var L = b.Length;
         var W = b.Width;
-        DrawColoredPolygon(
+        Fill(
             Rect(-L / 2, -W / 2 + 9, L, W - 6),
             new Color(0.05f, 0.06f, 0.04f, 0.2f)
         );

@@ -31,9 +31,24 @@ public partial class WaterMask : Node2D
     {
         var white = Colors.White;
         foreach (var piece in WaterPainter.UnionAll(_rivers, 0))
-            DrawColoredPolygon(piece, white);
+            Fill(this, piece, white);
         foreach (var pond in _ponds)
-            if (pond.Length >= 3 && Geometry2D.TriangulatePolygon(pond).Length > 0)
-                DrawColoredPolygon(pond, white);
+            Fill(this, pond, white);
+    }
+
+    /// <summary>Same degenerate-sliver gate as the albedo painters —
+    /// clipper output can defeat the triangulator.</summary>
+    static void Fill(CanvasItem n, Vector2[] poly, Color color)
+    {
+        if (poly.Length < 3)
+            return;
+        if (Geometry2D.TriangulatePolygon(poly).Length > 0)
+        {
+            n.DrawColoredPolygon(poly, color);
+            return;
+        }
+        var simple = Interactions.SimplifyPath(poly, 1.2);
+        if (simple.Count >= 3 && Geometry2D.TriangulatePolygon([.. simple]).Length > 0)
+            n.DrawColoredPolygon([.. simple], color);
     }
 }

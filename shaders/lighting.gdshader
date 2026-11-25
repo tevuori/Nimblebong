@@ -76,7 +76,7 @@ void fragment() {
         float g = sin(wp.x * 0.31 + wp.y * 0.17 + TIME * 1.9)
                 * sin(wp.y * 0.37 - wp.x * 0.13 - TIME * 1.4);
         float glint = smoothstep(0.93, 1.0, g);
-        lit += vec3(0.9, 0.95, 1.0) * glint * 0.22 * w;
+        lit += vec3(0.9, 0.95, 1.0) * glint * 0.1 * w;
     }
     // Paper grain — fine two-scale value noise multiplying the sheet,
     // like pigment catching on paper (web paperGrain, ~0.085 strength).
