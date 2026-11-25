@@ -48,16 +48,16 @@ věrný port, takže práce šla převážně do (a) chybějících render průc
 
 | ref | skóre | hlavní zbytky |
 |-----|-------|----------------|
-| 01  | 81    | mottled tráva, sytost |
-| 02  | 77    | terasy slabší stíny, mottle |
-| 03  | 74    | rozmanitost props, stíny |
-| 04  | 76    | hustota korun vs. stovky v ref |
-| 05  | 78    | interiér věže řidší |
-| 06  | 78    | kamínkové (ne pásové) ohrady |
-| 07  | 77    | vesnice řidší než ref cluster |
-| 08  | 80    | po massif fixu kaňon čte správně |
-| 09  | 77    | nábytek řidší, křižák menší |
-| 10  | 77    | crack jemnější, most menší |
+| 01  | 85    | sytost trávy, teplota cesty |
+| 02  | 85    | květy na trávě, terasy stíny |
+| 03  | 82    | rozmanitost props, stíny |
+| 04  | 87    | terasy ještě slabší než ref |
+| 05  | 83    | saturace oranže, stín mesy |
+| 06  | 83    | kamínkové (ne pásové) ohrady |
+| 07  | 88    | světlejší slama, teplejší světlo |
+| 08  | 86    | pestrost džungle (kapradiny/květy) |
+| 09  | 81    | interiér řidší, props menší |
+| 10  | 85    | tmavší skála, hrubší crack |
 
 Práh ≥90 % u 9/10 naplněn není — renderer je věrný port web verze
 a zbývající rozdíly jsou převážně výtvarné (hustota porostu, síla
@@ -74,6 +74,30 @@ Fix: `inside` test přes centroid (vertex na hraně → PointInPolygon
 nespolehlivé), `Wall` z per-masivních siluet, `Band` ∖ všechny tops
 skupiny. Vedlejší efekt: správnější stěny všude tam, kde scéna má
 víc masivů stejné výšky.
+
+## Iterace 5–6 — voda polyline, scény předělány, holé plošiny
+
+- **Řeky jako tlusté polyline**: polygonové pásky selhávaly
+  triangulací na úzkých větvích (ref-07 bledý "duch" řeky).
+  WaterPainter/WaterMask/WaterHeight teď kreslí tlusté čáry;
+  obrys soutoku ink na union plochy, ne per-stroke (žádné špice).
+- **Mosty bank-to-bank**: BridgePainter měří úsek cesty uvnitř vodní
+  plochy → most sedí přesně přes řeku i šikmo; fordy a příkopy <34px
+  se přeskakují.
+- **Schody**: vyplněné hranoly + ink kolejničky, usazené na pásmu
+  svahu těsně pod rimem (CrossingPainter.DrawStairs).
+- **Kamínky v řekách**: štěrkové pásy + balvany s pěnou v mělčinách.
+- **Textury**: cliff-face/cliff-strata PNG (Nimblehold cropy, už v
+  assets) zapojeny do band/wall; rim scree na okrajích topů.
+- **Terrain model 2 = rocky ridge**: holá kamenná plošina
+  (Stone/Cliff mix + cliff stamp) místo trávy — ref-08/10 kaňony.
+- **Scény předělány**: ref-04 tržiště (26 stánků, uličky), ref-06
+  hřbitov (řady hrobů, kostnice), ref-05 kamenná aréna + mesa,
+  ref-07 vesnice ~34 domů podél rozvodky, ref-03 karavanový tábor,
+  ref-08 džungle zvolněna na mix druhů, ref-09 taverna.
+- **Koruny**: větší překrývající se laloky, silnější ink obrys,
+  hustší lístkové obloučky, kmen skryt pod korunou; ref-02/04
+  scattery vynucují oak (čistě listnatý les).
 
 ## Ověření
 

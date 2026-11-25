@@ -315,7 +315,7 @@ public partial class PropsPainter : Node2D
         {
             var w = Xform(p, part);
             Fill(w, edge);
-            Stroke(w, edge, (float)(2.4 * p.Scale));
+            Stroke(w, edge, (float)(3.1 * p.Scale));
         }
         // Base shade, then lit lobes shrunk toward the NW sun.
         foreach (var part in parts)
@@ -345,7 +345,7 @@ public partial class PropsPainter : Node2D
         // Leaf-arc texture in two tones.
         foreach (var tone in new[] { Palette.Mix(color, Colors.Black, 0.2), Palette.Mix(color, Colors.White, 0.18) })
         {
-            var n = (int)(r * 0.55);
+            var n = (int)(r * 0.78);
             for (var k = 0; k < n; k++)
             {
                 var a = rand.Next() * Math.PI * 2;
@@ -358,7 +358,7 @@ public partial class PropsPainter : Node2D
                     (float)(Math.PI * 1.15 + p.Rotation),
                     5,
                     tone,
-                    (float)Math.Max(0.6, 0.8 * p.Scale)
+                    (float)Math.Max(0.7, 1.0 * p.Scale)
                 );
             }
         }

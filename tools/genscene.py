@@ -286,13 +286,17 @@ def ref02():
                scale=10 + (i % 3) * 3)
     # Trees.
     s.scatter(blob(180, 560, 260, 12.3, n=24, squash=0.7), "tree",
-              step=58, density=0.85, smin=1.7, smax=2.8, seed=31)
+              step=58, density=0.85, smin=1.7, smax=2.8, seed=31,
+              species="oak")
     s.scatter(blob(700, 640, 340, 14.1, n=24, squash=0.5), "tree",
-              step=58, density=0.75, smin=1.6, smax=2.6, seed=37)
+              step=58, density=0.75, smin=1.6, smax=2.6, seed=37,
+              species="oak")
     s.scatter(blob(1080, 300, 200, 16.9, n=20, squash=0.9), "tree",
-              step=55, density=0.8, smin=1.7, smax=2.7, seed=41)
+              step=55, density=0.8, smin=1.7, smax=2.7, seed=41,
+              species="oak")
     s.scatter(blob(450, 200, 240, 43.1, n=20, squash=0.7), "tree",
-              step=58, density=0.75, smin=1.6, smax=2.5, seed=45)
+              step=58, density=0.75, smin=1.6, smax=2.5, seed=45,
+              species="oak")
     for x, y in [(140, 320), (260, 380), (60, 240)]:
         s.prop("tree", x, y, scale=24 * 2.5, seed=Scene.oakseed(x, y))
     s.save("ref-02")
@@ -547,6 +551,12 @@ def ref06():
         s.prop("tree", x, y, scale=24 * (1.5 + (i % 3) * 0.3),
                seed=Scene.oakseed(x, y), model=i % 4)
     s.prop("statue", 610, 290, scale=42)
+    for i, (x, y) in enumerate([(320, 300), (380, 240), (540, 200),
+                                (760, 210), (880, 300), (960, 360),
+                                (240, 520), (400, 580), (720, 480),
+                                (860, 540), (1040, 320), (140, 340)]):
+        s.prop("grave", x, y, scale=24 + (i % 3) * 4,
+               rot=rng(i * 31) * 0.8 - 0.4)
     s.save("ref-06")
 
 
