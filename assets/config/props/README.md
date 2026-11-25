@@ -25,7 +25,9 @@ variantu stačí nový JSON bez C#.
     "stone": "#8c9278"              //   foliage, foliageWarm, foliageCool, pine, stone,
   },                                //   wood, wall, roof, ink
   "tint": { "color": "@foliage", "amount": 0.22 },   // přimíchá barvu do všeho (0–1)
-  "adjust": { "hue": 0.0, "saturation": 1.0, "value": 1.0 }  // HSV: hue v otáčkách ±1
+  "adjust": { "hue": 0.0, "saturation": 1.0, "value": 1.0 }, // HSV: hue v otáčkách ±1
+  "protect": 1.2,                   // ochranná zóna (faktor), 0 = žádná; chybí = podle base
+  "keepOut": false                  // musí stát mimo cizí zóny? chybí = podle base
 }
 ```
 
@@ -35,3 +37,17 @@ Takový prop se pak přizpůsobí biomu i sezóně.
 
 Neznámý klíč vypíše varování a špatná hodnota vyhodí `ConfigException`
 s přesnou cestou (`props.mossy-boulder.tint.amount: expected number in [0, 1]`).
+
+## Ochranné zóny (`assets/config/placement.json`)
+
+Chráněné objekty (táborák, studna, …) mají kolem sebe kruh o poloměru
+`velikost/2 × faktor + padding`. Ostatní objekty se z něj při pokládání
+odsunou. Položení chráněného objektu (`clearOnPlace`) vyčistí kruh od
+stromů, keřů apod. Druhy v `except` smí stát kdekoli.
+
+Definice bez `protect`/`keepOut` dědí pravidla svého `base`, takže
+varianta táboráku je chráněná automaticky.
+
+**Vypnutí:** `"enabled": false` v `placement.json` vypne ochranu globálně.
+Za běhu to jde přes checkbox „Ignorovat ochranné zóny“ v editoru
+(`Placement.IgnoreProtection`).

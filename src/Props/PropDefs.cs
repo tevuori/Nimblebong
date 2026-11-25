@@ -52,6 +52,12 @@ public class PropDef
     public double Saturation = 1;
     public double Value = 1;
 
+    /// <summary>Protection zone factor (placement.json semantics);
+    /// 0 = unprotected; null = inherit from the base kind.</summary>
+    public double? Protect;
+    /// <summary>Must stay outside protection zones; null = inherit.</summary>
+    public bool? KeepOut;
+
     public bool Restyles =>
         TintColor != null && TintAmount > 0 || Hue != 0 || Saturation != 1 || Value != 1;
 
@@ -130,7 +136,7 @@ public static class PropDefs
     static readonly string[] Keys =
     [
         "label", "base", "category", "biomes", "scale", "footprint", "height",
-        "species", "model", "palette", "tint", "adjust",
+        "species", "model", "palette", "tint", "adjust", "protect", "keepOut",
     ];
 
     /// <summary>Validate + resolve one definition. Public so probes and
@@ -182,6 +188,13 @@ public static class PropDefs
             def.Species = d["species"].AsString();
         }
         def.Model = (int)Num(d, "model", -1, err, path, min: -1);
+        if (d.ContainsKey("protect"))
+            def.Protect = Num(d, "protect", 0, err, path, min: 0);
+        if (d.ContainsKey("keepOut"))
+        {
+            Need(d["keepOut"].VariantType == Variant.Type.Bool, "keepOut", "bool");
+            def.KeepOut = d["keepOut"].AsBool();
+        }
 
         if (d.ContainsKey("palette"))
         {

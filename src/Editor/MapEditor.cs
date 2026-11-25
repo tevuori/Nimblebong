@@ -2441,6 +2441,27 @@ public partial class MapEditor : Node2D
         };
         _variantSection.AddChild(_variantOpt);
 
+        // Protection override (assets/config/placement.json) — the prop
+        // and brush tools both place under it, so each gets a synced copy.
+        var ignoreBoxes = new List<CheckBox>();
+        foreach (var section in new[] { _variantSection, _brushSection })
+        {
+            var cb = new CheckBox
+            {
+                Text = "Ignorovat ochranné zóny",
+                ButtonPressed = Placement.IgnoreProtection,
+                TooltipText = "Objekty se položí přesně tam, kam klikneš — nic se neodsouvá ani nemaže kolem táboráků, studní apod.",
+            };
+            cb.Toggled += on =>
+            {
+                Placement.IgnoreProtection = on;
+                foreach (var other in ignoreBoxes)
+                    other.SetPressedNoSignal(on);
+            };
+            ignoreBoxes.Add(cb);
+            section.AddChild(cb);
+        }
+
         _waterSection = new VBoxContainer();
         box.AddChild(_waterSection);
         Slider(_waterSection, "Šířka řeky", 10, 60, _pRiverW, v => _pRiverW = v);
