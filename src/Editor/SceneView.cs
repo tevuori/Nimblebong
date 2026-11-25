@@ -178,6 +178,7 @@ public partial class SceneView : Node2D
         bridges.SetStrokes(Scene.Strokes);
         AddLayer(Stage.AlbedoVp, water);
         Stage.Water.SetWater(Scene);
+        Stage.Glow.SetGlow(Scene, Biome.Id);
         AddLayer(Stage.AlbedoVp, crossings);
         AddLayer(Stage.HeightVp, waterH);
         AddLayer(Stage.AlbedoVp, fortify);

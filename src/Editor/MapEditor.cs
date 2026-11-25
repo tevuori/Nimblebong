@@ -577,6 +577,18 @@ public partial class MapEditor : Node2D
             scene.Props.Add(
                 new Prop { Id = scene.AllocId(), Kind = "marker", X = 700, Y = 690, Scale = 22 }
             );
+            scene.Props.Add(
+                new Prop { Id = scene.AllocId(), Kind = "campfire", X = 620, Y = 700, Scale = 24 }
+            );
+            scene.Props.Add(
+                new Prop { Id = scene.AllocId(), Kind = "lantern", X = 760, Y = 660, Scale = 22 }
+            );
+            scene.Props.Add(
+                new Prop { Id = scene.AllocId(), Kind = "portal", X = 840, Y = 720, Scale = 26 }
+            );
+            scene.Props.Add(
+                new Prop { Id = scene.AllocId(), Kind = "crystal", X = 560, Y = 760, Scale = 22 }
+            );
             // Fog: reveal a strip across the left half, then re-shroud
             // a smaller patch inside it.
             scene.Fog.Add(

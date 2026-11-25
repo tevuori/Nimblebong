@@ -16,6 +16,7 @@ public partial class LightingStage : Node2D
     public HeightmapPainter Height = null!;
     public FogMask Fog = null!;
     public WaterMask Water = null!;
+    public GlowPainter Glow = null!;
     TextureRect _composite = null!;
 
     public static LightingStage Create(Vector2 mapSize)
@@ -48,6 +49,8 @@ public partial class LightingStage : Node2D
         material.SetShaderParameter("uHeight", stage.HeightVp.GetTexture());
         material.SetShaderParameter("uWater", stage.WaterVp.GetTexture());
         stage.FinalVp.AddChild(stage._composite);
+        stage.Glow = new GlowPainter();
+        stage.FinalVp.AddChild(stage.Glow);
         stage.AddChild(stage.AlbedoVp);
         stage.AddChild(stage.HeightVp);
         stage.AddChild(stage.FinalVp);
