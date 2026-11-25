@@ -64,6 +64,6 @@ void fragment() {
             if (occ > 0.985) break;
         }
     }
-    COLOR = vec4(albedo.rgb * (uAmbient * (1.0 - occ * 0.35) + uSunColor * diff * (1.0 - occ * 0.85)), 1.0);
+    COLOR = vec4(albedo.rgb * (uAmbient * (1.0 - occ * 0.45) + uSunColor * diff * (1.0 - occ * 0.85)), 1.0);
     }
 }

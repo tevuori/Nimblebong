@@ -1,6 +1,7 @@
 // Milestone-1 probe: builds a demo terrain scene, paints it through the
 // lighting stage, and with `-- --probe` (or headless) dumps the
 // composite to /tmp/godot-terrain.png for visual review.
+using System;
 using System.Collections.Generic;
 using Godot;
 
@@ -21,14 +22,22 @@ public partial class TerrainProbe : Node2D
         double size = 46
     )
     {
-        var pts = new Vector2[12];
-        for (var i = 0; i < 12; i++)
+        // Organic blob — radius modulated by a few seeded sinusoids,
+        // the way a drawn hill outline wanders.
+        const int n = 28;
+        var seed = cx * 0.31 + cy * 0.47;
+        var pts = new Vector2[n];
+        for (var i = 0; i < n; i++)
         {
-            var a = (i / 12.0) * Mathf.Tau;
-            var w = 0.8 + (i * 37 % 5) * 0.1;
+            var a = (i / (double)n) * Mathf.Tau;
+            var w =
+                1.0
+                + 0.16 * Math.Sin(a * 2 + seed)
+                + 0.1 * Math.Sin(a * 3 + seed * 1.7)
+                + 0.07 * Math.Sin(a * 5 + seed * 2.3);
             pts[i] = new Vector2(
                 (float)(cx + Mathf.Cos(a) * r * w),
-                (float)(cy + Mathf.Sin(a) * r * w)
+                (float)(cy + Mathf.Sin(a) * r * w * 0.82)
             );
         }
         return new TerrainShape

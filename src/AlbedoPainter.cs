@@ -41,11 +41,9 @@ public partial class AlbedoPainter : Node2D
         var face = FaceColor(m);
         (double f, double tone)[] steps =
         [
-            (0.95, -9),
-            (0.72, 4),
-            (0.55, -7),
-            (0.38, 6),
-            (0.24, -5),
+            (0.88, -6),
+            (0.58, 5),
+            (0.3, -7),
         ];
         for (var s = 0; s < steps.Length; s++)
         {
@@ -64,10 +62,9 @@ public partial class AlbedoPainter : Node2D
                 }
             }
         }
-        // Thin contour echoes floating in the face.
-        foreach (var f in new[] { 0.62, 0.36 })
-            foreach (var top in m.Tops)
-                contours.AddRange(TerrainGeometry.Offset(top, f * m.Size));
+        // One hairline contour echo floating in the face.
+        foreach (var top in m.Tops)
+            contours.AddRange(TerrainGeometry.Offset(top, 0.45 * m.Size));
         _strata[m] = rings;
         _contours[m] = contours;
     }
@@ -136,9 +133,9 @@ public partial class AlbedoPainter : Node2D
                         (float)System.Math.Max(5, m.Size * 0.24)
                     );
 
-            // Thin contour echoes.
+            // Hairline contour echo.
             foreach (var c in _contours[m])
-                DrawPolyline(c, Palette.Tint(face, -14), 1.6f, true);
+                DrawPolyline(c, Palette.TintAlpha(face, -16, 0.5), 1.2f, true);
 
             // Material patches — soft ellipses in shifted tints.
             foreach (var (point, angle, index) in Poly.SampleLine(m.Base, System.Math.Max(30, m.Size * 1.4)))
@@ -169,33 +166,34 @@ public partial class AlbedoPainter : Node2D
                 );
             }
 
-            // Cobble mosaic — jittered grid of small rounded stones.
+            // Cobble mosaic — larger rounded stones with real gaps, the
+            // hand-drawn packed-rock look of the reference.
             var (xs, ys) = BBox(m.Base);
-            for (var y = ys.X; y < ys.Y; y += 11)
-            for (var x = xs.X; x < xs.Y; x += 11)
+            for (var y = ys.X; y < ys.Y; y += 15)
+            for (var x = xs.X; x < xs.Y; x += 15)
             {
                 var seed = x * 0.37 + y * 0.53;
-                if (Rng.Noise(seed) < 0.18)
+                if (Rng.Noise(seed) < 0.3)
                     continue;
                 var p = new Vector2(
-                    (float)(x + (Rng.Noise(seed + 1) - 0.5) * 7),
-                    (float)(y + (Rng.Noise(seed + 2) - 0.5) * 7)
+                    (float)(x + (Rng.Noise(seed + 1) - 0.5) * 8),
+                    (float)(y + (Rng.Noise(seed + 2) - 0.5) * 8)
                 );
                 if (!InBand(m, p))
                     continue;
-                var r = 3.6 + Rng.Noise(seed + 3) * (dirt ? 2.2 : 3.4);
+                var r = 4.6 + Rng.Noise(seed + 3) * (dirt ? 2.4 : 4.2);
                 var pebble = Poly.Ellipse(
                     p.X,
                     p.Y,
                     r,
-                    r * (0.75 + Rng.Noise(seed + 4) * 0.3),
+                    r * (0.72 + Rng.Noise(seed + 4) * 0.3),
                     (Rng.Noise(seed + 5) - 0.5) * 0.9
                 );
                 Fill(
                     pebble,
-                    Palette.Tint(face, -4 + Rng.Noise(seed + 6) * (14 + m.Roughness / 100 * 14))
+                    Palette.Tint(face, -3 + Rng.Noise(seed + 6) * (12 + m.Roughness / 100 * 12))
                 );
-                DrawPolyline(pebble, Palette.TintAlpha(face, -20, 0.55), 0.7f, true);
+                DrawPolyline(pebble, Palette.TintAlpha(face, -24, 0.4), 0.9f, true);
             }
 
             // Wall interior: AO under the rim + strata arcs + cracks.
@@ -221,12 +219,17 @@ public partial class AlbedoPainter : Node2D
                 }
             }
 
-            // Boulders at the foot of the face.
+            // Boulders cluster at the south foot of the face — debris
+            // rolls downhill toward the viewer.
             if (!dirt)
-                foreach (var (point, angle, index) in Poly.SampleLine(m.Base, 52))
+            {
+                var footY = Poly.Centroid(m.Base).Y;
+                foreach (var (point, angle, index) in Poly.SampleLine(m.Base, 46))
                 {
                     var seed = point.X * 0.19 + point.Y * 0.43 + index;
-                    if (Rng.Noise(seed) < 0.9 - m.Roughness / 100 * 0.45)
+                    if (point.Y < footY - m.Size * 0.2)
+                        continue;
+                    if (Rng.Noise(seed) < 0.62 - m.Roughness / 100 * 0.3)
                         continue;
                     var na = angle + System.Math.PI / 2;
                     foreach (var dir in new[] { 1, -1 })
@@ -250,6 +253,7 @@ public partial class AlbedoPainter : Node2D
                         }
                     }
                 }
+            }
 
             // Rim lumps + ink + light line.
             if (!dirt)
@@ -271,8 +275,8 @@ public partial class AlbedoPainter : Node2D
                     }
             foreach (var top in m.Tops)
             {
-                DrawPolyline(top, ink, (float)(dirt ? 1.6 : 2), true);
-                DrawPolyline(top, Palette.Tint(face, 26), 1.4f, true);
+                DrawPolyline(top, ink, (float)(dirt ? 2.0 : 2.6), true);
+                DrawPolyline(top, Palette.Tint(face, 26), 1.6f, true);
             }
 
             // Tops — turf fill + mottle + speckle + scalloped lip.
@@ -282,10 +286,10 @@ public partial class AlbedoPainter : Node2D
                 var tR = (m.TopRoughness[ti]) / 100;
                 var tseed = top[0].X * 0.31 + top[0].Y * 0.47;
                 var dry = System.Math.Min(
-                    0.34,
-                    0.08 + m.Height * 0.0016 + tR * 0.1 + Rng.Noise(tseed) * 0.08
+                    0.18,
+                    0.04 + m.Height * 0.0008 + tR * 0.05 + Rng.Noise(tseed) * 0.04
                 );
-                var lift = 12 + Rng.Noise(tseed + 1) * 7;
+                var lift = 3 + Rng.Noise(tseed + 1) * 5;
                 Fill(top, Palette.Tint(Palette.Mix(Ground, Stone, dry), lift));
                 var (tx, ty) = BBox(top);
                 for (var i = 0; i < 12; i++)
@@ -331,20 +335,20 @@ public partial class AlbedoPainter : Node2D
                             : Palette.TintAlpha(Ground, -12, 0.09)
                     );
                 }
-                // Scalloped turf edge — darker arcs just inside the lip.
+                // Scalloped turf edge — darker arcs opening toward the
+                // plateau's center, just inside the lip.
+                var tcen = Poly.Centroid(top);
                 foreach (var (point, index) in Sample(top, 14))
                 {
                     var seed = point.X * 0.31 + point.Y * 0.37 + index;
                     var rr = 4 + Rng.Noise(seed) * 5;
-                    // Only the inward half shows (arc clipped by nothing —
-                    // draw an arc so the outer half is skipped by using
-                    // full circle at low alpha: cheap approximation).
+                    var inward = Mathf.Atan2(tcen.Y - point.Y, tcen.X - point.X);
                     DrawArc(
                         point,
                         (float)rr,
-                        0,
-                        Mathf.Tau,
-                        10,
+                        inward - 1.5f,
+                        inward + 1.5f,
+                        8,
                         Palette.TintAlpha(Ground, -10, 0.22),
                         2.5f
                     );
