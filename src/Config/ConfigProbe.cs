@@ -95,6 +95,7 @@ public partial class ConfigProbe : Node2D
         _stage.Albedo.Cliff = b.Cliff;
         _stage.Albedo.Stone = b.Stone;
         _stage.Albedo.QueueRedraw();
+        _stage.RefreshStatic();
     }
 
     async void DumpAllAndQuit()

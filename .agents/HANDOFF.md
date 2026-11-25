@@ -3,6 +3,29 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (6) — Devin, výkon editoru na hybridní NVIDIA
+
+**Hotovo:**
+- Hlavní zpomalení editoru byl neustálý re-render statických offscreen
+  vrstev. `albedo`, `heightmap`, vodní maska a mlha teď používají
+  `SubViewport.UpdateMode.Once`; `LightingStage.RefreshStatic()` je
+  znovu zapne po každém `SceneView.Rebuild()`. `FinalVp` zůstává
+  `Always`, protože voda a glow používají `TIME`.
+- `ConfigProbe` po přepnutí biomu explicitně refreshne statické vrstvy,
+  aby sweep biomů dál generoval správné výstupy.
+- Náhledy nástrojů se inicializují až po nastavení looku — už se při
+  startu negenerují dvakrát.
+
+**Ověření:**
+- `dotnet build --no-incremental` → 0 errors (17 známých warnings).
+- NVIDIA PRIME offload: stabilní 120 FPS (před opravou cca 8 FPS).
+- `DMMAP_PROBE=1` editor self-test prošel včetně move/select/fill/tokenů.
+- `scenes/probe-config.tscn` prošla, sweep vygeneroval 11 PNG; biomy se
+  skutečně překreslují (hashe woodland/desert se liší).
+
+**Poznámka:** pro vynucení NVIDIA na tomto hybridním notebooku spouštět
+s `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia`.
+
 ## 2026-11-25 (5) — Devin, merge do `main` + smart fill a zkratky
 
 **Hotovo:**

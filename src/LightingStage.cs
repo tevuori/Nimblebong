@@ -24,7 +24,7 @@ public partial class LightingStage : Node2D
         var stage = new LightingStage();
         stage.AlbedoVp = NewViewport(mapSize);
         stage.HeightVp = NewViewport(mapSize);
-        stage.FinalVp = NewViewport(mapSize);
+        stage.FinalVp = NewViewport(mapSize, SubViewport.UpdateMode.Always);
         stage.FogVp = NewViewport(mapSize);
         stage.FogVp.TransparentBg = true;
         stage.Fog = new FogMask { MapSize = mapSize };
@@ -68,15 +68,28 @@ public partial class LightingStage : Node2D
         return stage;
     }
 
-    static SubViewport NewViewport(Vector2 size) =>
+    static SubViewport NewViewport(
+        Vector2 size,
+        SubViewport.UpdateMode updateMode = SubViewport.UpdateMode.Once
+    ) =>
         new()
         {
             Size = (Vector2I)size,
             TransparentBg = false,
-            RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
+            RenderTargetUpdateMode = updateMode,
             HandleInputLocally = false,
             GuiDisableInput = true,
         };
+
+    /// <summary>Repaint the static inputs once after a scene rebuild.
+    /// Final stays continuous because water/glow animate with TIME.</summary>
+    public void RefreshStatic()
+    {
+        AlbedoVp.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
+        HeightVp.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
+        FogVp.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
+        WaterVp.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
+    }
 
     /// <summary>Set the sun uniforms on the composite shader.</summary>
     public void SetSun(Vector2 dir, float elev, bool shadows)

@@ -2918,6 +2918,7 @@ public partial class MapEditor : Node2D
         library.AddChild(scroll);
         _toolLib = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         scroll.AddChild(_toolLib);
+        SyncThumbLook();
         PopulateToolCards("");
 
         var genRow = new HBoxContainer();
@@ -2943,7 +2944,6 @@ public partial class MapEditor : Node2D
         genRow.AddChild(gen);
 
         UpdateToolUi();
-        SyncThumbLook();
 
         void RebuildSeasonOptions()
         {

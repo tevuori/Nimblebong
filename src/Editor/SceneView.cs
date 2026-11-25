@@ -270,6 +270,7 @@ public partial class SceneView : Node2D
         Stage.Fog.QueueRedraw();
 
         Mood.ApplyTo(Stage);
+        Stage.RefreshStatic();
     }
 
     void AddLayer(SubViewport vp, Node2D painter)
