@@ -377,6 +377,9 @@ public partial class MapEditor : Node2D
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _view.Stage.Snapshot().SavePng("/tmp/godot-editor.png");
         _view.Stage.FogImage().SavePng("/tmp/godot-fog.png");
+        for (var i = 0; i < 10; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GetViewport().GetTexture().GetImage().SavePng("/tmp/godot-screen.png");
         GD.Print("dumped /tmp/godot-editor.png");
 
         // ── generated map + selection move + crossings ──

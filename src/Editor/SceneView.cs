@@ -113,6 +113,20 @@ public partial class SceneView : Node2D
         AddLayer(Stage.AlbedoVp, areas);
         AddLayer(Stage.HeightVp, areaH);
 
+        // Buildings & interiors — house/room/floor footprints with
+        // roofs, wall rings and door/window openings carved from props.
+        var interiors = new InteriorPainter { Biome = Biome };
+        var interiorsH = new InteriorHeight();
+        interiorsH.SetMassifs(massifs);
+        foreach (var sh in Scene.Shapes)
+            if (sh.Kind is Kinds.House or Kinds.Room or Kinds.Floor)
+            {
+                interiors.Add(sh, Scene.Props);
+                interiorsH.Add(sh);
+            }
+        AddLayer(Stage.AlbedoVp, interiors);
+        AddLayer(Stage.HeightVp, interiorsH);
+
         var water = new WaterPainter { Water = Biome.Water };
         var waterH = new WaterHeight();
         var crossings = new CrossingPainter { WaterLight = Biome.Water };
@@ -140,8 +154,10 @@ public partial class SceneView : Node2D
         AddLayer(Stage.HeightVp, waterH);
         AddLayer(Stage.AlbedoVp, fortify);
 
+        var anchored = interiors.AnchoredPropIds;
         var props = Scene
-            .Props.Select(p =>
+            .Props.Where(p => !anchored.Contains(p.Id))
+            .Select(p =>
                 new PropPlacement(
                     MapProp(p.Kind),
                     p.X,
