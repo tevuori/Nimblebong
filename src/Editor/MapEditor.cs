@@ -10,25 +10,78 @@ namespace DmMap;
 
 public partial class MapEditor : Node2D
 {
-    public enum Tool
+    /// <summary>Input mode — how the tool turns mouse strokes into scene.</summary>
+    public enum Mode
     {
         Select,
-        Terrain,
-        River,
-        Road,
-        Pond,
-        Field,
-        Wall,
-        Fence,
-        Scatter,
-        Camp,
-        Tree,
-        Pine,
-        Rock,
-        Bush,
-        House,
         Erase,
+        Shape,
+        Stroke,
+        Prop,
     }
+
+    /// <summary>One palette entry: label + category + what it commits.</summary>
+    public readonly record struct ToolDef(
+        string Id,
+        string Label,
+        string Category,
+        Mode Mode,
+        string Kind
+    );
+
+    /// <summary>Full tool palette — categories follow the web editor's
+    /// toolCategories; labels are the Czech toolLabels.</summary>
+    public static readonly ToolDef[] Tools =
+    [
+        new("select", "Vybrat", "Nástroje", Mode.Select, ""),
+        new("erase", "Guma", "Nástroje", Mode.Erase, ""),
+        new("terrain", "Kopce a srázy", "Terén a voda", Mode.Shape, Kinds.Terrain),
+        new("river", "Řeky", "Terén a voda", Mode.Stroke, Kinds.River),
+        new("pond", "Jezírka", "Terén a voda", Mode.Shape, Kinds.Pond),
+        new("field", "Pole a louky", "Terén a voda", Mode.Shape, Kinds.Field),
+        new("road", "Cesty", "Cesty", Mode.Stroke, Kinds.Road),
+        new("wall", "Kamenné zdi", "Cesty", Mode.Stroke, Kinds.Wall),
+        new("fence", "Ploty", "Cesty", Mode.Stroke, Kinds.Fence),
+        new("dock", "Doky a mola", "Cesty", Mode.Prop, "dock"),
+        new("house", "Budovy", "Stavby", Mode.Prop, Kinds.House),
+        new("tower", "Strážní věže", "Stavby", Mode.Prop, "tower"),
+        new("stall", "Tržní stánky", "Stavby", Mode.Prop, "stall"),
+        new("tent", "Stany", "Stavby", Mode.Prop, "tent"),
+        new("door", "Dveře", "Interiér", Mode.Prop, "door"),
+        new("window", "Okna", "Interiér", Mode.Prop, "window"),
+        new("table", "Stoly", "Interiér", Mode.Prop, "table"),
+        new("bed", "Postele", "Interiér", Mode.Prop, "bed"),
+        new("shelf", "Knihovny a regály", "Interiér", Mode.Prop, "shelf"),
+        new("rug", "Koberce", "Interiér", Mode.Prop, "rug"),
+        new("fireplace", "Krby", "Interiér", Mode.Prop, "fireplace"),
+        new("tree", "Stromy", "Porost a příroda", Mode.Prop, Kinds.Tree),
+        new("pine", "Borovice", "Porost a příroda", Mode.Prop, "pine"),
+        new("bush", "Keře", "Porost a příroda", Mode.Prop, Kinds.Bush),
+        new("scatter", "Porosty", "Porost a příroda", Mode.Shape, Kinds.Scatter),
+        new("rock", "Skály", "Porost a příroda", Mode.Prop, Kinds.Rock),
+        new("stonecircle", "Kamenné kruhy", "Porost a příroda", Mode.Prop, "stonecircle"),
+        new("crystal", "Krystaly", "Porost a příroda", Mode.Prop, "crystal"),
+        new("bale", "Balíky", "Porost a příroda", Mode.Prop, "bale"),
+        new("camp", "Tábory a skupiny", "Osídlení a dekorace", Mode.Prop, Kinds.Camp),
+        new("campfire", "Ohniště", "Osídlení a dekorace", Mode.Prop, "campfire"),
+        new("cart", "Vozy", "Osídlení a dekorace", Mode.Prop, "cart"),
+        new("boat", "Lodě", "Osídlení a dekorace", Mode.Prop, "boat"),
+        new("well", "Studny", "Osídlení a dekorace", Mode.Prop, "well"),
+        new("crate", "Bedny", "Osídlení a dekorace", Mode.Prop, "crate"),
+        new("barrel", "Sudy", "Osídlení a dekorace", Mode.Prop, "barrel"),
+        new("fountain", "Kašny", "Osídlení a dekorace", Mode.Prop, "fountain"),
+        new("lantern", "Lampy a pochodně", "Osídlení a dekorace", Mode.Prop, "lantern"),
+        new("flag", "Praporky", "Osídlení a dekorace", Mode.Prop, "flag"),
+        new("pillar", "Sloupy", "Osídlení a dekorace", Mode.Prop, "pillar"),
+        new("statue", "Sochy", "Osídlení a dekorace", Mode.Prop, "statue"),
+        new("ruin", "Zříceniny", "Osídlení a dekorace", Mode.Prop, "ruin"),
+        new("grave", "Hroby", "Osídlení a dekorace", Mode.Prop, "grave"),
+        new("chest", "Truhly", "Osídlení a dekorace", Mode.Prop, "chest"),
+        new("bones", "Kosti a lebky", "Osídlení a dekorace", Mode.Prop, "bones"),
+        new("barricade", "Zábrany", "Osídlení a dekorace", Mode.Prop, "barricade"),
+        new("portal", "Magické brány", "Osídlení a dekorace", Mode.Prop, "portal"),
+        new("marker", "Značky", "Mapa a hra", Mode.Prop, "marker"),
+    ];
 
     static readonly Vector2 MapSize = new(1600, 1000);
 
@@ -38,7 +91,7 @@ public partial class MapEditor : Node2D
     Camera2D _camera = null!;
 
     // Current tool + parameters.
-    Tool _tool = Tool.Terrain;
+    ToolDef _tool = Tools[2]; // terrain
     double _pHeight = 30;
     double _pSlope = 46;
     double _pRough = 0;
@@ -98,7 +151,7 @@ public partial class MapEditor : Node2D
     public override void _Process(double delta)
     {
         var now = Time.GetTicksMsec();
-        if (_drawing && _tool == Tool.Terrain && _draftAt > 0 && now >= _draftAt)
+        if (_drawing && _tool.Kind == Kinds.Terrain && _draftAt > 0 && now >= _draftAt)
         {
             _draftAt = 0;
             UpdateDraftPreview();
@@ -198,9 +251,9 @@ public partial class MapEditor : Node2D
                 }
             )
         );
-        _tool = Tool.Tree;
+        SetTool("tree");
         PlacePropAt(new Vector2(390, 280));
-        _tool = Tool.House;
+        SetTool("house");
         PlacePropAt(new Vector2(800, 600));
         Undo(); // house away — verify undo rebuilds cleanly
 
@@ -253,7 +306,7 @@ public partial class MapEditor : Node2D
                 }
             );
         });
-        _tool = Tool.Scatter;
+        SetTool("scatter");
         BeginStroke(); // fake a scatter commit straight through Commit
         var scat = new List<Vector2>();
         for (var i = 0; i < 12; i++)
@@ -264,10 +317,10 @@ public partial class MapEditor : Node2D
         _stroke.Clear();
         _stroke.AddRange(scat);
         EndStroke();
-        _tool = Tool.Camp;
+        SetTool("camp");
         PlacePropAt(new Vector2(700, 750));
         // Protection: a tree inside the campfire zone must be nudged out.
-        _tool = Tool.Tree;
+        SetTool("tree");
         PlacePropAt(new Vector2(700, 750));
         for (var i = 0; i < 8; i++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -388,7 +441,7 @@ public partial class MapEditor : Node2D
         if (!_drawing)
             return;
         var p = GetGlobalMousePosition();
-        if (_tool == Tool.Select)
+        if (_tool.Mode == Mode.Select)
         {
             if (_selMoving)
                 MoveSelectionTo(p);
@@ -398,19 +451,19 @@ public partial class MapEditor : Node2D
         {
             _stroke.Add(p);
             _ghost.SetStroke(_tool, _stroke, StrokeWidth());
-            if (_tool == Tool.Terrain && _stroke.Count >= 6 && _draftAt == 0)
+            if (_tool.Kind == Kinds.Terrain && _stroke.Count >= 6 && _draftAt == 0)
                 _draftAt = Time.GetTicksMsec() + 120;
-            if (IsPropTool(_tool) && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
+            if (_tool.Mode == Mode.Prop && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
                 PlacePropAt(p);
         }
     }
 
     double StrokeWidth() =>
-        _tool switch
+        _tool.Kind switch
         {
-            Tool.River => _pRiverW,
-            Tool.Road => _pRoadW,
-            Tool.Wall => 20,
+            Kinds.River => _pRiverW,
+            Kinds.Road => _pRoadW,
+            Kinds.Wall => 20,
             _ => 8,
         };
 
@@ -419,11 +472,11 @@ public partial class MapEditor : Node2D
         _stroke.Clear();
         _stroke.Add(GetGlobalMousePosition());
         _drawing = true;
-        if (_tool == Tool.Select)
+        if (_tool.Mode == Mode.Select)
             BeginSelect(_stroke[0]);
-        else if (IsPropTool(_tool))
+        else if (_tool.Mode == Mode.Prop)
             PlacePropAt(_stroke[0]);
-        else if (_tool == Tool.Erase)
+        else if (_tool.Mode == Mode.Erase)
             EraseAt(_stroke[0]);
     }
 
@@ -431,7 +484,7 @@ public partial class MapEditor : Node2D
     {
         _drawing = false;
         _draftAt = 0;
-        if (_tool == Tool.Select)
+        if (_tool.Mode == Mode.Select)
         {
             EndSelect(GetGlobalMousePosition());
             return;
@@ -441,9 +494,22 @@ public partial class MapEditor : Node2D
         if (_stroke.Count < 2)
             return;
         var pts = Interactions.SimplifyPath(_stroke, 2.0);
-        switch (_tool)
+        switch (_tool.Mode)
         {
-            case Tool.Terrain:
+            case Mode.Stroke:
+                Commit(scene =>
+                {
+                    var stroke = new Stroke
+                    {
+                        Id = scene.AllocId(),
+                        Kind = _tool.Kind,
+                        Points = pts,
+                        Width = StrokeWidth(),
+                    };
+                    Interactions.AddStroke(scene, stroke);
+                });
+                break;
+            case Mode.Shape when _tool.Kind == Kinds.Terrain:
                 if (pts.Count >= 6)
                     Commit(scene =>
                     {
@@ -460,44 +526,21 @@ public partial class MapEditor : Node2D
                         scene.Shapes = Interactions.MergeShapeInto(scene, shape);
                     });
                 break;
-            case Tool.River:
-            case Tool.Road:
-            case Tool.Wall:
-            case Tool.Fence:
-                Commit(scene =>
-                {
-                    var stroke = new Stroke
-                    {
-                        Id = scene.AllocId(),
-                        Kind = _tool switch
-                        {
-                            Tool.River => Kinds.River,
-                            Tool.Wall => Kinds.Wall,
-                            Tool.Fence => Kinds.Fence,
-                            _ => Kinds.Road,
-                        },
-                        Points = pts,
-                        Width = StrokeWidth(),
-                    };
-                    Interactions.AddStroke(scene, stroke);
-                });
-                break;
-            case Tool.Pond:
-            case Tool.Field:
+            case Mode.Shape when _tool.Kind is Kinds.Pond or Kinds.Field:
                 if (pts.Count >= 6)
                     Commit(scene =>
                     {
                         var shape = new Shape
                         {
                             Id = scene.AllocId(),
-                            Kind = _tool == Tool.Pond ? Kinds.Pond : Kinds.Field,
+                            Kind = _tool.Kind,
                             Points = pts,
                             Size = 24,
                         };
                         scene.Shapes = Interactions.MergeShapeInto(scene, shape);
                     });
                 break;
-            case Tool.Scatter:
+            case Mode.Shape when _tool.Kind == Kinds.Scatter:
                 if (pts.Count >= 6)
                     Commit(scene =>
                     {
@@ -538,8 +581,7 @@ public partial class MapEditor : Node2D
         _stroke.Clear();
     }
 
-    static bool IsPropTool(Tool t) =>
-        t is Tool.Tree or Tool.Pine or Tool.Rock or Tool.Bush or Tool.House or Tool.Camp;
+
 
     // ── Selection (move / delete / param edit) ────────────────────
 
@@ -764,15 +806,7 @@ public partial class MapEditor : Node2D
             });
             return;
         }
-        var kind = _tool switch
-        {
-            Tool.Pine => "pine",
-            Tool.Rock => Kinds.Rock,
-            Tool.Bush => Kinds.Bush,
-            Tool.House => Kinds.House,
-            Tool.Camp => Kinds.Camp,
-            _ => Kinds.Tree,
-        };
+        var kind = _tool.Kind;
         Commit(scene =>
             Interactions.PlaceProtected(
                 scene,
@@ -782,7 +816,7 @@ public partial class MapEditor : Node2D
                     Kind = kind,
                     X = p.X,
                     Y = p.Y,
-                    Scale = _tool == Tool.House ? 26 : 24,
+                    Scale = _tool.Kind is Kinds.House or "tower" or "stall" ? 26 : 24,
                     Rotation = 0,
                     Seed = (int)(p.X * 0.37 + p.Y * 0.53),
                 }
@@ -915,6 +949,67 @@ public partial class MapEditor : Node2D
         _syncing = false;
     }
 
+    // ── Tool palette ────────────────────────────────────────────────
+
+    Tree _toolTree = null!;
+
+    void SetTool(string id)
+    {
+        foreach (var t in Tools)
+            if (t.Id == id)
+            {
+                _tool = t;
+                return;
+            }
+    }
+
+    /// <summary>Categorized tool browser — Nimblehold-style sections,
+    /// filtered by the search box (diacritics-folded contains).</summary>
+    void PopulateToolTree(string needle)
+    {
+        needle = Fold(needle.Trim());
+        _toolTree.Clear();
+        var root = _toolTree.CreateItem();
+        foreach (var cat in Tools.Select(t => t.Category).Distinct())
+        {
+            var items = Tools
+                .Where(t => t.Category == cat)
+                .Where(t => needle == "" || Fold(t.Label + " " + t.Id).Contains(needle))
+                .ToList();
+            if (items.Count == 0)
+                continue;
+            var catItem = _toolTree.CreateItem(root);
+            catItem.SetText(0, cat);
+            catItem.SetSelectable(0, false);
+            foreach (var t in items)
+            {
+                var it = _toolTree.CreateItem(catItem);
+                it.SetText(0, t.Label);
+                it.SetMetadata(0, t.Id);
+            }
+            catItem.Collapsed = needle == "" && cat != _tool.Category;
+        }
+    }
+
+    /// <summary>Lowercase + strip Czech diacritics for search.</summary>
+    static string Fold(string s) =>
+        s.ToLowerInvariant()
+            .Replace("á", "a")
+            .Replace("č", "c")
+            .Replace("ď", "d")
+            .Replace("é", "e")
+            .Replace("ě", "e")
+            .Replace("í", "i")
+            .Replace("ň", "n")
+            .Replace("ó", "o")
+            .Replace("ř", "r")
+            .Replace("š", "s")
+            .Replace("ť", "t")
+            .Replace("ú", "u")
+            .Replace("ů", "u")
+            .Replace("ý", "y")
+            .Replace("ž", "z");
+
     // ── UI ───────────────────────────────────────────────────────
 
     void BuildUi()
@@ -931,41 +1026,22 @@ public partial class MapEditor : Node2D
         panel.AddChild(box);
 
         box.AddChild(new Label { Text = "Nástroje" });
-        var grid = new GridContainer { Columns = 2 };
-        box.AddChild(grid);
-        var group = new ButtonGroup();
-        (string Label, Tool T)[] tools =
-        [
-            ("Vybrat", Tool.Select),
-            ("Terén", Tool.Terrain),
-            ("Řeka", Tool.River),
-            ("Cesta", Tool.Road),
-            ("Rybník", Tool.Pond),
-            ("Pole", Tool.Field),
-            ("Zeď", Tool.Wall),
-            ("Plot", Tool.Fence),
-            ("Porost", Tool.Scatter),
-            ("Tábor", Tool.Camp),
-            ("Strom", Tool.Tree),
-            ("Borovice", Tool.Pine),
-            ("Kámen", Tool.Rock),
-            ("Keř", Tool.Bush),
-            ("Dům", Tool.House),
-            ("Guma", Tool.Erase),
-        ];
-        foreach (var (label, t) in tools)
+        var search = new LineEdit { PlaceholderText = "Hledat nástroj…" };
+        box.AddChild(search);
+        _toolTree = new Tree
         {
-            var btn = new Button
-            {
-                Text = label,
-                ToggleMode = true,
-                ButtonGroup = group,
-                ButtonPressed = t == _tool,
-            };
-            var tool = t;
-            btn.Pressed += () => _tool = tool;
-            grid.AddChild(btn);
-        }
+            HideRoot = true,
+            CustomMinimumSize = new Vector2(0, 260),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        _toolTree.ItemSelected += () =>
+        {
+            if (_toolTree.GetSelected()?.GetMetadata(0).AsString() is { Length: > 0 } id)
+                SetTool(id);
+        };
+        search.TextChanged += _ => PopulateToolTree(search.Text);
+        box.AddChild(_toolTree);
+        PopulateToolTree("");
 
         box.AddChild(new HSeparator());
         box.AddChild(new Label { Text = "Terén" });
@@ -1089,7 +1165,8 @@ public partial class MapEditor : Node2D
 /// the baked composite.</summary>
 public partial class GhostLayer : Node2D
 {
-    MapEditor.Tool _tool;
+    MapEditor.Mode _mode;
+    string _kind = "";
     List<Vector2> _pts = [];
     double _width;
     Massif? _draft;
@@ -1097,9 +1174,9 @@ public partial class GhostLayer : Node2D
     Vector2[]? _selLine;
     Vector2[]? _selOutline;
 
-    public void SetStroke(MapEditor.Tool tool, List<Vector2> pts, double width)
+    public void SetStroke(MapEditor.ToolDef tool, List<Vector2> pts, double width)
     {
-        (_tool, _pts, _width) = (tool, [.. pts], width);
+        (_mode, _kind, _pts, _width) = (tool.Mode, tool.Kind, [.. pts], width);
         QueueRedraw();
     }
 
@@ -1160,26 +1237,18 @@ public partial class GhostLayer : Node2D
         if (_pts.Count < 2)
             return;
         var pts = _pts.ToArray();
-        switch (_tool)
+        if (_mode == MapEditor.Mode.Shape)
         {
-            case MapEditor.Tool.Terrain:
-            case MapEditor.Tool.Pond:
-            case MapEditor.Tool.Field:
-            case MapEditor.Tool.Scatter:
-                DrawPolyline([.. pts, pts[0]], new Color(0.2f, 0.18f, 0.1f, 0.7f), 2);
-                break;
-            case MapEditor.Tool.Wall:
-                DrawPolyline(pts, new Color(0.72f, 0.71f, 0.6f, 0.5f), (float)_width);
-                break;
-            case MapEditor.Tool.Fence:
-                DrawPolyline(pts, new Color(0.43f, 0.34f, 0.24f, 0.5f), 2);
-                break;
-            case MapEditor.Tool.River:
-                DrawPolyline(pts, new Color(0.16f, 0.56f, 0.6f, 0.5f), (float)_width);
-                break;
-            case MapEditor.Tool.Road:
-                DrawPolyline(pts, new Color(0.82f, 0.72f, 0.49f, 0.5f), (float)_width);
-                break;
+            DrawPolyline([.. pts, pts[0]], new Color(0.2f, 0.18f, 0.1f, 0.7f), 2);
+            return;
         }
+        var col = _kind switch
+        {
+            Kinds.Wall => new Color(0.72f, 0.71f, 0.6f, 0.5f),
+            Kinds.Fence => new Color(0.43f, 0.34f, 0.24f, 0.5f),
+            Kinds.River => new Color(0.16f, 0.56f, 0.6f, 0.5f),
+            _ => new Color(0.82f, 0.72f, 0.49f, 0.5f),
+        };
+        DrawPolyline(pts, col, (float)_width);
     }
 }
