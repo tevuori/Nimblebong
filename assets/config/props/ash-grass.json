@@ -1,0 +1,30 @@
+{
+  "label": "Spálená tráva",
+  "base": "flora",
+  "category": "flora",
+  "biomes": [
+    "volcanic"
+  ],
+  "scale": 0.55,
+  "flora": {
+    "form": "tuft",
+    "count": [
+      8,
+      12
+    ],
+    "radius": 7,
+    "length": [
+      4,
+      7
+    ],
+    "width": 1.4,
+    "leaf": "#5a5246",
+    "leafDark": "#2e2a25",
+    "accents": [
+      "#e0702a"
+    ],
+    "accentSize": 1,
+    "accentChance": 0.15,
+    "ink": 0
+  }
+}

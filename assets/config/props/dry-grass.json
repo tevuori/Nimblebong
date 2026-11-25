@@ -1,0 +1,26 @@
+{
+  "label": "Suchá tráva",
+  "base": "flora",
+  "category": "flora",
+  "biomes": [
+    "desert",
+    "volcanic"
+  ],
+  "scale": 0.6,
+  "flora": {
+    "form": "tuft",
+    "count": [
+      10,
+      14
+    ],
+    "radius": 8,
+    "length": [
+      5,
+      10
+    ],
+    "width": 1.4,
+    "leaf": "#b9a465",
+    "leafDark": "#7d6a3e",
+    "ink": 0
+  }
+}

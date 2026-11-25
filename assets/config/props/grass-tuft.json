@@ -1,0 +1,26 @@
+{
+  "label": "Trs trávy",
+  "base": "flora",
+  "category": "flora",
+  "biomes": [
+    "woodland",
+    "swamp",
+    "alpine"
+  ],
+  "scale": 0.6,
+  "flora": {
+    "form": "tuft",
+    "count": [
+      11,
+      16
+    ],
+    "radius": 8,
+    "length": [
+      6,
+      11
+    ],
+    "width": 1.5,
+    "leaf": "@foliage",
+    "ink": 0
+  }
+}

@@ -60,6 +60,7 @@ public partial class PropsHeight : Node2D
         // a long raymarched streak that reads as a scratch, not a bird.
         { PropKind.Butterfly, (3, 0.02) },
         { PropKind.Bird, (4, 0.04) },
+        { PropKind.Flora, (8, 0.012) },
     };
 
     // Terrain height sampler — terrace rings cached like the heightmap

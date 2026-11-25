@@ -73,6 +73,11 @@ Na repu pracuje víc AI (a lidé) střídavě, někdy i souběžně. Proto:
 
 ## Prostředí
 
+Godot 4.7.2 .NET na stroji lukas:
+`~/Downloads/Godot_v4.7.2-stable_mono_linux_x86_64/Godot_v4.7.2-stable_mono_linux.x86_64`.
+Systémový `godot` (Fedora balíček) je **bez C#**. Neotvírej s ním projekt,
+smaže z `project.godot` feature `"C#"`.
+
 Cesty v `ARCHITECTURE.md`/`Enhance.md` (`/home/tevuori/...`) pocházejí
 z jiného stroje. Na aktuálním stroji neexistují, proto si cestu ke Godot
 4.7.2 mono binárce ověř. Webová TS reference (`DMmap`) a Nimblehold analýza

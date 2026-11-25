@@ -62,6 +62,9 @@ public enum PropKind
     Butterfly,
     /// <summary>Soaring bird — a two-arc chevron high above (smart fill).</summary>
     Bird,
+    /// <summary>Parametric plant (grass, fern, flowers, reeds…) — shape
+    /// from the prop definition's "flora" block (PropsFlora.cs).</summary>
+    Flora,
 }
 
 /// <summary>One placed map object. Scale is a multiplier on the kind's

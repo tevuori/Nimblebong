@@ -515,7 +515,10 @@ public static class Interactions
     static readonly HashSet<string> WaterAllowed =
         ["boat", Kinds.Dock, Kinds.Waterfall, "butterfly", "bird"];
 
-    public static bool WaterKind(string kind) => WaterAllowed.Contains(kind);
+    public static bool WaterKind(string kind) =>
+        PropDefs.TryGet(kind, out var def) && def.Water is { } w
+            ? w
+            : WaterAllowed.Contains(PropDefs.BaseKind(kind));
 
     /// <summary>True when a point inflated by `pad` touches any river
     /// stroke or pond shape — the dry-land rule for props.</summary>

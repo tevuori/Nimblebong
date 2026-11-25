@@ -167,6 +167,9 @@ public partial class ConfigProbe : Node2D
             PropDefs.Reload();
             foreach (var def in PropDefs.All.Values)
                 GD.Print($"prop {def.Id}  base={def.Base} \"{def.Label}\"");
+            FillRules.Reload();
+            foreach (var layer in FillRules.Config.Layers)
+                GD.Print($"fill layer {layer.Id}  contexts={string.Join(",", layer.Contexts.Keys)}");
         }
         catch (Exception e)
         {

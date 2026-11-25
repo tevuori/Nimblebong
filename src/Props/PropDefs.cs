@@ -58,10 +58,45 @@ public class PropDef
     /// <summary>Must stay outside protection zones; null = inherit.</summary>
     public bool? KeepOut;
 
+    /// <summary>Allowed in water (lily pads, reeds…); null = inherit
+    /// from the base kind (Interactions.WaterKind).</summary>
+    public bool? Water;
+    /// <summary>Parametric plant shape — required when Base is Flora.</summary>
+    public FloraSpec? Flora;
+
     public bool Restyles =>
         TintColor != null && TintAmount > 0 || Hue != 0 || Saturation != 1 || Value != 1;
 
     public bool InBiome(string biome) => Biomes.Count == 0 || Biomes.Contains(biome);
+}
+
+/// <summary>Parametric plant for the flora drawer (PropsFlora.cs):
+/// one of a few top-down forms, sized and colored from JSON.</summary>
+public class FloraSpec
+{
+    public static readonly string[] Forms =
+        ["tuft", "fern", "flowers", "reeds", "mushrooms", "lilypads", "groundcover"];
+
+    public string Form = "tuft";
+    /// <summary>Blades / fronds / stems / caps / pads / blobs, min–max.</summary>
+    public int CountMin = 5, CountMax = 9;
+    /// <summary>Spread of the clump in prop-local px (24 px prop ≈ 12).</summary>
+    public double Radius = 8;
+    /// <summary>Blade / frond / stem length min–max (local px).</summary>
+    public double LengthMin = 5, LengthMax = 9;
+    /// <summary>Stroke width of blades and ribs (local px).</summary>
+    public double Width = 1.2;
+    /// <summary>Color specs ("#hex" / "@biomeColor"); LeafDark null =
+    /// Leaf darkened.</summary>
+    public string Leaf = "@foliage";
+    public string? LeafDark;
+    /// <summary>Flower heads, mushroom caps, cattails, pad blossoms.</summary>
+    public List<string> Accents = [];
+    /// <summary>Accent size (local px) and share of stems/pads that get one.</summary>
+    public double AccentSize = 1.6;
+    public double AccentChance = 0.5;
+    /// <summary>Ink outline strength 0–1.</summary>
+    public double Ink = 0.4;
 }
 
 public static class PropDefs
@@ -137,6 +172,7 @@ public static class PropDefs
     [
         "label", "base", "category", "biomes", "scale", "footprint", "height",
         "species", "model", "palette", "tint", "adjust", "protect", "keepOut",
+        "water", "flora",
     ];
 
     /// <summary>Validate + resolve one definition. Public so probes and
@@ -239,9 +275,84 @@ public static class PropDefs
                 def.Value = Num(a, "value", 1, err, $"{path}.adjust", min: 0);
             }
         }
+        if (d.ContainsKey("water"))
+        {
+            Need(d["water"].VariantType == Variant.Type.Bool, "water", "bool");
+            def.Water = d["water"].AsBool();
+        }
+        if (d.ContainsKey("flora"))
+        {
+            if (d["flora"].VariantType != Variant.Type.Dictionary)
+                Need(false, "flora", "object");
+            else
+                def.Flora = ParseFlora(d["flora"].AsGodotDictionary(), $"{path}.flora", err);
+        }
+        if (def.Base == PropKind.Flora && def.Flora == null)
+            Need(false, "flora", "object (required for base \"flora\")");
         if (err.Count > 0)
             throw new ConfigException(string.Join("\n", err));
         return def;
+    }
+
+    static FloraSpec ParseFlora(JsonDict f, string path, List<string> err)
+    {
+        Warn(f, path,
+        [
+            "form", "count", "radius", "length", "width", "leaf", "leafDark",
+            "accents", "accentSize", "accentChance", "ink",
+        ]);
+        var spec = new FloraSpec();
+        var form = Get(f, "form");
+        if (IsStr(form) && FloraSpec.Forms.Contains(form.AsString()))
+            spec.Form = form.AsString();
+        else
+            err.Add($"{path}.form: expected {string.Join("/", FloraSpec.Forms)}");
+        (double, double) Range(string key, double a, double b)
+        {
+            if (!f.ContainsKey(key))
+                return (a, b);
+            var v = f[key];
+            if (IsNum(v) && v.AsDouble() >= 0)
+                return (v.AsDouble(), v.AsDouble());
+            if (v.VariantType == Variant.Type.Array && v.AsGodotArray() is { Count: 2 } arr
+                && arr.All(IsNum) && arr[0].AsDouble() >= 0 && arr[0].AsDouble() <= arr[1].AsDouble())
+                return (arr[0].AsDouble(), arr[1].AsDouble());
+            err.Add($"{path}.{key}: expected number or [min, max]");
+            return (a, b);
+        }
+        var (cmin, cmax) = Range("count", spec.CountMin, spec.CountMax);
+        (spec.CountMin, spec.CountMax) = ((int)Math.Round(cmin), (int)Math.Round(cmax));
+        (spec.LengthMin, spec.LengthMax) = Range("length", spec.LengthMin, spec.LengthMax);
+        spec.Radius = Num(f, "radius", spec.Radius, err, path, min: 0);
+        spec.Width = Num(f, "width", spec.Width, err, path, min: 0.1);
+        spec.AccentSize = Num(f, "accentSize", spec.AccentSize, err, path, min: 0);
+        spec.AccentChance = Num(f, "accentChance", spec.AccentChance, err, path, min: 0, max: 1);
+        spec.Ink = Num(f, "ink", spec.Ink, err, path, min: 0, max: 1);
+        string? Color(string key)
+        {
+            if (!f.ContainsKey(key))
+                return null;
+            if (IsColorSpec(f[key]))
+                return f[key].AsString();
+            err.Add($"{path}.{key}: expected \"#rrggbb[aa]\" or \"@biomeColor\"");
+            return null;
+        }
+        spec.Leaf = Color("leaf") ?? spec.Leaf;
+        spec.LeafDark = Color("leafDark");
+        if (f.ContainsKey("accents"))
+        {
+            if (f["accents"].VariantType != Variant.Type.Array)
+                err.Add($"{path}.accents: expected array of colors");
+            else
+                foreach (var a in f["accents"].AsGodotArray())
+                {
+                    if (IsColorSpec(a))
+                        spec.Accents.Add(a.AsString());
+                    else
+                        err.Add($"{path}.accents[]: expected \"#rrggbb[aa]\" or \"@biomeColor\"");
+                }
+        }
+        return spec;
     }
 
     /// <summary>Resolve a color spec against the active biome:

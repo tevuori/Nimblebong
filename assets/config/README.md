@@ -11,6 +11,7 @@ JSON, bez úprav C#.
 | [`trees.json`](#stromy-treesjson) | druhy stromů, sezónní barvy listí, sníh | `SceneConfig.Trees` |
 | [`props/<id>.json`](props/README.md) | vlastní objekty na mapě (varianty skal, stromů, ruin…) | `PropDefs` |
 | [`placement.json`](#pokládání-objektů-placementjson) | ochranné zóny kolem táboráků, studní apod. | `Placement` |
+| [`fill.json`](#chytrá-výplň-filljson) | co smart fill sází kam (stromy, podrost, zvířata) | `FillRules` |
 
 ## Společná pravidla
 
@@ -222,6 +223,60 @@ od svého `base`.
 
 ---
 
+## Chytrá výplň (`fill.json`)
+
+Smart fill (nástroj Výplň → režim „Smart“) projde označenou oblast po
+mřížce. Každý bod zařadí do **kontextu** podle toho, co je kolem, a pak
+v každé **vrstvě** vybere objekt z vážené tabulky pro ten kontext.
+
+**Kontexty** (vyhodnocují se v tomhle pořadí, platí první shoda):
+
+| Kontext | Kdy |
+|---|---|
+| `deepWater` | ve vodě dál než `classify.deepWater` px od břehu |
+| `shallows` | ve vodě u břehu |
+| *(cesta)* | blíž než `classify.road` k ose cesty, nic se nesází |
+| `village` | do `classify.village` px od budovy (`classify.buildings`) |
+| `roadside` | do `classify.roadside` px od cesty |
+| `shore` | do `classify.shore` px od vody |
+| `slope` | na masivu (svah nebo plošina) |
+| `land` | všechno ostatní |
+
+```jsonc
+{
+  "classify": { "road": 10, "roadside": 46, "shore": 44, "village": 100, "deepWater": 14,
+                "buildings": ["house", "tower", "stall", "ruin", "fountain"] },
+  "sizes": { "tree": 46, "flora": 32 },       // velikost v px; definice dědí od base
+  "layers": [                                  // vrstvy běží v pořadí
+    {
+      "id": "flora",
+      "spacing": [40, 20],          // rozestup mřížky při hustotě 0 → 1
+      "limit": 900,                 // max objektů vrstvy
+      "crowding": 0.35,             // jak moc blokují objekty jiných vrstev (0–1)
+      "edgeFade": true,             // řidší u okraje oblasti
+      "patchy": [],                 // kontexty, kde se tvoří hájky a mýtiny
+      "biomeChance": { "cavern": 0.3 },  // násobič hustoty pro biom
+      "contexts": {
+        "shore": { "chance": 0.9, "kinds": { "reeds": 3, "grass-tuft": 1.5 } },
+        "shallows": { "chance": 0.55, "kinds": { "lilypads": 2 } }
+      }
+    }
+  ]
+}
+```
+
+- `kinds`: vestavěné druhy i id prop definic s vahou. Definice, které do
+  biomu scény nepatří (`biomes`), z tabulky vypadnou automaticky. Jedna
+  tabulka tak slouží všem biomům: v lese vybere trávu a kapradí, na poušti
+  suchou trávu.
+- `chance`: pravděpodobnost, že se v bodě kontextu vůbec něco objeví.
+- Suchozemské druhy se do vody nedostanou. Ve vodě se objeví jen druhy
+  s `"water": true` (nebo vestavěné vodní: loď, molo, zvířata).
+- Výchozí vrstvy: `main` (stromy, skály, objekty), `flora` (podrost)
+  a `critters` (motýli, ptáci). Nová vrstva je nový objekt v `layers`.
+
+---
+
 ## Rychlé recepty
 
 | Chci… | Udělám |
@@ -234,6 +289,9 @@ od svého `base`.
 | objekt, který se přizpůsobí biomu | v prop definici barvy jako `"@foliage"`, `"@stone"`, … |
 | aby se kolem studny nesázely stromy dál | `placement.json` → `kinds.well` vyšší faktor |
 | zrušit ochranné zóny | `placement.json` → `"enabled": false` |
+| novou rostlinu | `props/<id>.json` s `"base": "flora"` + blok `flora` |
+| aby ji smart fill sázel | přidám id do `fill.json` → `layers.flora.contexts.<kontext>.kinds` |
+| hustší / řidší podrost | `fill.json` → vrstva `flora`: `spacing`, `chance`, `biomeChance` |
 
 ## Omezení (TODO)
 
@@ -247,5 +305,6 @@ Pořád v C#, kandidáti na přesun do configu:
 - `moods.*.emissive` se načítá, ale renderer ho zatím nevyužívá,
 - tvary objektů (nové tvary jen přes C# kresliče; plánované: deklarativní
   tvary v JSONu),
-- poměr druhů stromů při generování lesa (`MapGenerator`, `MapEditor`),
+- poměr druhů stromů ve štětci lesa a v generátoru krajiny (`MapGenerator`,
+  `MapEditor`); smart fill už jede z `fill.json`,
 - typy a gradient cest.

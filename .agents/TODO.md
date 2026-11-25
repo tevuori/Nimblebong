@@ -10,7 +10,9 @@ přes JSON config (`assets/config/`) bez psaní C#. UI sem nepatří.
 
 - [x] **Prop registry.** `assets/config/props/*.json` (schéma v README tam).
   Definice = vestavěný kreslič (`base`) + paleta/tint/HSV/scale/výška.
-- [ ] Prop registry: vizuálně ověřit 6 ukázkových definic v probe (chybí Godot).
+- [x] Prop registry: vizuálně ověřeno (`scenes/probe-flora.tscn`).
+- [x] **Flora + smart fill z configu** (`fill.json`, `base: "flora"`).
+- [ ] Flora: sezónní vzhled (podzimní hnědá tráva, zimní holé trsy), vítr/animace.
 - [ ] Biomy: scatter lesů/porostu z JSONu (váhy prop id per biom místo
   natvrdo `(Tree 3, Pine 1.6, Bush 0.7)` v MapGenerator/MapEditor).
 - [ ] **Deklarativní tvary.** Prop složený čistě z JSON vrstev (blob,

@@ -3,6 +3,26 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (3) — Claude Code (Opus 5.5), `feat/enhance-visuals`
+
+**Hotovo:**
+- **Flora:** nový základní druh `flora` (`src/Props/PropsFlora.cs`) se
+  7 tvary (tuft, fern, flowers, reeds, mushrooms, lilypads, groundcover).
+  12 rostlin jako JSON v `assets/config/props/` (tráva, kapradí, květiny,
+  rákos, houby, lekníny, jetel, vřes, pouštní flora, svítivé houby…).
+- **SmartFill z configu:** tabulky, velikosti, prahy kontextů a vrstvy
+  (`main`, `flora`, `critters`) jsou v `assets/config/fill.json`
+  (`FillRules`). Definice mimo biom scény z tabulek vypadnou automaticky.
+  Nové kontexty `shallows`/`deepWater`, per-biome `biomeChance`.
+  Chování vrstvy `main` odpovídá původnímu kódu (+ pár variant z props).
+- `PropDef.water` / `Interactions.WaterKind` respektuje definice.
+- `scenes/probe-flora.tscn`: galerie definic biomu + smart fill test
+  (`DMMAP_BIOME`, `DMMAP_OUT`). Ověřeno renderem woodland/desert/alpine/cavern.
+- Godot .NET cesta v AGENTS.md.
+
+**Pro autora SmartFill (Devin):** tabulky se přesunuly z `SmartFill.cs`
+do `fill.json`. Úpravy vah prosím dělej tam.
+
 ## 2026-11-25 (2) — Claude Code (Opus 5.5), `feat/enhance-visuals`
 
 **Hotovo:**

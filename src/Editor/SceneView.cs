@@ -321,6 +321,7 @@ public partial class SceneView : Node2D
         ["label"] = PropKind.Label,
         ["butterfly"] = PropKind.Butterfly,
         ["bird"] = PropKind.Bird,
+        ["flora"] = PropKind.Flora,
     };
 
     /// <summary>Built-in kind names only (JSON definitions excluded).</summary>

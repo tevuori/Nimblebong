@@ -1,0 +1,8 @@
+{
+  "label": "Jetel",
+  "base": "flora",
+  "category": "flora",
+  "biomes": ["woodland"],
+  "scale": 0.7,
+  "flora": { "form": "groundcover", "count": [4, 7], "radius": 10, "length": [5, 8], "leaf": "@foliage", "accents": ["#f6f3ea", "#e7b6d0"], "accentSize": 1.1, "accentChance": 0.5, "ink": 0 }
+}

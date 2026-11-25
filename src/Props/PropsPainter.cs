@@ -247,6 +247,9 @@ public partial class PropsPainter : Node2D
                 case PropKind.Bird:
                     DrawBird(p);
                     break;
+                case PropKind.Flora:
+                    DrawFlora(p);
+                    break;
             }
             EndStyle(p);
         }

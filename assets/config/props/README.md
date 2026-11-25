@@ -13,7 +13,7 @@ variantu stačí nový JSON bez C#.
                                     //   stonecircle, crystal, bale, crate, barrel, tower, stall,
                                     //   cart, flag, barricade, lantern, fountain, pillar, marker,
                                     //   dock, boat, chest, portal, door, window, table, bed,
-                                    //   shelf, rug, fireplace
+                                    //   shelf, rug, fireplace, butterfly, bird, flora
   "category": "nature",             // volitelné, skupina pro paletu nástrojů
   "biomes": ["woodland", "swamp"],  // volitelné, prázdné/chybí = všechny biomy
   "scale": 1.25,                    // násobič velikosti (default 1)
@@ -27,7 +27,8 @@ variantu stačí nový JSON bez C#.
   "tint": { "color": "@foliage", "amount": 0.22 },   // přimíchá barvu do všeho (0–1)
   "adjust": { "hue": 0.0, "saturation": 1.0, "value": 1.0 }, // HSV: hue v otáčkách ±1
   "protect": 1.2,                   // ochranná zóna (faktor), 0 = žádná; chybí = podle base
-  "keepOut": false                  // musí stát mimo cizí zóny? chybí = podle base
+  "keepOut": false,                 // musí stát mimo cizí zóny? chybí = podle base
+  "water": true                     // smí stát ve vodě (rákos, lekníny); chybí = podle base
 }
 ```
 
@@ -51,3 +52,48 @@ varianta táboráku je chráněná automaticky.
 **Vypnutí:** `"enabled": false` v `placement.json` vypne ochranu globálně.
 Za běhu to jde přes checkbox „Ignorovat ochranné zóny“ v editoru
 (`Placement.IgnoreProtection`).
+
+## Flora: rostliny (`"base": "flora"`)
+
+Rostliny kreslí jeden parametrický kreslič (`src/Props/PropsFlora.cs`) se
+sedmi tvary při pohledu shora. Konkrétní druh rostliny je jen JSON
+s blokem `flora`, který je pro `base: "flora"` povinný:
+
+```jsonc
+{
+  "label": "Luční květiny",
+  "base": "flora",
+  "category": "flora",
+  "biomes": ["woodland", "alpine"],
+  "scale": 0.65,
+  "height": 0,                      // ploché rostliny (lekníny) bez stínu
+  "flora": {
+    "form": "flowers",              // tvar, viz tabulka
+    "count": [5, 8],                // počet stébel/listů/hlav… (číslo nebo [min, max])
+    "radius": 8,                    // rozptyl trsu (lokální px, prop 24 px ≈ 12)
+    "length": [5, 9],               // délka stébel/listů (číslo nebo [min, max])
+    "width": 1.2,                   // tloušťka stébel a žeber
+    "leaf": "@foliage",             // barva listí ("#hex" nebo "@barvaBiomu")
+    "leafDark": "#3e6233",          // tmavší tón; chybí = leaf ztmavené
+    "accents": ["#f2d14b", "#d9534f"], // květy, klobouky, palice rákosu
+    "accentSize": 1.7,              // velikost akcentu
+    "accentChance": 0.6,            // podíl stébel/listů s akcentem (0–1)
+    "ink": 0.3                      // síla ink obrysu (0–1)
+  }
+}
+```
+
+| `form` | Vzhled | Akcenty |
+|---|---|---|
+| `tuft` | trs stébel trávy | občas kvítek na špičce |
+| `fern` | růžice kapradí s lístky | — |
+| `flowers` | růžice listů + pětilisté květy | barvy květů |
+| `reeds` | stébla nakloněná větrem | palice orobince |
+| `mushrooms` | shluk klobouků s ink lemem | barva klobouku, bílé tečky |
+| `lilypads` | vroubkované listy na vodě | květ leknínu |
+| `groundcover` | nízké překrývající se skvrny (jetel, vřes) | drobné kvítky |
+
+Barvy `@foliage`/`@ground` se mění se sezónou a art packem biomu.
+Zobrazit všechny definice biomu jako galerii + test smart fillu:
+`DMMAP_BIOME=<biom> <godot> --path . scenes/probe-flora.tscn` →
+`/tmp/godot-flora-<biom>.png`.

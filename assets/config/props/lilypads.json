@@ -1,0 +1,33 @@
+{
+  "label": "Lekníny",
+  "base": "flora",
+  "category": "flora",
+  "biomes": [
+    "woodland",
+    "swamp"
+  ],
+  "scale": 0.9,
+  "water": true,
+  "flora": {
+    "form": "lilypads",
+    "count": [
+      2,
+      5
+    ],
+    "radius": 11,
+    "length": [
+      7,
+      11
+    ],
+    "leaf": "#5d8a45",
+    "leafDark": "#3e6233",
+    "accents": [
+      "#f6eef2",
+      "#f2b8cc"
+    ],
+    "accentSize": 2.2,
+    "accentChance": 0.3,
+    "ink": 0.35
+  },
+  "height": 0
+}

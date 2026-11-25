@@ -1,0 +1,8 @@
+{
+  "label": "Svítivé houby",
+  "base": "flora",
+  "category": "flora",
+  "biomes": ["cavern"],
+  "scale": 0.6,
+  "flora": { "form": "mushrooms", "count": [3, 6], "radius": 9, "leaf": "#3d4a4a", "accents": ["#7fe0d4", "#a5e8f0", "#9fd0ff"], "accentSize": 2.6, "accentChance": 0.2, "ink": 0.5 }
+}
