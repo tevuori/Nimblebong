@@ -320,7 +320,7 @@ public partial class MapEditor : Node2D
         _thumbs = ToolThumbs.Create(_ui);
         AddChild(_thumbs);
         _history = new SceneHistory(_view.Scene);
-        _ghost = new GhostLayer();
+        _ghost = new GhostLayer { View = _view };
         AddChild(_ghost);
         _playLayer = new PlayLayer { Visible = false };
         AddChild(_playLayer);
@@ -345,6 +345,160 @@ public partial class MapEditor : Node2D
         var uiShot = System.Environment.GetEnvironmentVariable("DMMAP_UI_SHOT");
         if (uiShot != null)
             CallDeferred(nameof(UiShot), uiShot);
+        var ghostShot = System.Environment.GetEnvironmentVariable("DMMAP_GHOST_SHOT");
+        if (ghostShot != null)
+            CallDeferred(nameof(GhostShot), ghostShot);
+        var smartShot = System.Environment.GetEnvironmentVariable("DMMAP_SMART_SHOT");
+        if (smartShot != null)
+            CallDeferred(nameof(SmartShot), smartShot);
+    }
+
+    /// <summary>Probe: bake a road + river + crossing wall/fence + a
+    /// massif and a house, drop a tree into the river (must be nudged
+    /// out), run the smart fill over the middle and dump the window.</summary>
+    async void SmartShot(string path)
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene =>
+        {
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(80, 400), new(500, 420), new(1080, 480)],
+                    Width = 16,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.River,
+                    Points = [new(880, 60), new(820, 300), new(900, 640)],
+                    Width = 26,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Wall,
+                    Points = [new(620, 300), new(640, 430), new(660, 560)],
+                    Width = 10,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Fence,
+                    Points = [new(300, 340), new(300, 430), new(320, 540)],
+                    Width = 6,
+                }
+            );
+            scene.Shapes.Add(
+                new Shape
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Terrain,
+                    Height = 40,
+                    Size = 40,
+                    Roughness = 40,
+                    Points = [new(120, 80), new(420, 60), new(470, 240), new(140, 260)],
+                }
+            );
+            Interactions.PlaceProtected(
+                scene,
+                new Prop
+                {
+                    Id = scene.AllocId(),
+                    Kind = "house",
+                    X = 180,
+                    Y = 330,
+                    Scale = 30,
+                }
+            );
+            // Dry-land test — a tree dropped mid-river must be nudged
+            // to the shore (or refused when nothing near is dry).
+            var before = scene.Props.Count;
+            Interactions.PlaceProtected(
+                scene,
+                new Prop
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Tree,
+                    X = 855,
+                    Y = 330,
+                    Scale = 30,
+                }
+            );
+            GD.Print($"SMART water-nudge placed={scene.Props.Count > before}");
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!path.Contains("bare"))
+        {
+            _fillMode.Selected = 3;
+            _fillRect = new Rect2(140, 260, 780, 340);
+            RunFill();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GD.Print($"SMART generated={_fillProps.Count}");
+            CommitFill();
+        }
+        _camera.Position = new Vector2(560, 400);
+        _camera.Zoom = new Vector2(0.72f, 0.72f);
+        if (_uiLayer != null)
+            _uiLayer.Visible = false;
+        for (var i = 0; i < 6; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GetViewport().GetTexture().GetImage().SavePng(path);
+        GetTree().Quit();
+    }
+
+    /// <summary>Probe: bake a road + river, activate the painted stroke
+    /// ghost on a T-junction arm, dump the window, quit.</summary>
+    async void GhostShot(string path)
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene =>
+        {
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(200, 420), new(520, 430), new(880, 500), new(1100, 560)],
+                    Width = 18,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.River,
+                    Points = [new(240, 120), new(500, 180), new(760, 140)],
+                    Width = 22,
+                }
+            );
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _tool = Tools.First(t => t.Kind == Kinds.Road);
+        _ghost.SetStroke(
+            _tool,
+            [new(600, 445), new(650, 380), new(700, 300), new(760, 230)],
+            StrokeWidth()
+        );
+        _ghost.SetSnap(new Vector2(600, 445));
+        for (var i = 0; i < 4; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GetViewport().GetTexture().GetImage().SavePng(path);
+        GetTree().Quit();
     }
 
     /// <summary>Rebuild the dock + thumbnails when the window crosses a
@@ -1890,6 +2044,19 @@ public partial class MapEditor : Node2D
                 _fillStats.Text = $"Nových {_fillScene.Shapes.Count + _fillScene.Strokes.Count + _fillProps.Count}";
                 break;
             }
+            case 3: // Smart — context-aware scatter, no source samples
+            {
+                var res = SmartFill.Generate(
+                    region,
+                    _view.Scene,
+                    seed,
+                    _fillDensity.Value / 100
+                );
+                _fillProps = res.Props;
+                _fillSources = res.SourceIds;
+                _fillStats.Text = $"Nových {_fillProps.Count} · kostka = jiná varianta";
+                break;
+            }
             default:
             {
                 var res = MapFill.Generate(
@@ -2503,6 +2670,7 @@ public partial class MapEditor : Node2D
         _fillMode.AddItem("Výplň podle vzorků");
         _fillMode.AddItem("Krajina");
         _fillMode.AddItem("Dungeon");
+        _fillMode.AddItem("Smart");
         _fillMode.ItemSelected += _ => RunFill();
         _fillSection.AddChild(_fillMode);
         _fillStats = new Label();
@@ -2730,11 +2898,17 @@ public partial class MapEditor : Node2D
 /// the baked composite.</summary>
 public partial class GhostLayer : Node2D
 {
+    /// <summary>View reference for the painted stroke preview — its
+    /// Scene instance is swapped on every commit, so always read
+    /// View.Scene live.</summary>
+    public SceneView? View;
+
     MapEditor.Mode _mode;
     string _kind = "";
     List<Vector2> _pts = [];
     double _width;
     Massif? _draft;
+    WaterPainter? _strokePaint;
     List<Vector2> _selProps = [];
     List<Vector2[]> _selLines = [];
     List<Vector2[]> _selOutlines = [];
@@ -2770,7 +2944,77 @@ public partial class GhostLayer : Node2D
     public void SetStroke(MapEditor.ToolDef tool, List<Vector2> pts, double width)
     {
         (_mode, _kind, _pts, _width) = (tool.Mode, tool.Kind, [.. pts], width);
+        UpdateStrokePaint();
         QueueRedraw();
+    }
+
+    /// <summary>Painted stroke preview — like the web draft: run the
+    /// in-progress road/river through the real WaterPainter over the
+    /// baked map, merged exactly as the commit would merge it. The
+    /// host's repainted pixels are identical, so junctions read clean
+    /// and nothing dims the existing stroke.</summary>
+    void UpdateStrokePaint()
+    {
+        _strokePaint ??= new WaterPainter { Visible = false };
+        if (_strokePaint.GetParent() == null)
+            AddChild(_strokePaint);
+        _strokePaint.ClearRuns();
+        _strokePaint.Visible = false;
+        var preview = PreviewStroke();
+        if (preview is not { } st)
+            return;
+        var biome = View!.Biome;
+        _strokePaint.Water = biome.Water;
+        _strokePaint.RoadDirt = biome.At("road.dirt");
+        _strokePaint.RoadVerge = biome.At("road.verge");
+        _strokePaint.RoadHalo = biome.At("road.halo");
+        if (st.Kind == Kinds.Road)
+            _strokePaint.AddRoad(st.Points, st.Width);
+        else
+            _strokePaint.AddRiver(st.Points, st.Width);
+        _strokePaint.Visible = true;
+    }
+
+    /// <summary>The stroke the commit would store — merged into the
+    /// touching same-kind host (endpoint concat or T-junction arm),
+    /// else the draft alone. Returns the single changed entry.</summary>
+    Stroke? PreviewStroke()
+    {
+        if (
+            View == null
+            || _mode != MapEditor.Mode.Stroke
+            || _pts.Count < 2
+            || _kind is not (Kinds.Road or Kinds.River)
+        )
+            return null;
+        var scene = View.Scene;
+        // Mirror the commit path exactly: endpoint snap to same-kind
+        // ends, simplify, then merge — the preview is what gets stored.
+        var pts = Interactions.SimplifyPath(_pts);
+        var tol = Math.Max(24, _width);
+        foreach (var s in scene.Strokes)
+        {
+            if (s.Kind != _kind)
+                continue;
+            if (pts[0].DistanceTo(s.Points[0]) <= tol)
+                pts[0] = s.Points[0];
+            if (pts[0].DistanceTo(s.Points[^1]) <= tol)
+                pts[0] = s.Points[^1];
+            if (pts[^1].DistanceTo(s.Points[0]) <= tol)
+                pts[^1] = s.Points[0];
+            if (pts[^1].DistanceTo(s.Points[^1]) <= tol)
+                pts[^1] = s.Points[^1];
+        }
+        var added = new Stroke
+        {
+            Kind = _kind,
+            Points = pts,
+            Width = _width,
+        };
+        var merged = Interactions.MergeStrokeInto(scene.Strokes, added);
+        return merged.FirstOrDefault(m =>
+            !scene.Strokes.Any(s => s.Points.SequenceEqual(m.Points))
+        );
     }
 
     public void Clear()
@@ -2778,6 +3022,7 @@ public partial class GhostLayer : Node2D
         _pts = [];
         _draft = null;
         _snap = null;
+        UpdateStrokePaint();
         QueueRedraw();
     }
 
@@ -2890,6 +3135,10 @@ public partial class GhostLayer : Node2D
             }
             return;
         }
+        // Road/river drafts paint through the real renderer instead
+        // (the translucent ribbon dimmed everything underneath).
+        if (_mode == MapEditor.Mode.Stroke && _strokePaint?.Visible == true)
+            return;
         var col = _kind switch
         {
             Kinds.Wall => new Color(0.72f, 0.71f, 0.6f, 0.5f),

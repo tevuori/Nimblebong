@@ -167,6 +167,11 @@ public partial class SceneView : Node2D
         var waterH = new WaterHeight();
         var crossings = new CrossingPainter { WaterLight = Biome.Water };
         crossings.SetMassifs(massifs);
+        // Walls/fences open a gated gap wherever they cross a road.
+        var gateCuts = Scene
+            .Strokes.Where(s => s.Kind == Kinds.Road)
+            .Select(s => ((IReadOnlyList<Vector2>)s.Points, s.Width))
+            .ToList();
         foreach (var st in Scene.Strokes)
         {
             if (st.Kind == Kinds.River)
@@ -182,7 +187,7 @@ public partial class SceneView : Node2D
             }
             else if (st.Kind is Kinds.Wall or Kinds.Fence)
             {
-                fortify.Add(st.Kind, st.Points, st.Width, st.Model);
+                fortify.Add(st.Kind, st.Points, st.Width, st.Model, gateCuts);
             }
         }
         water.SetRocks(
@@ -314,6 +319,8 @@ public partial class SceneView : Node2D
         ["rug"] = PropKind.Rug,
         ["fireplace"] = PropKind.Fireplace,
         ["label"] = PropKind.Label,
+        ["butterfly"] = PropKind.Butterfly,
+        ["bird"] = PropKind.Bird,
     };
 
     /// <summary>Built-in kind names only (JSON definitions excluded).</summary>

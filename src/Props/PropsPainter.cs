@@ -241,6 +241,12 @@ public partial class PropsPainter : Node2D
                 case PropKind.Label:
                     DrawLabel(p);
                     break;
+                case PropKind.Butterfly:
+                    DrawButterfly(p);
+                    break;
+                case PropKind.Bird:
+                    DrawBird(p);
+                    break;
             }
             EndStyle(p);
         }

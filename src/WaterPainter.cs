@@ -26,6 +26,16 @@ public partial class WaterPainter : Node2D
     readonly List<(Vector2[] Run, double Width)> _roads = [];
     readonly List<Vector2> _rocks = [];
 
+    /// <summary>Drop all queued runs — the ghost preview rebuilds the
+    /// painter every pointer move.</summary>
+    public void ClearRuns()
+    {
+        _rivers.Clear();
+        _roads.Clear();
+        _rocks.Clear();
+        QueueRedraw();
+    }
+
     /// <summary>Rock prop positions — those sitting in water get ripple
     /// rings + foam specks (the web's rock-in-water pass).</summary>
     public void SetRocks(IEnumerable<Vector2> pts)
@@ -546,6 +556,11 @@ public partial class WaterPainter : Node2D
                 1.2f
             );
         }
+        // Surface: fat polyline underlay per run (can't fail like ribbon
+        // triangulation on T-junction spurs — same trick the river stack
+        // uses), unioned fill on top for a clean shared silhouette.
+        foreach (var (run, w) in _roads)
+            DrawPolyline(run, RoadDirt, (float)w, true);
         foreach (var piece in UnionAll(_roads, 0))
             Fill(piece, RoadDirt);
         foreach (var (run, w) in _roads)
