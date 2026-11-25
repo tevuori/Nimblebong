@@ -92,6 +92,91 @@ public partial class MapEditor : Node2D
         new("fog-shroud", "Mlha: zahalit", "Mapa a hra", Mode.Fog, "shroud"),
     ];
 
+    /// <summary>Card accent colors — the web toolColors palette.</summary>
+    static readonly Dictionary<string, string> ToolColor = new()
+    {
+        ["select"] = "#8a8a8a", ["erase"] = "#8a8a8a",
+        ["terrain"] = "#a4a68e", ["brush"] = "#a4a68e",
+        ["river"] = "#298f99", ["pond"] = "#298f99", ["field"] = "#a8935a",
+        ["road"] = "#d1b87c", ["wall"] = "#b7b69a", ["fence"] = "#8a6f4c",
+        ["dock"] = "#a37d4c", ["house"] = "#ac6948", ["room"] = "#b8ad86",
+        ["floor"] = "#a37d4c", ["tower"] = "#9a9584", ["stall"] = "#a0522d",
+        ["tent"] = "#a28b61", ["door"] = "#7a5636", ["window"] = "#d8cfa8",
+        ["table"] = "#9c7750", ["bed"] = "#a98a5e", ["shelf"] = "#8a6a44",
+        ["rug"] = "#8a4a3c", ["fireplace"] = "#8d8378",
+        ["tree"] = "#557d47", ["pine"] = "#4d6b52", ["bush"] = "#64844d",
+        ["scatter"] = "#557d47", ["rock"] = "#a4a68e",
+        ["stonecircle"] = "#8f8d80", ["crystal"] = "#83d4cd",
+        ["bale"] = "#c9a94e", ["camp"] = "#a37d4c", ["campfire"] = "#e99742",
+        ["cart"] = "#a37d4c", ["boat"] = "#a37d4c", ["well"] = "#a4a68e",
+        ["crate"] = "#ac8955", ["barrel"] = "#a37d4c", ["fountain"] = "#9fb4ae",
+        ["lantern"] = "#e0b45e", ["flag"] = "#b3453a", ["pillar"] = "#a8a294",
+        ["statue"] = "#a4a68e", ["ruin"] = "#9a9382", ["grave"] = "#8f8d80",
+        ["chest"] = "#8a6a44", ["bones"] = "#d8cdb2", ["barricade"] = "#7d6547",
+        ["portal"] = "#9a86c8", ["marker"] = "#d34f3d", ["label"] = "#4a3a28",
+        ["fog-clear"] = "#7f8c8d", ["fog-shroud"] = "#5a6b6f",
+    };
+
+    /// <summary>Tool descriptions shown under the name — the web
+    /// toolDescriptions (scene-presets.ts), Czech.</summary>
+    static readonly Dictionary<string, string> ToolDesc = new()
+    {
+        ["select"] = "Klikni pro výběr prvku, táhni pro přesun. Delete smaže, Esc zruší výběr. U terénu upravíš parametry posuvníky.",
+        ["erase"] = "Guma — táhni přes prvky, které chceš smazat.",
+        ["terrain"] = "Vymez horní hranu návrší — skalní svah se vykreslí v pásmu ven z obrysu. Kopečky ve stejné výšce se slévají v jeden masiv, různé výšky se skládají do teras. Cesta přes hranu dostane schody, řeka vodopád.",
+        ["brush"] = "Razítkuj kopce štětcem — každá bublina přidá terén v nastavené výšce; když maluješ přes existující kopec, výška se navyšuje.",
+        ["river"] = "Maluj vodní tok. Břehy, mělčina a rostliny se vytvoří automaticky; toky se při setkání slévají.",
+        ["pond"] = "Klidná vodní plocha vyrytá do terénu.",
+        ["field"] = "Vymez pole nebo pastvinu — brázdy a úroda se přizpůsobí prostředí.",
+        ["road"] = "Nakresli cestu. Při křížení řeky se objeví most — jeho styl zvolíš volbou Most. Konec na existující cestu se přichytí a spojí.",
+        ["wall"] = "Táhni a postav kamennou zeď — uzavřená smyčka se stane budovou.",
+        ["fence"] = "Táhni a postav dřevěný plot.",
+        ["dock"] = "Dřevěný mol nebo přístaviště u břehu.",
+        ["house"] = "Nakresli půdorys. Střecha, krytina a stín vzniknou samy.",
+        ["room"] = "Vymez podlahu a obvodové zdi. Místnost může být hranatá, kulatá i kreslená rukou.",
+        ["floor"] = "Vymez podlahu — dřevěná prkna nebo kamenná dlažba.",
+        ["tower"] = "Strážní věž s cimbuřím.",
+        ["stall"] = "Tržní stánek s plachtou — u cesty se otočí pultem k ní.",
+        ["tent"] = "Postav tábor; materiál se přizpůsobí prostředí.",
+        ["door"] = "Klikni na zeď místnosti — zeď se přeruší a vznikne otvor s křídlem.",
+        ["window"] = "Klikni na zeď místnosti — vznikne okenní otvor s rámem.",
+        ["table"] = "Stůl shora — kulatý, dlouhý jídelní nebo malý čtvercový.",
+        ["bed"] = "Postel s peřinou a polštářem.",
+        ["shelf"] = "Knihovna, regál se zbožím nebo komoda.",
+        ["rug"] = "Koberec s lemovým vzorem.",
+        ["fireplace"] = "Krb s hořícím ohněm — místnost prohřeje teplým světlem.",
+        ["tree"] = "Klikni pro jeden strom, táhni pro les. Druh stromu se řídí biomem a sezónou.",
+        ["pine"] = "Jehličnan — klikni pro jeden, táhni pro skupinu.",
+        ["bush"] = "Vegetace se mění s prostředím: keře, kaktusy, rákosí nebo houby.",
+        ["scatter"] = "Vymez oblast a v ní se automaticky rozestaví vegetace, skály nebo směs. Cesty a řeky si vezmou mýtinu.",
+        ["rock"] = "Rozmísti jednotlivé balvany nebo celou skupinu.",
+        ["stonecircle"] = "Kruh balvanů — ohniště uvnitř rozzáří runy.",
+        ["crystal"] = "Krystalové shluky; v sopečné krajině žhavé minerály.",
+        ["bale"] = "Balík sena, vlny nebo zásob podle prostředí.",
+        ["camp"] = "Klikni pro celou skupinu: tábor se stany a ohništěm. Rozpadne se na samostatné prvky.",
+        ["campfire"] = "Ohniště s kamenným kruhem — ponořené do řeky vyhasne.",
+        ["cart"] = "Dřevěný vůz; v horách dostane sněhovou pokrývku.",
+        ["boat"] = "Loď ve vodě se natočí podle nejbližšího úseku toku.",
+        ["well"] = "Kamenná studna s vodou a rumpálem.",
+        ["crate"] = "Dřevěné bedny do tábořiště či interiéru.",
+        ["barrel"] = "Klikni pro sud, táhni pro skupinu.",
+        ["fountain"] = "Kamenná kašna s vodním trylkem.",
+        ["lantern"] = "Lampa, žardina nebo pochodeň — pod ní se rozlije teplý kruh světla.",
+        ["flag"] = "Slavnostní praporek.",
+        ["pillar"] = "Sloup nebo obelisk; dva sloupy blízko sebe spojí architráv.",
+        ["statue"] = "Socha nebo obelisk v materiálu prostředí.",
+        ["ruin"] = "Zřícenina zdí, torzo sloupu nebo hromada sutin.",
+        ["grave"] = "Náhrobek, kříž nebo hrobka — tři a víc se ohradí do hřbitova.",
+        ["chest"] = "Truhla na poklady a zásoby.",
+        ["bones"] = "Ostatky tvorů — žebra, lebky i kostra velké zvěře.",
+        ["barricade"] = "Zátaras z kůlů a trosek na blokování cesty.",
+        ["portal"] = "Stojící brána z kamene či energie.",
+        ["marker"] = "Označ místa pro tokeny: klikni pro značku, táhni pro sérii. Při odeslání do DR se ze značek stanou tokeny.",
+        ["label"] = "Klikni pro umístění popisku — zadáš text v dialogu.",
+        ["fog-clear"] = "Odhaluj mapu — táhni přes oblasti, které mají hráči vidět.",
+        ["fog-shroud"] = "Zahaluj mapu mlhou — táhni přes oblasti, které se mají skrýt.",
+    };
+
     static readonly Vector2 MapSize = new(1600, 1000);
 
     SceneView _view = null!;
@@ -1374,7 +1459,13 @@ public partial class MapEditor : Node2D
 
     // ── Tool palette ────────────────────────────────────────────────
 
-    Tree _toolTree = null!;
+    VBoxContainer _toolLib = null!;
+    readonly Dictionary<string, Button> _toolCards = new();
+    Label _toolName = null!;
+    Label _toolDesc = null!;
+    OptionButton _formOpt = null!;
+    VBoxContainer _waterSection = null!;
+    VBoxContainer _roadSection = null!;
 
     void SetTool(string id)
     {
@@ -1388,26 +1479,42 @@ public partial class MapEditor : Node2D
     }
 
     /// <summary>Show only the parameter controls relevant to the
-    /// active tool (terrain sliders, road model/width, river width).</summary>
+    /// active tool (terrain sliders, road model/width, river width) and
+    /// refresh the name/description/card highlight in the dock.</summary>
     void UpdateToolUi()
     {
+        if (_toolName != null)
+            _toolName.Text = _tool.Label;
+        if (_toolDesc != null)
+        {
+            _toolDesc.Text = ToolDesc.GetValueOrDefault(_tool.Id, "");
+            _toolDesc.Visible = _toolDesc.Text.Length > 0;
+        }
         if (_terrainSection != null)
             _terrainSection.Visible = _tool.Kind == Kinds.Terrain;
-        if (_bridgeOpt != null)
-            _bridgeOpt.Visible = _tool.Kind == Kinds.Road;
+        if (_waterSection != null)
+            _waterSection.Visible =
+                _tool.Kind == Kinds.River || _tool.Kind == Kinds.Pond;
+        if (_roadSection != null)
+            _roadSection.Visible = _tool.Kind == Kinds.Road;
+        if (_formOpt != null)
+            _formOpt.Visible = _tool.Mode == Mode.Shape;
         if (_fogSection != null)
             _fogSection.Visible = _tool.Mode == Mode.Fog;
         if (_brushSection != null)
             _brushSection.Visible = _tool.Mode == Mode.Brush;
+        foreach (var kv in _toolCards)
+            kv.Value.SetPressedNoSignal(kv.Key == _tool.Id);
     }
 
-    /// <summary>Categorized tool browser — Nimblehold-style sections,
-    /// filtered by the search box (diacritics-folded contains).</summary>
-    void PopulateToolTree(string needle)
+    /// <summary>Categorized tool browser — web-style card grid grouped
+    /// by category, filtered by the search box (diacritics-folded).</summary>
+    void PopulateToolCards(string needle)
     {
         needle = Fold(needle.Trim());
-        _toolTree.Clear();
-        var root = _toolTree.CreateItem();
+        foreach (var c in _toolLib.GetChildren())
+            c.QueueFree();
+        _toolCards.Clear();
         foreach (var cat in Tools.Select(t => t.Category).Distinct())
         {
             var items = Tools
@@ -1416,17 +1523,58 @@ public partial class MapEditor : Node2D
                 .ToList();
             if (items.Count == 0)
                 continue;
-            var catItem = _toolTree.CreateItem(root);
-            catItem.SetText(0, cat);
-            catItem.SetSelectable(0, false);
-            foreach (var t in items)
+            var head = new Label { Text = cat };
+            head.AddThemeFontSizeOverride("font_size", 11);
+            head.AddThemeColorOverride("font_color", new Color(0.62f, 0.59f, 0.53f));
+            _toolLib.AddChild(head);
+            var flow = new HFlowContainer
             {
-                var it = _toolTree.CreateItem(catItem);
-                it.SetText(0, t.Label);
-                it.SetMetadata(0, t.Id);
-            }
-            catItem.Collapsed = needle == "" && cat != _tool.Category;
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            };
+            flow.AddThemeConstantOverride("h_separation", 5);
+            flow.AddThemeConstantOverride("v_separation", 5);
+            _toolLib.AddChild(flow);
+            foreach (var t in items)
+                flow.AddChild(ToolCard(t));
         }
+        UpdateToolUi();
+    }
+
+    Button ToolCard(ToolDef t)
+    {
+        var col = Palette.Hex(ToolColor.GetValueOrDefault(t.Id, "#9a9584"));
+        var b = new Button
+        {
+            Text = t.Label,
+            ToggleMode = true,
+            TooltipText = ToolDesc.GetValueOrDefault(t.Id, ""),
+            CustomMinimumSize = new Vector2(126, 30),
+            ClipText = true,
+        };
+        b.AddThemeStyleboxOverride("normal", CardStyle(col, false));
+        b.AddThemeStyleboxOverride("hover", CardStyle(col.Lightened(0.10f), false));
+        b.AddThemeStyleboxOverride("pressed", CardStyle(col, true));
+        b.AddThemeColorOverride("font_color", new Color(0.88f, 0.85f, 0.79f));
+        b.AddThemeFontSizeOverride("font_size", 12);
+        b.Pressed += () => SetTool(t.Id);
+        _toolCards[t.Id] = b;
+        return b;
+    }
+
+    static StyleBoxFlat CardStyle(Color bar, bool pressed)
+    {
+        var s = new StyleBoxFlat
+        {
+            BgColor = pressed ? new Color(0.34f, 0.30f, 0.22f) : new Color(0.17f, 0.16f, 0.14f),
+            BorderColor = bar,
+        };
+        s.SetCornerRadiusAll(3);
+        s.SetBorderWidthAll(0);
+        s.BorderWidthLeft = 4;
+        s.ContentMarginLeft = 8;
+        s.ContentMarginTop = 2;
+        s.ContentMarginBottom = 2;
+        return s;
     }
 
     /// <summary>Lowercase + strip Czech diacritics for search.</summary>
@@ -1454,44 +1602,80 @@ public partial class MapEditor : Node2D
     {
         var layer = new CanvasLayer();
         AddChild(layer);
-        var panel = new PanelContainer
-        {
-            Position = new Vector2(10, 10),
-            CustomMinimumSize = new Vector2(210, 0),
-        };
-        layer.AddChild(panel);
-        var box = new VBoxContainer();
-        panel.AddChild(box);
 
-        box.AddChild(new Label { Text = "Nástroje" });
-        var search = new LineEdit { PlaceholderText = "Hledat nástroj…" };
-        box.AddChild(search);
-        _toolTree = new Tree
+        // ── top-right action bar ─────────────────────────────────
+        var actions = new HBoxContainer
         {
-            HideRoot = true,
-            CustomMinimumSize = new Vector2(0, 260),
+            AnchorLeft = 1,
+            AnchorRight = 1,
+            OffsetLeft = -700,
+            OffsetRight = -8,
+            OffsetTop = 8,
+            Alignment = BoxContainer.AlignmentMode.End,
+        };
+        actions.AddThemeConstantOverride("separation", 6);
+        layer.AddChild(actions);
+        ActionButton(actions, "Zpět", Undo);
+        ActionButton(actions, "Uložit", Save);
+        ActionButton(actions, "Načíst", Load);
+        ActionButton(actions, "Export PNG", ExportPng);
+        ActionButton(actions, "Odeslat do DR", () => _bridge?.PopupCentered());
+        ActionButton(actions, "Nový", () =>
+            Commit(scene =>
+            {
+                scene.Shapes.Clear();
+                scene.Strokes.Clear();
+                scene.Props.Clear();
+            })
+        );
+
+        // ── bottom dock: settings column + tool library ──────────
+        var dock = new PanelContainer
+        {
+            AnchorTop = 1,
+            AnchorRight = 1,
+            AnchorBottom = 1,
+            OffsetTop = -244,
+        };
+        var dockStyle = new StyleBoxFlat { BgColor = new Color(0.11f, 0.10f, 0.09f, 0.96f) };
+        dockStyle.SetContentMarginAll(10);
+        dock.AddThemeStyleboxOverride("panel", dockStyle);
+        layer.AddChild(dock);
+        var row = new HBoxContainer();
+        dock.AddChild(row);
+
+        // ── settings column (tool name, description, params) ─────
+        var settings = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) };
+        row.AddChild(settings);
+        _toolName = new Label();
+        _toolName.AddThemeFontSizeOverride("font_size", 16);
+        settings.AddChild(_toolName);
+        _toolDesc = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        _toolDesc.AddThemeFontSizeOverride("font_size", 11);
+        _toolDesc.AddThemeColorOverride("font_color", new Color(0.72f, 0.69f, 0.62f));
+        settings.AddChild(_toolDesc);
+        var paramScroll = new ScrollContainer
+        {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        settings.AddChild(paramScroll);
+        var box = new VBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        _toolTree.ItemSelected += () =>
-        {
-            if (_toolTree.GetSelected()?.GetMetadata(0).AsString() is { Length: > 0 } id)
-                SetTool(id);
-        };
-        search.TextChanged += _ => PopulateToolTree(search.Text);
-        box.AddChild(_toolTree);
-        PopulateToolTree("");
+        paramScroll.AddChild(box);
 
-        var form = new OptionButton();
-        form.AddItem("Volný tah");
-        form.AddItem("Obdélník");
-        form.AddItem("Elipsa");
-        form.ItemSelected += i => _form = (int)i;
-        box.AddChild(form);
+        _formOpt = new OptionButton();
+        _formOpt.AddItem("Volný tah");
+        _formOpt.AddItem("Obdélník");
+        _formOpt.AddItem("Elipsa");
+        _formOpt.ItemSelected += i => _form = (int)i;
+        box.AddChild(_formOpt);
 
-        box.AddChild(new HSeparator());
         _terrainSection = new VBoxContainer();
         box.AddChild(_terrainSection);
-        _terrainSection.AddChild(new Label { Text = "Terén" });
         _sHeight = TerrainSlider(_terrainSection, "Výška", 0, 100, _pHeight, v => _pHeight = v);
         _sSlope = TerrainSlider(_terrainSection, "Šířka svahu", 10, 90, _pSlope, v => _pSlope = v);
         _sRough = TerrainSlider(_terrainSection, "Nerovnosti", 0, 100, _pRough, v => _pRough = v);
@@ -1506,21 +1690,25 @@ public partial class MapEditor : Node2D
         };
         _terrainSection.AddChild(_modelOpt);
 
-        box.AddChild(new HSeparator());
-        Slider(box, "Šířka řeky", 10, 60, _pRiverW, v => _pRiverW = v);
-        Slider(box, "Šířka cesty", 8, 40, _pRoadW, v => _pRoadW = v);
-        _bridgeOpt = new OptionButton();
-        foreach (var name in new[] { "Most: dřevěný", "Most: kamenný", "Most: lanový" })
-            _bridgeOpt.AddItem(name);
-        _bridgeOpt.ItemSelected += i => _roadModel = (int)i;
-        box.AddChild(_bridgeOpt);
         _brushSection = new VBoxContainer { Visible = false };
         box.AddChild(_brushSection);
         Slider(_brushSection, "Velikost štětce", 16, 90, _brushSize, v => _brushSize = v);
 
+        _waterSection = new VBoxContainer();
+        box.AddChild(_waterSection);
+        Slider(_waterSection, "Šířka řeky", 10, 60, _pRiverW, v => _pRiverW = v);
+
+        _roadSection = new VBoxContainer();
+        box.AddChild(_roadSection);
+        Slider(_roadSection, "Šířka cesty", 8, 40, _pRoadW, v => _pRoadW = v);
+        _bridgeOpt = new OptionButton();
+        foreach (var name in new[] { "Most: dřevěný", "Most: kamenný", "Most: lanový" })
+            _bridgeOpt.AddItem(name);
+        _bridgeOpt.ItemSelected += i => _roadModel = (int)i;
+        _roadSection.AddChild(_bridgeOpt);
+
         _fogSection = new VBoxContainer();
         box.AddChild(_fogSection);
-        _fogSection.AddChild(new Label { Text = "Mlha" });
         var shroudAll = new Button { Text = "Zahalit celou mapu" };
         shroudAll.Pressed += () => Commit(scene => scene.FogCoverAll = true);
         _fogSection.AddChild(shroudAll);
@@ -1532,9 +1720,24 @@ public partial class MapEditor : Node2D
                 scene.Fog.RemoveAll(t => t.Kind == "shroud");
             });
         _fogSection.AddChild(revealAll);
-        UpdateToolUi();
 
-        box.AddChild(new HSeparator());
+        row.AddChild(new VSeparator());
+
+        // ── tool library: search + selects + card grid ───────────
+        var library = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddChild(library);
+        var head = new HBoxContainer();
+        head.AddThemeConstantOverride("separation", 6);
+        library.AddChild(head);
+
+        var search = new LineEdit
+        {
+            PlaceholderText = "Hledat nástroj…",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        search.TextChanged += _ => PopulateToolCards(search.Text);
+        head.AddChild(search);
+
         var biome = new OptionButton();
         foreach (var id in SceneConfig.BiomeIds())
             biome.AddItem(id);
@@ -1544,44 +1747,60 @@ public partial class MapEditor : Node2D
             _view.SetBiome(biome.GetItemText((int)i));
             RebuildSeasonOptions();
         };
-        box.AddChild(biome);
+        head.AddChild(biome);
 
         var mood = new OptionButton();
         foreach (var id in SceneConfig.MoodIds())
             mood.AddItem(id);
         mood.Selected = Math.Max(0, SceneConfig.MoodIds().IndexOf("day"));
         mood.ItemSelected += i => _view.SetMood(mood.GetItemText((int)i));
-        box.AddChild(mood);
+        head.AddChild(mood);
 
         var artPack = new OptionButton();
         foreach (var id in new[] { "classic", "storybook", "ink" })
             artPack.AddItem(id);
         artPack.ItemSelected += i => _view.SetArtPack(artPack.GetItemText((int)i));
-        box.AddChild(artPack);
+        head.AddChild(artPack);
 
         _seasonOpt = new OptionButton();
         _seasonOpt.ItemSelected += i =>
             _view.SetSeason(i == 0 ? null : _seasonOpt.GetItemText((int)i));
-        box.AddChild(_seasonOpt);
+        head.AddChild(_seasonOpt);
         RebuildSeasonOptions();
 
-        box.AddChild(new HSeparator());
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        library.AddChild(scroll);
+        _toolLib = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        scroll.AddChild(_toolLib);
+        PopulateToolCards("");
+
+        var genRow = new HBoxContainer();
+        genRow.AddThemeConstantOverride("separation", 6);
+        library.AddChild(genRow);
         _presetOpt = new OptionButton();
         _presetOpt.AddItem("Krajina");
         _presetOpt.AddItem("Dungeon");
-        box.AddChild(_presetOpt);
-        var seedRow = new HBoxContainer();
+        genRow.AddChild(_presetOpt);
         _seedEdit = new LineEdit
         {
             Text = "42",
             PlaceholderText = "seed",
-            CustomMinimumSize = new Vector2(80, 0),
+            CustomMinimumSize = new Vector2(70, 0),
         };
-        seedRow.AddChild(_seedEdit);
-        var gen = new Godot.Button { Text = "Generovat", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        genRow.AddChild(_seedEdit);
+        var gen = new Godot.Button
+        {
+            Text = "🎲 Terén",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
         gen.Pressed += Generate;
-        seedRow.AddChild(gen);
-        box.AddChild(seedRow);
+        genRow.AddChild(gen);
+
+        UpdateToolUi();
 
         void RebuildSeasonOptions()
         {
@@ -1589,24 +1808,20 @@ public partial class MapEditor : Node2D
             _seasonOpt.AddItem("sezóna: výchozí");
             foreach (var id in _view.Biome.Seasons)
                 _seasonOpt.AddItem(id);
-            var cur = SceneConfig.ActiveSeason(_view.Biome, null);
             _seasonOpt.Selected = 0;
         }
+    }
 
-        box.AddChild(new HSeparator());
-        Button(box, "Zpět (Ctrl+Z)", Undo);
-        Button(box, "Uložit", Save);
-        Button(box, "Načíst", Load);
-        Button(box, "Export PNG", ExportPng);
-        Button(box, "Odeslat do DR", () => _bridge?.PopupCentered());
-        Button(box, "Nový", () =>
-            Commit(scene =>
-            {
-                scene.Shapes.Clear();
-                scene.Strokes.Clear();
-                scene.Props.Clear();
-            })
-        );
+    static void ActionButton(HBoxContainer box, string text, Action act)
+    {
+        var b = new Button { Text = text };
+        var s = new StyleBoxFlat { BgColor = new Color(0.16f, 0.15f, 0.13f, 0.9f) };
+        s.SetCornerRadiusAll(4);
+        s.SetContentMarginAll(6);
+        b.AddThemeStyleboxOverride("normal", s);
+        b.AddThemeFontSizeOverride("font_size", 12);
+        b.Pressed += act.Invoke;
+        box.AddChild(b);
     }
 
     static void Slider(VBoxContainer box, string label, double min, double max, double value, Action<double> set)
