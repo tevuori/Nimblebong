@@ -729,6 +729,7 @@ public partial class MapEditor : Node2D
             for (var i = 0; i < 10; i++)
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             _view.Stage.Snapshot().SavePng("/tmp/godot-fill.png");
+            _view.Stage.FogImage().SavePng("/tmp/godot-fog-rooms.png");
             GD.Print("dumped /tmp/godot-fill.png");
         }
 
@@ -2219,6 +2220,14 @@ public partial class MapEditor : Node2D
                 scene.Fog.RemoveAll(t => t.Kind == "shroud");
             });
         _fogSection.AddChild(revealAll);
+        var fogRooms = new CheckBox
+        {
+            Text = "Zahalit interiéry",
+            ButtonPressed = true,
+            TooltipText = "Půdorysy místností se pečou do masky mlhy — hráči je nevidí, dokud je neodhalíš.",
+        };
+        fogRooms.Toggled += on => Commit(scene => scene.FogRooms = on);
+        _fogSection.AddChild(fogRooms);
 
         _fillSection = new VBoxContainer { Visible = false };
         box.AddChild(_fillSection);

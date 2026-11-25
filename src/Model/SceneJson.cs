@@ -87,6 +87,8 @@ public static class SceneJson
                 w.WriteString("season", scene.Season);
             if (scene.FogCoverAll)
                 w.WriteBoolean("fogCoverAll", true);
+            if (!scene.FogRooms)
+                w.WriteBoolean("fogRooms", false);
             w.WritePropertyName("fog");
             w.WriteStartArray();
             foreach (var s in scene.Fog)
@@ -234,6 +236,8 @@ public static class SceneJson
                 scene.Season = se.GetString();
             if (root.TryGetProperty("fogCoverAll", out var fca) && fca.ValueKind == JsonValueKind.True)
                 scene.FogCoverAll = true;
+            if (root.TryGetProperty("fogRooms", out var frs) && frs.ValueKind == JsonValueKind.False)
+                scene.FogRooms = false;
             foreach (var el in Members(root, "fog", warn))
             {
                 var fog = ReadFog(el, scene, warn);

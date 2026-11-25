@@ -236,6 +236,10 @@ public class Scene
     /// strokes punch holes; otherwise it starts revealed and "shroud"
     /// strokes cover.</summary>
     public bool FogCoverAll;
+    /// <summary>Bake room footprints into the fog mask — interiors stay
+    /// hidden for players until revealed (the web export always does
+    /// this; the toggle mirrors mlha-mistnosti.png).</summary>
+    public bool FogRooms = true;
     public List<Prop> Props = [];
 
     public int AllocId() => NextId++;
@@ -257,6 +261,7 @@ public class Scene
             Strokes = [.. Strokes.Select(s => s.DeepClone())],
             Fog = [.. Fog.Select(s => s.DeepClone())],
             FogCoverAll = FogCoverAll,
+            FogRooms = FogRooms,
             Props = [.. Props.Select(p => p.DeepClone())],
         };
 
@@ -277,6 +282,7 @@ public class Scene
         && Strokes.Count == o.Strokes.Count
         && Fog.Count == o.Fog.Count
         && FogCoverAll == o.FogCoverAll
+        && FogRooms == o.FogRooms
         && Props.Count == o.Props.Count
         && Shapes.Zip(o.Shapes).All(p => ShapeEq(p.First, p.Second))
         && Strokes.Zip(o.Strokes).All(p => StrokeEq(p.First, p.Second))

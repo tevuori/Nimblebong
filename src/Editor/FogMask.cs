@@ -15,10 +15,17 @@ public partial class FogMask : Node2D
     /// <summary>Base state — true = whole map shrouded, clear strokes
     /// punch holes; false = whole map revealed, shroud strokes cover.</summary>
     public bool CoverAll;
+    /// <summary>Room footprints — interiors start hidden for players
+    /// (the web export bakes room outlines into the fog mask). Painted
+    /// under the strokes so clear strokes can reveal a room.</summary>
+    public List<Vector2[]> Rooms = [];
 
     public override void _Draw()
     {
         DrawRect(new Rect2(Vector2.Zero, MapSize), CoverAll ? Colors.Black : Colors.White);
+        foreach (var room in Rooms)
+            if (room.Length >= 3 && Geometry2D.TriangulatePolygon(room).Length > 0)
+                DrawColoredPolygon(room, Colors.Black);
         foreach (var s in Strokes)
         {
             var col = s.Kind == "clear" ? Colors.White : Colors.Black;
