@@ -206,7 +206,7 @@ public partial class SceneView : Node2D
                 p.Scale
             ))
         );
-        var bridges = new BridgePainter { Stone = Biome.Stone };
+        var bridges = new BridgePainter { Stone = Biome.Stone, ArtPack = Biome.ArtPack };
         bridges.SetStrokes(Scene.Strokes);
         AddLayer(Stage.AlbedoVp, water);
         Stage.Water.SetWater(Scene);

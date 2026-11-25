@@ -105,50 +105,60 @@ public partial class AlbedoPainter : Node2D
     void CrackMesh(Vector2[] poly, Color face, float alpha = 0.55f)
     {
         var (xs, ys) = BBox(poly);
-        var ink = Palette.TintAlpha(face, -40, alpha);
-        const double spacing = 26;
-        foreach (var deg in new[] { 10.0, 70.0, -50.0 })
+        var ink = Palette.TintAlpha(face, -48, alpha);
+        // Irregular hand-laid polygon slabs — the signature 2mt crack net.
+        // A jittered triangular lattice gives closed stone cells; clipping
+        // every cell to the face keeps the net organic at the rim. This
+        // replaces the earlier three-direction wireframe, which read as
+        // spiderweb scratches rather than stone joints.
+        const double spacing = 42;
+        var row = 0;
+        for (var y = ys.X - spacing; y <= ys.Y + spacing; y += spacing * 0.78, row++)
         {
-            var rad = Mathf.DegToRad(deg);
-            var dir = new Vector2(
-                (float)System.Math.Cos(rad),
-                (float)System.Math.Sin(rad)
-            );
-            var n = new Vector2(-dir.Y, dir.X);
-            // Walk lines across the bbox in the normal direction.
-            var corners = new[]
+            var stagger = row % 2 == 1 ? spacing * 0.5 : 0;
+            for (var x = xs.X - spacing; x <= xs.Y + spacing; x += spacing)
             {
-                new Vector2((float)xs.X, (float)ys.X),
-                new Vector2((float)xs.Y, (float)ys.X),
-                new Vector2((float)xs.X, (float)ys.Y),
-                new Vector2((float)xs.Y, (float)ys.Y),
-            };
-            double lo = double.MaxValue,
-                hi = double.MinValue,
-                alo = double.MaxValue,
-                ahi = double.MinValue;
-            foreach (var c in corners)
-            {
-                lo = System.Math.Min(lo, c.Dot(n));
-                hi = System.Math.Max(hi, c.Dot(n));
-                alo = System.Math.Min(alo, c.Dot(dir));
-                ahi = System.Math.Max(ahi, c.Dot(dir));
-            }
-            for (var d = lo; d <= hi; d += spacing)
-            {
-                var pts = new List<Vector2>();
-                for (var a = alo - 8; a <= ahi + 8; a += 14)
+                var seed = x * 0.127 + y * 0.173 + row * 3.1;
+                var cx = x + stagger + (Rng.Noise(seed) - 0.5) * spacing * 0.42;
+                var cy = y + (Rng.Noise(seed + 1) - 0.5) * spacing * 0.34;
+                var center = new Vector2((float)cx, (float)cy);
+                if (!Poly.PointInPolygon(center, poly))
+                    continue;
+                var sides = 6 + (int)(Rng.Noise(seed + 2) * 3);
+                var rot = Rng.Noise(seed + 3) * System.Math.PI;
+                var rx = spacing * (0.54 + Rng.Noise(seed + 4) * 0.18);
+                var ry = spacing * (0.42 + Rng.Noise(seed + 5) * 0.15);
+                var cell = new Vector2[sides];
+                for (var k = 0; k < sides; k++)
                 {
-                    var wob =
-                        (Rng.Noise(a * 0.23 + d * 0.41 + deg) - 0.5) * spacing * 0.5;
-                    pts.Add(dir * (float)a + n * (float)(d + wob));
+                    var a = rot + k / (double)sides * System.Math.PI * 2;
+                    var rr = 0.82 + Rng.Noise(seed + 10 + k) * 0.42;
+                    var lx = System.Math.Cos(a) * rx * rr;
+                    var ly = System.Math.Sin(a) * ry * rr;
+                    cell[k] = new Vector2(
+                        (float)(cx + lx * System.Math.Cos(rot * 0.13) - ly * System.Math.Sin(rot * 0.13)),
+                        (float)(cy + lx * System.Math.Sin(rot * 0.13) + ly * System.Math.Cos(rot * 0.13))
+                    );
                 }
-                Vector2[] line = [.. pts];
-                foreach (
-                    var seg in Geometry2D.ClipPolylineWithPolygon(line, (Vector2[])poly)
-                )
-                    if (seg.Length > 1)
-                        DrawPolyline(seg, ink, 1.2f, true);
+                foreach (var piece in Geometry2D.IntersectPolygons(cell, poly))
+                {
+                    if (piece.Length < 3)
+                        continue;
+                    // Occasional faint slab tint breaks the uniform face.
+                    if (Rng.Noise(seed + 20) > 0.68)
+                        Fill(
+                            piece,
+                            Palette.TintAlpha(
+                                face,
+                                Rng.Noise(seed + 21) > 0.5 ? 9 : -8,
+                                0.16f
+                            )
+                        );
+                    var closed = new Vector2[piece.Length + 1];
+                    piece.CopyTo(closed, 0);
+                    closed[^1] = piece[0];
+                    DrawPolyline(closed, ink, 1.35f, true);
+                }
             }
         }
     }
@@ -226,7 +236,7 @@ public partial class AlbedoPainter : Node2D
                 // mesh carries the texture.
                 if (!dirt && Biome?.ArtPack != "ink")
                 {
-                    TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.18f, 1.42);
+                    TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.32f, 0.9);
                     // The cliff-face masonry tile is deliberately not
                     // stretched across broad slopes: at map scale it reads
                     // as mechanical brick courses instead of natural rock.
@@ -292,7 +302,7 @@ public partial class AlbedoPainter : Node2D
             for (var x = xs.X; x < xs.Y; x += 22)
             {
                 var seed = x * 0.37 + y * 0.53;
-                if (Rng.Noise(seed) < 0.68)
+                if (Rng.Noise(seed) < 0.78)
                     continue;
                 var p = new Vector2(
                     (float)(x + (Rng.Noise(seed + 1) - 0.5) * 9),
@@ -312,7 +322,7 @@ public partial class AlbedoPainter : Node2D
                     pebble,
                     Palette.Tint(face, -3 + Rng.Noise(seed + 6) * (12 + m.Roughness / 100 * 12))
                 );
-                DrawPolyline(pebble, Palette.TintAlpha(face, -28, 0.7), 1.1f, true);
+                DrawPolyline(pebble, Palette.TintAlpha(face, -28, 0.48), 1f, true);
             }
 
             // Wall interior: AO under the rim + strata arcs + cracks.
@@ -429,9 +439,17 @@ public partial class AlbedoPainter : Node2D
                         )
                 );
                 if (barren)
-                    TextureTiles.Stamp(this, top, TextureTiles.Stone, 0.14f, 1.4);
+                {
+                    // 2mt plateaus are cracked stone slabs, not the
+                    // cobble tile: the angular ink mesh must cover the
+                    // table top itself (classic art keeps pebble stone).
+                    if (Biome?.ArtPack == "ink")
+                        CrackMesh(top, Palette.Mix(Stone, Cliff, 0.55), 0.55f);
+                    else
+                        TextureTiles.Stamp(this, top, TextureTiles.Stone, 0.2f, 0.85);
+                }
                 else if (GrassTile > 0 && !Winter)
-                    TextureTiles.Stamp(this, top, TextureTiles.Grass, 0.3f);
+                    TextureTiles.Stamp(this, top, TextureTiles.Grass, 0.12f);
                 var (tx, ty) = BBox(top);
                 for (var i = 0; i < 12; i++)
                 {
@@ -581,11 +599,11 @@ public partial class AlbedoPainter : Node2D
                 foreach (var (cp, angle, index) in samples)
                 {
                     var seed = cp.X * 0.19 + cp.Y * 0.43 + index * 5.7;
-                    if (Rng.Noise(seed) < 0.48)
+                    if (Rng.Noise(seed) < 0.86)
                         continue;
                     var tangent = new Vector2((float)System.Math.Cos(angle), (float)System.Math.Sin(angle));
                     var inward = new Vector2(-tangent.Y, tangent.X);
-                    var len = 34 + Rng.Noise(seed + 1) * 58;
+                    var len = 42 + Rng.Noise(seed + 1) * 52;
                     var pts = new System.Collections.Generic.List<Vector2>();
                     for (var k = 0; k <= 5; k++)
                     {
@@ -594,7 +612,7 @@ public partial class AlbedoPainter : Node2D
                             + inward * (float)((Rng.Noise(seed + 2 + k) - 0.5) * 9 + 4);
                         pts.Add(q);
                     }
-                    DrawPolyline([.. pts], Palette.Hex("#3d3424") with { A = 0.62f }, 1.8f, true);
+                    DrawPolyline([.. pts], Palette.Hex("#2f281b") with { A = 0.72f }, 1.8f, true);
                     // Occasional short branch, like a rootlet splitting off
                     // the main fissure.
                     if (Rng.Noise(seed + 9) > 0.45)
@@ -616,10 +634,10 @@ public partial class AlbedoPainter : Node2D
             foreach (var top in m.Tops)
             {
                 var tcen2 = Poly.Centroid(top);
-                foreach (var (point, index) in Sample(top, 11))
+                foreach (var (point, index) in Sample(top, 24))
                 {
                     var seed = point.X * 0.29 + point.Y * 0.41 + index * 1.7;
-                    if (Rng.Noise(seed) < 0.38)
+                    if (Rng.Noise(seed) < 0.58)
                         continue;
                     var inAng = Mathf.Atan2(tcen2.Y - point.Y, tcen2.X - point.X);
                     var dir2 = new Vector2(

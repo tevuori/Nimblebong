@@ -196,13 +196,14 @@ public partial class PropsPainter
         {
             // Ridge tent — prism footprint: two triangular end faces
             // (north/south apexes) joined by the ridge line.
+            // Rectangular ridge-tent footprint. Pointed hex ends read as
+            // a pavilion/leaf; the Nimblehold camp canvas is a simple
+            // oblong ground sheet with a centre ridge.
             var bodyPts = new[]
             {
-                new Vector2((float)-r, (float)(-r * 0.6)),
-                new Vector2(0, (float)-r),
-                new Vector2((float)r, (float)(-r * 0.6)),
+                new Vector2((float)-r, (float)(-r * 0.62)),
+                new Vector2((float)r, (float)(-r * 0.62)),
                 new Vector2((float)r, (float)(r * 0.7)),
-                new Vector2(0, (float)r),
                 new Vector2((float)-r, (float)(r * 0.7)),
             };
             var body = Xform(p, bodyPts);
@@ -233,9 +234,9 @@ public partial class PropsPainter
                     p,
                     new[]
                     {
-                        new Vector2((float)-r, (float)(-r * 0.6)),
-                        new Vector2(0, (float)-r),
-                        new Vector2(0, (float)r),
+                        new Vector2((float)-r, (float)(-r * 0.62)),
+                        new Vector2(0, (float)(-r * 0.62)),
+                        new Vector2(0, (float)(r * 0.7)),
                         new Vector2((float)-r, (float)(r * 0.7)),
                     }
                 ),
@@ -246,10 +247,10 @@ public partial class PropsPainter
                     p,
                     new[]
                     {
-                        new Vector2(0, (float)-r),
-                        new Vector2((float)r, (float)(-r * 0.6)),
+                        new Vector2(0, (float)(-r * 0.62)),
+                        new Vector2((float)r, (float)(-r * 0.62)),
                         new Vector2((float)r, (float)(r * 0.7)),
-                        new Vector2(0, (float)r),
+                        new Vector2(0, (float)(r * 0.7)),
                     }
                 ),
                 new Color(1f, 1f, 1f, 0.13f)

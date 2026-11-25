@@ -159,8 +159,9 @@ public partial class WaterPainter : Node2D
 
     void DrawRiverGroup()
     {
-        var deep = Palette.Tint(Water, -30);
-        var shallow = Palette.Tint(Water, 72);
+        var deep = Palette.Tint(Water, -20);
+        var mid = Palette.Tint(Water, 18);
+        var shallow = Palette.Tint(Water, 68);
         // Bank stack per stroke — wide grassy verge, pale trodden edge,
         // deep rim, inked shoreline. Drawn before the unioned fill so the
         // merged water covers the seams inside a confluence (TS order).
@@ -181,7 +182,7 @@ public partial class WaterPainter : Node2D
         foreach (var (run, w) in _rivers)
             DrawPolyline(run, shallow, (float)w, true);
         foreach (var (run, w) in _rivers)
-            DrawPolyline(run, Water, (float)Math.Max(3, w - 10), true);
+            DrawPolyline(run, mid, (float)Math.Max(3, w - 13), true);
         // Hand-painted water tile — caustic ripples over the painted
         // depth bands, wherever the union surface triangulates.
         foreach (var piece in UnionAll(_rivers, -10))
@@ -191,13 +192,13 @@ public partial class WaterPainter : Node2D
                 this,
                 piece,
                 TextureTiles.Water,
-                0.68f,
-                0.4,
+                0.46f,
+                0.55,
                 new Vector2((float)(Rng.Noise(seed) * 120), (float)(Rng.Noise(seed * 1.7) * 120))
             );
         }
         foreach (var (run, w) in _rivers)
-            DrawPolyline(run, Palette.Tint(Water, -20), (float)Math.Max(3, w - 18), true);
+            DrawPolyline(run, Palette.Tint(Water, -26), (float)Math.Max(3, w - 27), true);
         foreach (var (run, w) in _rivers)
             DrawRiverDetails(run, w);
         RiverPebbles();
@@ -372,6 +373,11 @@ public partial class WaterPainter : Node2D
         var normals = Spline.Normals(run);
         BankShading(left, normals, +1);
         BankShading(right, normals, -1);
+        // Continuous broken-white waterline: the refs carry a pale foam
+        // rim along nearly the whole shore, not only on north-facing runs.
+        var foamline = Palette.Hex("#e8f7ee") with { A = 0.3f };
+        if (left.Length > 1) DrawPolyline(left, foamline, 1.7f, true);
+        if (right.Length > 1) DrawPolyline(right, foamline, 1.7f, true);
         FoamSpecks(left, normals, +1, waterSeed);
         FoamSpecks(right, normals, -1, waterSeed);
         BankDetails(run, w, left, normals, +1, waterSeed);

@@ -332,24 +332,24 @@ public partial class PropsPainter : Node2D
     // --- deciduous tree ---------------------------------------------------
     // Two seeded variants: a round oak-like lobed canopy, and a clump
     // variant where the lobes sit apart so sky shows between them.
-    void DrawTree(PropPlacement p)
+    void DrawTree(PropPlacement p, Color? colorOverride = null)
     {
         var rand = new Jitter(p.VarSeed);
         var r = 26 * rand.Range(0.85, 1.2);
-        var color = JitterGreen(Foliage, rand);
+        var color = colorOverride ?? JitterGreen(Foliage, rand);
         var edge = Palette.Mix(color, Palette.Hex("#251b10"), 0.55);
         var clump = rand.Next() < 0.12;
 
         ContactShadow(p, r * 0.95, r * 0.8);
 
         var parts = new List<Vector2[]>();
-        var lobes = clump ? 4 + (int)(rand.Next() * 3) : 8 + (int)(rand.Next() * 4);
+        var lobes = clump ? 5 + (int)(rand.Next() * 3) : 10 + (int)(rand.Next() * 5);
         var rot = rand.Next() * Math.PI * 2;
         for (var k = 0; k < lobes; k++)
         {
             var a = rot + (k / (double)lobes) * Math.PI * 2 + (rand.Next() - 0.5) * 0.5;
             var d = r * (clump ? 0.6 : 0.5) * rand.Range(0.82, 1.12);
-            var lr = clump ? rand.Range(0.34, 0.46) : rand.Range(0.48, 0.62);
+            var lr = clump ? rand.Range(0.34, 0.46) : rand.Range(0.42, 0.55);
             parts.Add(Blob(Math.Cos(a) * d, Math.Sin(a) * d, r * lr, rand, 18, 0.09));
         }
         if (!clump)
@@ -365,20 +365,20 @@ public partial class PropsPainter : Node2D
         }
         // Base shade, then lit lobes shrunk toward the NW sun.
         foreach (var part in parts)
-            Fill(XformSmooth(p, part), Palette.Mix(color, Colors.Black, 0.28));
+            Fill(XformSmooth(p, part), Palette.Mix(color, Colors.Black, 0.2));
         var off = new Vector2((float)(-r * 0.06), (float)(-r * 0.08));
         foreach (var part in parts)
         {
             var lit = part.Select(q => q * 0.86f + off).ToArray();
             Fill(
                 XformSmooth(p, lit),
-                Palette.Mix(color, rand.Next() < 0.5 ? Colors.Black : Colors.White, rand.Next() * 0.12)
+                Palette.Mix(color, rand.Next() < 0.45 ? Colors.Black : Colors.White, rand.Next() * 0.2)
             );
         }
         // Highlight blob NW, shade blob SE — the watercolor sun side.
         Fill(
             XformSmooth(p, Blob(-r * 0.22, -r * 0.26, r * rand.Range(0.3, 0.42), rand, 10, 0.18)),
-            Palette.Mix(color, Palette.Hex("#fffbe0"), 0.18)
+            Palette.Mix(color, Palette.Hex("#fffbe0"), 0.28)
         );
         Fill(
             XformSmooth(p, Blob(r * 0.24, r * 0.2, r * rand.Range(0.22, 0.32), rand, 10, 0.18)),
@@ -389,14 +389,14 @@ public partial class PropsPainter : Node2D
         var trunk = XformU(p, Poly.Ellipse(r * 0.04, r * 0.72, r * 0.05, r * 0.1, 0.1, 8));
         Fill(trunk, Palette.Mix(Wood, Colors.Black, 0.12));
         // Leaf-arc texture in two tones.
-        foreach (var tone in new[] { Palette.Mix(color, Colors.Black, 0.2), Palette.Mix(color, Colors.White, 0.18) })
+        foreach (var tone in new[] { Palette.Mix(color, Colors.Black, 0.2), Palette.Mix(color, Colors.White, 0.08) })
         {
-            var n = (int)(r * 0.78);
+            var n = (int)(r * 1.05);
             for (var k = 0; k < n; k++)
             {
                 var a = rand.Next() * Math.PI * 2;
                 var d = Math.Sqrt(rand.Next()) * r * 0.85;
-                var s = 1.4 + rand.Next() * 2.4;
+                var s = 1.0 + rand.Next() * 1.65;
                 var aa = rand.Next() * Math.PI * 2;
                 DrawArc(
                     Xform(p, new Vector2((float)(Math.Cos(a) * d), (float)(Math.Sin(a) * d))),

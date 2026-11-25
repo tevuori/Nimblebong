@@ -669,7 +669,7 @@ public static class SceneConfig
             );
             b.Named["water"] = Palette.Mix(
                 Palette.Desaturate(b.At("water"), 0.35),
-                H("#3fb8c9"),
+                H("#398f88"),
                 0.35
             );
             b.Named["foliage"] = Palette.Mix(Palette.Desaturate(b.At("foliage"), 0.65), H("#8c8478"), 0.12);

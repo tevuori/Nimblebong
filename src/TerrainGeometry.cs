@@ -264,7 +264,7 @@ public static class TerrainGeometry
                 Math.Sin(x * 0.011 + seed) * 0.5
                 + Math.Sin(y * 0.013 + seed * 1.7) * 0.35
                 + Math.Sin((x + y) * 0.007 + seed * 2.3) * 0.3;
-            result[i] = poly[i] + normal * (float)(wave * size * 0.22);
+            result[i] = poly[i] + normal * (float)(wave * size * 0.38);
         }
         return result;
     }

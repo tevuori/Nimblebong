@@ -13,6 +13,7 @@ namespace DmMap;
 public partial class BridgePainter : Node2D
 {
     public Color Stone = Palette.Hex("#a4a68e");
+    public string ArtPack = "classic";
 
     struct Bridge
     {
@@ -163,7 +164,7 @@ public partial class BridgePainter : Node2D
             Rect(-L / 2 - 3, -W / 2 + 8, L + 6, W),
             new Color(0.05f, 0.06f, 0.04f, 0.22f)
         );
-        Fill(Rect(-L / 2 - 3, -W / 2, L + 6, W), Palette.Hex("#6b4327"));
+        Fill(Rect(-L / 2 - 3, -W / 2, L + 6, W), Palette.Hex(ArtPack == "ink" ? "#2b2118" : "#6b4327"));
         // Broad, warm planks. Nimblehold bridges read as one simple
         // caramel deck — heavy rails/post caps make the crossing look
         // like a ladder at map scale.
@@ -171,13 +172,15 @@ public partial class BridgePainter : Node2D
         {
             Fill(
                 Rect(x, -W / 2 + 2, 8.5, W - 4),
-                Palette.Hex((int)(x * 0.37) % 2 != 0 ? "#ad762e" : "#bf8437")
+                Palette.Hex(ArtPack == "ink"
+                    ? ((int)(x * 0.37) % 2 != 0 ? "#4c3422" : "#5a3d27")
+                    : ((int)(x * 0.37) % 2 != 0 ? "#bd873c" : "#cf9846"))
             );
             Line(
                 new((float)x, (float)(-W / 2 + 2)),
                 new((float)(x + 1), (float)(W / 2 - 2)),
-                Palette.Hex("#5c3d22"),
-                1.5f
+                Palette.Hex(ArtPack == "ink" ? "#1e150f" : "#71522e") with { A = 0.86f },
+                1.15f
             );
         }
         // A narrow ink lip is enough to anchor the deck; no railing.
@@ -185,7 +188,7 @@ public partial class BridgePainter : Node2D
             Line(
                 new((float)(-L / 2 - 2), (float)(side * W / 2)),
                 new((float)(L / 2 + 2), (float)(side * W / 2)),
-                Palette.Hex("#4b301c"),
+                Palette.Hex(ArtPack == "ink" ? "#17100c" : "#4b301c"),
                 2.2f
             );
     }

@@ -11,7 +11,7 @@ uniform vec2 uSunDir = vec2(-0.5, -0.62); // toward the sun (canvas coords, y do
 uniform float uSunElev = 0.12;            // height units per px travelled
 uniform float uScale = 60.0;              // gray 0..1 -> world px of relief
 uniform float uShadows = 1.0;
-uniform float uAmbient = 0.66;
+uniform float uAmbient = 0.72;
 uniform vec3 uSunColor = vec3(0.42, 0.38, 0.30);
 uniform int uSteps = 40;
 uniform float uStepPx = 3.0;
@@ -70,7 +70,7 @@ void fragment() {
             if (occ > 0.985) break;
         }
     }
-    vec3 lit = albedo.rgb * (uAmbient * (1.0 - occ * 0.66) + uSunColor * diff * (1.0 - occ * 0.94));
+    vec3 lit = albedo.rgb * (uAmbient * (1.0 - occ * 0.5) + uSunColor * diff * (1.0 - occ * 0.78));
     // Animated water: slow wave tint drift + sparse moving glints,
     // confined to the water mask (uWater alpha = coverage).
     float w = texture(uWater, UV).a;

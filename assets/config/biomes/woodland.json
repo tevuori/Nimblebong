@@ -35,9 +35,9 @@
   },
   "palette": {
     "ground": "#6fa346",
-    "cliff": "#c2bda0",
+    "cliff": "#d0ccb5",
     "water": "#0d6f79",
-    "foliage": "#4e7440",
+    "foliage": "#3f6838",
     "stone": "#a4a68e",
     "roof": "#ac6948",
     "wood": "#a37d4c"
@@ -57,12 +57,12 @@
     ],
     "summerTint": [
       {
-        "to": "#63b24b",
-        "amount": 0.45
+        "to": "#58a347",
+        "amount": 0.32
       },
       {
-        "to": "#c2b84a",
-        "amount": 0.28
+        "to": "#397553",
+        "amount": 0.16
       }
     ]
   },
@@ -82,7 +82,7 @@
     "leaves": 1,
     "snow": 1,
     "extra": "twigs",
-    "grassTile": 0.3
+    "grassTile": 0.14
   },
   "roofs": {
     "material": "tile",
@@ -96,9 +96,9 @@
     "edge": null
   },
   "roads": {
-    "dirt": "#b8b476",
+    "dirt": "#c59f62",
     "stone": "#b3b39b",
-    "verge": "#a7aa64",
+    "verge": "#b39a5f",
     "halo": "#e6dda044"
   },
   "colors": {

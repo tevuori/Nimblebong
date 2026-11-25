@@ -147,7 +147,7 @@ public static class GroundPass
         Vector2 mapSize,
         Pal pal,
         int seed,
-        double wash = 0.85,
+        double wash = 0.5,
         int cell = 8
     )
     {
@@ -163,8 +163,8 @@ public static class GroundPass
         {
             var wx = x * cell;
             var wy = y * cell;
-            var wl = Clamp01((fields.Lush(wx, wy) - 0.38) * 3.8);
-            var wd = Clamp01((fields.Dry(wx, wy) - 0.48) * 3.4);
+            var wl = Clamp01((fields.Lush(wx, wy) - 0.38) * 2.5);
+            var wd = Clamp01((fields.Dry(wx, wy) - 0.48) * 2.5);
             var lt = (fields.Light(wx, wy) - 0.5) * 58 * wash / 255.0;
             img.SetPixel(
                 x,
