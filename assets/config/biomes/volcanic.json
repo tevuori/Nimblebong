@@ -1,0 +1,66 @@
+{
+  "label": "Sopečné pustiny",
+  "seasons": {
+    "summer": {
+      "look": "summer",
+      "label": "Doutnající pustina"
+    }
+  },
+  "palette": {
+    "ground": "#514e4b",
+    "cliff": "#70635b",
+    "water": "#637c83",
+    "foliage": "#6b6256",
+    "stone": "#666266",
+    "roof": "#7b5146",
+    "wood": "#79614c"
+  },
+  "labels": {
+    "trees": "Ohořelé stromy",
+    "bush": "Suché trní",
+    "house": "Čedičové stavby",
+    "scatter": "Ohořelá krajina"
+  },
+  "trees": {
+    "style": "charred",
+    "species": ["charred", "stump", "deadtree"],
+    "summerTint": []
+  },
+  "ground": {
+    "dirt": "#2a2624",
+    "dryGrass": "#5a5448",
+    "grass": 0.06,
+    "stones": 1.5,
+    "flowers": 0,
+    "flowerColors": [],
+    "patches": 1,
+    "leaves": 0,
+    "snow": 0.4,
+    "extra": "cracks",
+    "grassTile": 0
+  },
+  "roofs": {
+    "material": "slate",
+    "chimney": false,
+    "moss": 0.1,
+    "extra": "ember-vent",
+    "winterSnow": true
+  },
+  "water": {
+    "bank": "stone",
+    "edge": "#6e665c"
+  },
+  "roads": {
+    "dirt": "#6b6156",
+    "stone": "#7a746c",
+    "verge": "#4a453e",
+    "halo": "#00000022"
+  },
+  "colors": {
+    "waterDeep": "#4a5450",
+    "fieldStalks": "#4a4038",
+    "market": "#6e6355cc",
+    "plaza": "#6e6857cc",
+    "flag": "#db6d44"
+  }
+}

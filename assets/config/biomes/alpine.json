@@ -1,0 +1,65 @@
+{
+  "label": "Zasněžené hory",
+  "seasons": {
+    "summer": {
+      "look": "summer",
+      "label": "Věčný sníh"
+    }
+  },
+  "palette": {
+    "ground": "#dae3df",
+    "cliff": "#929fa5",
+    "water": "#527f9e",
+    "foliage": "#456c61",
+    "stone": "#8f9ba4",
+    "roof": "#718997",
+    "wood": "#827866"
+  },
+  "labels": {
+    "trees": "Zasněžené jedle",
+    "bush": "Zasněžené křoví",
+    "house": "Horské sruby",
+    "scatter": "Jehličnatý les"
+  },
+  "trees": {
+    "style": "pine",
+    "species": ["snowfir", "pine", "bare"],
+    "summerTint": []
+  },
+  "ground": {
+    "dirt": "#7c7a72",
+    "grass": 0.4,
+    "stones": 1.6,
+    "flowers": 0.3,
+    "flowerColors": ["#ffffff", "#7aa6e0", "#c9a0dc"],
+    "patches": 0.5,
+    "leaves": 0.2,
+    "snow": 1.5,
+    "extra": "snow",
+    "grassTile": 0
+  },
+  "roofs": {
+    "material": "shingle",
+    "chimney": true,
+    "moss": 0.1,
+    "extra": "snow",
+    "winterSnow": true
+  },
+  "water": {
+    "bank": "stone",
+    "edge": null
+  },
+  "roads": {
+    "dirt": "#b9ab8c",
+    "stone": "#a9afad",
+    "verge": "#c4cbc6",
+    "halo": "#ffffff55"
+  },
+  "colors": {
+    "causeway": "#bac7c1",
+    "gate": "#b9c5be",
+    "bale": "#d9cfb8",
+    "bushBlossom": "#e5efe5",
+    "tentHighlight": "#ede6d4"
+  }
+}
