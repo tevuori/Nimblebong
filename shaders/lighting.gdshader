@@ -78,6 +78,18 @@ void fragment() {
         float glint = smoothstep(0.93, 1.0, g);
         lit += vec3(0.9, 0.95, 1.0) * glint * 0.22 * w;
     }
+    // Paper grain — fine two-scale value noise multiplying the sheet,
+    // like pigment catching on paper (web paperGrain, ~0.085 strength).
+    vec2 gp = UV / texel;
+    float g1 = fract(sin(dot(floor(gp / 3.0), vec2(127.1, 311.7))) * 43758.5453);
+    float g2 = fract(sin(dot(floor(gp / 7.0) + 13.7, vec2(269.5, 183.3))) * 43758.5453);
+    lit *= 0.915 + (g1 * 0.6 + g2 * 0.4) * 0.085;
+    // Parchment edge — a sepia wash creeping in from the borders like
+    // pigment pooling at the sheet's edge (web parchmentEdge).
+    float ex = min(UV.x, 1.0 - UV.x) / texel.x;
+    float ey = min(UV.y, 1.0 - UV.y) / texel.y;
+    float wash = smoothstep(46.0, 0.0, min(ex, ey));
+    lit = mix(lit, vec3(0.40, 0.30, 0.16), wash * 0.22);
     COLOR = vec4(lit, 1.0);
     }
 }

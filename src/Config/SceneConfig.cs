@@ -57,6 +57,9 @@ public class ResolvedBiome
     public string SeasonLook = "summer";
     /// <summary>Bank style override from the active season entry.</summary>
     public string? WaterBank;
+    /// <summary>ground.grassTile — strength of the hand-painted grass tile
+    /// stamped under the ground speckle (0 = off: sand, ash, snow, cave).</summary>
+    public double GrassTile;
 
     /// <summary>Classic woodland fallback for palette lookups.</summary>
     static readonly Dictionary<string, Color> Defaults = new()
@@ -549,6 +552,9 @@ public static class SceneConfig
             var dry = Get(g, "dryGrass");
             if (IsColor(dry))
                 b.Named["ground.dryGrass"] = ToColor(dry);
+            var tile = Get(g, "grassTile");
+            if (tile.VariantType == Variant.Type.Float || tile.VariantType == Variant.Type.Int)
+                b.GrassTile = tile.AsDouble();
         }
         if (IsDict(Get(root, "water"), out var water) && IsColor(Get(water, "edge")))
             b.Named["water.edge"] = ToColor(Get(water, "edge"));
@@ -755,6 +761,7 @@ public static class SceneConfig
             Season = ActiveSeason(b, season),
             SeasonLook = entry.Look,
             WaterBank = entry.WaterBank,
+            GrassTile = b.GrassTile,
         };
         foreach (var kv in b.Named)
             copy.Named[kv.Key] = kv.Value;

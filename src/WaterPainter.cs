@@ -25,6 +25,8 @@ public partial class WaterPainter : Node2D
     readonly List<(Vector2[] Run, double Width)> _rivers = [];
     readonly List<(Vector2[] Run, double Width)> _roads = [];
 
+    public override void _Ready() => TextureRepeat = TextureRepeatEnum.Enabled;
+
     /// <summary>River from spline control points — resampled dense and
     /// ink-jittered once, so every derived band shares the wobble.</summary>
     public void AddRiver(IReadOnlyList<Vector2> control, double width)
@@ -134,7 +136,20 @@ public partial class WaterPainter : Node2D
         foreach (var piece in UnionAll(_rivers, 0))
             Fill(piece, shallow);
         foreach (var piece in UnionAll(_rivers, -10))
+        {
             Fill(piece, Water);
+            // Hand-painted water tile — caustic ripples over the painted
+            // depth bands, offset by a per-stroke noise seed like the web.
+            var seed = piece.Length > 0 ? piece[0].X * 0.13 + piece[0].Y * 0.31 : 0;
+            TextureTiles.Stamp(
+                this,
+                piece,
+                TextureTiles.Water,
+                0.45f,
+                0.4,
+                new Vector2((float)(Rng.Noise(seed) * 120), (float)(Rng.Noise(seed * 1.7) * 120))
+            );
+        }
         foreach (var piece in UnionAll(_rivers, -18))
             Fill(piece, Palette.Tint(Water, -14));
         foreach (var (run, w) in _rivers)

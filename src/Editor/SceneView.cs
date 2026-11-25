@@ -117,6 +117,8 @@ public partial class SceneView : Node2D
             albedo.Ground = Biome.Ground;
             albedo.Cliff = Biome.Cliff;
             albedo.Stone = Biome.Stone;
+            albedo.GrassTile = Biome.GrassTile;
+            albedo.Winter = Biome.SeasonLook == "winter";
             albedo.SetMassifs(Massifs);
             Stage.Height.SetMassifs(Massifs);
         }

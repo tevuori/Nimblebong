@@ -15,6 +15,13 @@ public partial class AlbedoPainter : Node2D
     public Color Cliff = Palette.Hex("#b4b18a");
     public Color Stone = Palette.Hex("#a4a68e");
     public Vector2 MapSize = new(1600, 1000);
+    /// <summary>Strength of the hand-painted grass tile under the ground
+    /// speckle — biome ground.grassTile (0 = off: sand, ash, snow, cave).</summary>
+    public double GrassTile;
+    /// <summary>Winter look suppresses the grass tile (web parity).</summary>
+    public bool Winter;
+
+    public override void _Ready() => TextureRepeat = TextureRepeatEnum.Enabled;
 
     List<Massif> _massifs = [];
     // Strata terrace rings cached per massif: filled bands between two
@@ -96,6 +103,15 @@ public partial class AlbedoPainter : Node2D
     public override void _Draw()
     {
         DrawRect(new Rect2(Vector2.Zero, MapSize), Ground);
+        // Hand-painted grass tile folded into the turf (web hybrid
+        // pipeline) — faint source-over under the speckle, off in winter.
+        if (GrassTile > 0 && !Winter)
+            DrawTextureRect(
+                TextureTiles.Grass,
+                new Rect2(Vector2.Zero, MapSize),
+                true,
+                new Color(1, 1, 1, (float)GrassTile)
+            );
         foreach (var m in _massifs)
         {
             var face = FaceColor(m);
@@ -115,7 +131,12 @@ public partial class AlbedoPainter : Node2D
 
             // Slope band — pre-clipped pieces, punched out of higher tops.
             foreach (var poly in TerrainGeometry.Subtract(m.Band, higher))
+            {
                 Fill(poly, face);
+                // Hand-painted stone tile folded into the rocky face.
+                if (!dirt)
+                    TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.38f, 0.55);
+            }
 
             // Terrace rings — the sedimentary strata.
             foreach (var (ring, tone) in _strata[m])
@@ -291,6 +312,8 @@ public partial class AlbedoPainter : Node2D
                 );
                 var lift = 3 + Rng.Noise(tseed + 1) * 5;
                 Fill(top, Palette.Tint(Palette.Mix(Ground, Stone, dry), lift));
+                if (GrassTile > 0 && !Winter)
+                    TextureTiles.Stamp(this, top, TextureTiles.Grass, 0.3f);
                 var (tx, ty) = BBox(top);
                 for (var i = 0; i < 12; i++)
                 {
