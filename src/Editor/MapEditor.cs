@@ -273,11 +273,34 @@ public partial class MapEditor : Node2D
     OptionButton _variantOpt = null!;
     /// <summary>Variant picker for prop tools: -1 auto, 0/1/2 = I/II/III.</summary>
     int _propVariant = -1;
+    ToolThumbs _thumbs = null!;
+    // Environment look mirrored into the thumbnail renderer.
+    string _lookBiome = "woodland";
+    string _lookMood = "day";
+    string _lookArt = "classic";
+    string? _lookSeason;
+    // UI scale — quantized to 0.25 so rebuilds only happen on real jumps.
+    float _ui = 1;
+    int _uiBucket;
+    CanvasLayer? _uiLayer;
+
+    int ComputeUiBucket() =>
+        (int)
+            Math.Round(
+                Math.Clamp(GetViewportRect().Size.Y / 720f, 1f, 2.6f) / 0.25f
+            );
+
+    int Fs(float s) => (int)Math.Round(s * _ui);
+    float Us(float v) => v * _ui;
 
     public override void _Ready()
     {
+        _uiBucket = ComputeUiBucket();
+        _ui = _uiBucket * 0.25f;
         _view = SceneView.Create(MapSize);
         AddChild(_view);
+        _thumbs = ToolThumbs.Create(_ui);
+        AddChild(_thumbs);
         _history = new SceneHistory(_view.Scene);
         _ghost = new GhostLayer();
         AddChild(_ghost);
@@ -301,6 +324,50 @@ public partial class MapEditor : Node2D
         AddChild(_bridge);
         if (System.Environment.GetEnvironmentVariable("DMMAP_PROBE") == "1")
             CallDeferred(nameof(ProbeRun));
+        var uiShot = System.Environment.GetEnvironmentVariable("DMMAP_UI_SHOT");
+        if (uiShot != null)
+            CallDeferred(nameof(UiShot), uiShot);
+    }
+
+    /// <summary>Rebuild the dock + thumbnails when the window crosses a
+    /// scale bucket — keeps the UI readable on big screens.</summary>
+    public override void _Notification(int what)
+    {
+        if (what != NotificationWMSizeChanged)
+            return;
+        var b = ComputeUiBucket();
+        if (b != _uiBucket)
+        {
+            _uiBucket = b;
+            CallDeferred(nameof(RebuildUi));
+        }
+    }
+
+    void RebuildUi()
+    {
+        _ui = _uiBucket * 0.25f;
+        _uiLayer?.QueueFree();
+        _uiLayer = null;
+        _thumbs.QueueFree();
+        _thumbs = ToolThumbs.Create(_ui);
+        AddChild(_thumbs);
+        _toolCards.Clear();
+        BuildUi();
+    }
+
+    /// <summary>UI probe: wait for thumbnails to finish, dump the whole
+    /// window (dock included) to the given path, quit.</summary>
+    async void UiShot(string path)
+    {
+        for (var i = 0; i < 600 && _thumbs.Pending; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        for (var i = 0; i < 4; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var sheet = System.Environment.GetEnvironmentVariable("DMMAP_THUMB_DUMP");
+        if (sheet != null)
+            _thumbs.DumpSheet(sheet);
+        GetViewport().GetTexture().GetImage().SavePng(path);
+        GetTree().Quit();
     }
 
     /// <summary>Throttled work: live massif preview while a terrain
@@ -352,13 +419,23 @@ public partial class MapEditor : Node2D
         // Optional art/season override for visual checks.
         var envBiome = System.Environment.GetEnvironmentVariable("DMMAP_BIOME");
         if (envBiome != null)
+        {
+            _lookBiome = envBiome;
             _view.SetBiome(envBiome);
+        }
         var envArt = System.Environment.GetEnvironmentVariable("DMMAP_ARTPACK");
         var envSeason = System.Environment.GetEnvironmentVariable("DMMAP_SEASON");
         if (envArt != null)
+        {
+            _lookArt = envArt;
             _view.SetArtPack(envArt);
+        }
         if (envSeason != null)
+        {
+            _lookSeason = envSeason;
             _view.SetSeason(envSeason);
+        }
+        SyncThumbLook();
         // Terrain blob via the same path a mouse stroke takes.
         var pts = new List<Vector2>();
         for (var i = 0; i < 28; i++)
@@ -1867,8 +1944,12 @@ public partial class MapEditor : Node2D
     /// the entered caption at `pos`.</summary>
     void PromptLabel(Vector2 pos)
     {
-        var dlg = new ConfirmationDialog { Title = "Popisek" };
-        var edit = new LineEdit { PlaceholderText = "Text popisku…", CustomMinimumSize = new Vector2(220, 0) };
+        var dlg = new ConfirmationDialog
+        {
+            Title = "Popisek",
+            Theme = new Theme { DefaultFontSize = Fs(13) },
+        };
+        var edit = new LineEdit { PlaceholderText = "Text popisku…", CustomMinimumSize = new Vector2(Us(220), 0) };
         dlg.AddChild(edit);
         dlg.RegisterTextEnter(edit);
         dlg.Confirmed += () =>
@@ -2085,6 +2166,10 @@ public partial class MapEditor : Node2D
             kv.Value.SetPressedNoSignal(kv.Key == _tool.Id);
     }
 
+    /// <summary>Mirror the current environment selections into the
+    /// thumbnail renderer — re-renders card icons on every change.</summary>
+    void SyncThumbLook() => _thumbs.SetLook(_lookBiome, _lookMood, _lookArt, _lookSeason);
+
     /// <summary>Categorized tool browser — web-style card grid grouped
     /// by category, filtered by the search box (diacritics-folded).</summary>
     void PopulateToolCards(string needle)
@@ -2102,15 +2187,15 @@ public partial class MapEditor : Node2D
             if (items.Count == 0)
                 continue;
             var head = new Label { Text = cat };
-            head.AddThemeFontSizeOverride("font_size", 11);
+            head.AddThemeFontSizeOverride("font_size", Fs(11));
             head.AddThemeColorOverride("font_color", new Color(0.62f, 0.59f, 0.53f));
             _toolLib.AddChild(head);
             var flow = new HFlowContainer
             {
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
-            flow.AddThemeConstantOverride("h_separation", 5);
-            flow.AddThemeConstantOverride("v_separation", 5);
+            flow.AddThemeConstantOverride("h_separation", Fs(5));
+            flow.AddThemeConstantOverride("v_separation", Fs(5));
             _toolLib.AddChild(flow);
             foreach (var t in items)
                 flow.AddChild(ToolCard(t));
@@ -2118,40 +2203,81 @@ public partial class MapEditor : Node2D
         UpdateToolUi();
     }
 
+    /// <summary>Web-style card: a live-rendered thumbnail of the tool's
+    /// output on top, the tool name under it, tool color as the accent
+    /// strip. The thumbnail streams in from ToolThumbs once rendered.</summary>
     Button ToolCard(ToolDef t)
     {
         var col = Palette.Hex(ToolColor.GetValueOrDefault(t.Id, "#9a9584"));
         var b = new Button
         {
-            Text = t.Label,
             ToggleMode = true,
             TooltipText = ToolDesc.GetValueOrDefault(t.Id, ""),
-            CustomMinimumSize = new Vector2(126, 30),
-            ClipText = true,
+            CustomMinimumSize = new Vector2(Us(114), Us(102)),
         };
-        b.AddThemeStyleboxOverride("normal", CardStyle(col, false));
-        b.AddThemeStyleboxOverride("hover", CardStyle(col.Lightened(0.10f), false));
-        b.AddThemeStyleboxOverride("pressed", CardStyle(col, true));
-        b.AddThemeColorOverride("font_color", new Color(0.88f, 0.85f, 0.79f));
-        b.AddThemeFontSizeOverride("font_size", 12);
+        b.AddThemeStyleboxOverride("normal", CardStyle(col, 0.45f));
+        b.AddThemeStyleboxOverride("hover", CardStyle(col, 0.8f, lift: true));
+        b.AddThemeStyleboxOverride("pressed", CardStyle(col, 1.0f, pressed: true));
+        var v = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        v.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        v.AddThemeConstantOverride("separation", Fs(3));
+        v.Alignment = BoxContainer.AlignmentMode.Center;
+        b.AddChild(v);
+        var frame = new PanelContainer
+        {
+            CustomMinimumSize = new Vector2(Us(104), Us(65)),
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        var frameStyle = new StyleBoxFlat { BgColor = new Color(0.09f, 0.08f, 0.07f) };
+        frameStyle.SetCornerRadiusAll(Fs(3));
+        frame.AddThemeStyleboxOverride("panel", frameStyle);
+        var tex = new TextureRect
+        {
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        frame.AddChild(tex);
+        v.AddChild(frame);
+        var label = new Label
+        {
+            Text = t.Label,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        label.AddThemeFontSizeOverride("font_size", Fs(11));
+        label.AddThemeColorOverride("font_color", new Color(0.88f, 0.85f, 0.79f));
+        v.AddChild(label);
         b.Pressed += () => SetTool(t.Id);
         _toolCards[t.Id] = b;
+        _thumbs.Register(t.Id, tex);
         return b;
     }
 
-    static StyleBoxFlat CardStyle(Color bar, bool pressed)
+    /// <summary>Card chrome — dark tile with a tool-color accent strip
+    /// along the bottom edge; alpha rises hover → pressed.</summary>
+    StyleBoxFlat CardStyle(
+        Color bar,
+        float accent,
+        bool lift = false,
+        bool pressed = false
+    )
     {
         var s = new StyleBoxFlat
         {
-            BgColor = pressed ? new Color(0.34f, 0.30f, 0.22f) : new Color(0.17f, 0.16f, 0.14f),
-            BorderColor = bar,
+            BgColor = pressed
+                ? new Color(0.32f, 0.28f, 0.20f)
+                : lift
+                    ? new Color(0.20f, 0.19f, 0.16f)
+                    : new Color(0.15f, 0.14f, 0.12f),
+            BorderColor = bar with { A = accent },
         };
-        s.SetCornerRadiusAll(3);
+        s.SetCornerRadiusAll(Fs(4));
         s.SetBorderWidthAll(0);
-        s.BorderWidthLeft = 4;
-        s.ContentMarginLeft = 8;
-        s.ContentMarginTop = 2;
-        s.ContentMarginBottom = 2;
+        s.BorderWidthBottom = Fs(3);
+        s.SetContentMarginAll(Us(4));
         return s;
     }
 
@@ -2179,19 +2305,24 @@ public partial class MapEditor : Node2D
     void BuildUi()
     {
         var layer = new CanvasLayer();
+        _uiLayer = layer;
         AddChild(layer);
+        // Shared scaled font for every control under the dock/actions —
+        // OptionButtons, LineEdits, CheckBoxes, slider labels, tooltips.
+        var uiTheme = new Theme { DefaultFontSize = Fs(13) };
 
         // ── top-right action bar ─────────────────────────────────
         var actions = new HBoxContainer
         {
             AnchorLeft = 1,
             AnchorRight = 1,
-            OffsetLeft = -700,
-            OffsetRight = -8,
-            OffsetTop = 8,
+            OffsetLeft = -Us(700),
+            OffsetRight = -Us(8),
+            OffsetTop = Us(8),
             Alignment = BoxContainer.AlignmentMode.End,
+            Theme = uiTheme,
         };
-        actions.AddThemeConstantOverride("separation", 6);
+        actions.AddThemeConstantOverride("separation", Fs(6));
         layer.AddChild(actions);
         ActionButton(actions, "Zpět", Undo);
         ActionButton(actions, "Uložit", Save);
@@ -2213,23 +2344,24 @@ public partial class MapEditor : Node2D
             AnchorTop = 1,
             AnchorRight = 1,
             AnchorBottom = 1,
-            OffsetTop = -244,
+            OffsetTop = -Us(244),
+            Theme = uiTheme,
         };
         var dockStyle = new StyleBoxFlat { BgColor = new Color(0.11f, 0.10f, 0.09f, 0.96f) };
-        dockStyle.SetContentMarginAll(10);
+        dockStyle.SetContentMarginAll(Us(10));
         dock.AddThemeStyleboxOverride("panel", dockStyle);
         layer.AddChild(dock);
         var row = new HBoxContainer();
         dock.AddChild(row);
 
         // ── settings column (tool name, description, params) ─────
-        var settings = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) };
+        var settings = new VBoxContainer { CustomMinimumSize = new Vector2(Us(300), 0) };
         row.AddChild(settings);
         _toolName = new Label();
-        _toolName.AddThemeFontSizeOverride("font_size", 16);
+        _toolName.AddThemeFontSizeOverride("font_size", Fs(16));
         settings.AddChild(_toolName);
         _toolDesc = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        _toolDesc.AddThemeFontSizeOverride("font_size", 11);
+        _toolDesc.AddThemeFontSizeOverride("font_size", Fs(11));
         _toolDesc.AddThemeColorOverride("font_color", new Color(0.72f, 0.69f, 0.62f));
         settings.AddChild(_toolDesc);
         var paramScroll = new ScrollContainer
@@ -2339,7 +2471,7 @@ public partial class MapEditor : Node2D
         _fillMode.ItemSelected += _ => RunFill();
         _fillSection.AddChild(_fillMode);
         _fillStats = new Label();
-        _fillStats.AddThemeFontSizeOverride("font_size", 11);
+        _fillStats.AddThemeFontSizeOverride("font_size", Fs(11));
         _fillSection.AddChild(_fillStats);
         var drow = new HBoxContainer();
         _fillDensity = new HSlider { MinValue = 15, MaxValue = 100, Value = 55, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -2379,7 +2511,7 @@ public partial class MapEditor : Node2D
         var library = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         row.AddChild(library);
         var head = new HBoxContainer();
-        head.AddThemeConstantOverride("separation", 6);
+        head.AddThemeConstantOverride("separation", Fs(6));
         library.AddChild(head);
 
         var search = new LineEdit
@@ -2396,8 +2528,11 @@ public partial class MapEditor : Node2D
         biome.Selected = Math.Max(0, SceneConfig.BiomeIds().IndexOf("woodland"));
         biome.ItemSelected += i =>
         {
-            _view.SetBiome(biome.GetItemText((int)i));
+            _lookBiome = biome.GetItemText((int)i);
+            _view.SetBiome(_lookBiome);
             RebuildSeasonOptions();
+            _lookSeason = null;
+            SyncThumbLook();
         };
         head.AddChild(biome);
 
@@ -2405,18 +2540,32 @@ public partial class MapEditor : Node2D
         foreach (var id in SceneConfig.MoodIds())
             mood.AddItem(id);
         mood.Selected = Math.Max(0, SceneConfig.MoodIds().IndexOf("day"));
-        mood.ItemSelected += i => _view.SetMood(mood.GetItemText((int)i));
+        mood.ItemSelected += i =>
+        {
+            _lookMood = mood.GetItemText((int)i);
+            _view.SetMood(_lookMood);
+            SyncThumbLook();
+        };
         head.AddChild(mood);
 
         var artPack = new OptionButton();
         foreach (var id in new[] { "classic", "storybook", "ink" })
             artPack.AddItem(id);
-        artPack.ItemSelected += i => _view.SetArtPack(artPack.GetItemText((int)i));
+        artPack.ItemSelected += i =>
+        {
+            _lookArt = artPack.GetItemText((int)i);
+            _view.SetArtPack(_lookArt);
+            SyncThumbLook();
+        };
         head.AddChild(artPack);
 
         _seasonOpt = new OptionButton();
         _seasonOpt.ItemSelected += i =>
-            _view.SetSeason(i == 0 ? null : _seasonOpt.GetItemText((int)i));
+        {
+            _lookSeason = i == 0 ? null : _seasonOpt.GetItemText((int)i);
+            _view.SetSeason(_lookSeason);
+            SyncThumbLook();
+        };
         head.AddChild(_seasonOpt);
         RebuildSeasonOptions();
 
@@ -2431,7 +2580,7 @@ public partial class MapEditor : Node2D
         PopulateToolCards("");
 
         var genRow = new HBoxContainer();
-        genRow.AddThemeConstantOverride("separation", 6);
+        genRow.AddThemeConstantOverride("separation", Fs(6));
         library.AddChild(genRow);
         _presetOpt = new OptionButton();
         _presetOpt.AddItem("Krajina");
@@ -2441,7 +2590,7 @@ public partial class MapEditor : Node2D
         {
             Text = "42",
             PlaceholderText = "seed",
-            CustomMinimumSize = new Vector2(70, 0),
+            CustomMinimumSize = new Vector2(Us(70), 0),
         };
         genRow.AddChild(_seedEdit);
         var gen = new Godot.Button
@@ -2453,6 +2602,7 @@ public partial class MapEditor : Node2D
         genRow.AddChild(gen);
 
         UpdateToolUi();
+        SyncThumbLook();
 
         void RebuildSeasonOptions()
         {
@@ -2464,22 +2614,28 @@ public partial class MapEditor : Node2D
         }
     }
 
-    static void ActionButton(HBoxContainer box, string text, Action act)
+    void ActionButton(HBoxContainer box, string text, Action act)
     {
         var b = new Button { Text = text };
         var s = new StyleBoxFlat { BgColor = new Color(0.16f, 0.15f, 0.13f, 0.9f) };
-        s.SetCornerRadiusAll(4);
-        s.SetContentMarginAll(6);
+        s.SetCornerRadiusAll(Fs(4));
+        s.SetContentMarginAll(Us(6));
         b.AddThemeStyleboxOverride("normal", s);
-        b.AddThemeFontSizeOverride("font_size", 12);
+        b.AddThemeFontSizeOverride("font_size", Fs(12));
         b.Pressed += act.Invoke;
         box.AddChild(b);
     }
 
-    static void Slider(VBoxContainer box, string label, double min, double max, double value, Action<double> set)
+    void Slider(VBoxContainer box, string label, double min, double max, double value, Action<double> set)
     {
         var l = new Label();
-        var s = new HSlider { MinValue = min, MaxValue = max, Value = value };
+        var s = new HSlider
+        {
+            MinValue = min,
+            MaxValue = max,
+            Value = value,
+            CustomMinimumSize = new Vector2(0, Us(18)),
+        };
         void Sync() => l.Text = $"{label}: {s.Value:0}";
         s.ValueChanged += v =>
         {
@@ -2496,7 +2652,13 @@ public partial class MapEditor : Node2D
     HSlider TerrainSlider(VBoxContainer box, string label, double min, double max, double value, Action<double> set)
     {
         var l = new Label();
-        var s = new HSlider { MinValue = min, MaxValue = max, Value = value };
+        var s = new HSlider
+        {
+            MinValue = min,
+            MaxValue = max,
+            Value = value,
+            CustomMinimumSize = new Vector2(0, Us(18)),
+        };
         void Sync() => l.Text = $"{label}: {s.Value:0}";
         s.ValueChanged += v =>
         {

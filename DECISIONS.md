@@ -1,5 +1,42 @@
 # DECISIONS.md — Nimblehold parity (Enhance.md)
 
+## Redesign palety nástrojů — živé náhledy místo textových tlačítek
+
+- Nový `src/Editor/ToolThumbs.cs`: skrytý mini `SceneView` (120×76, stejné
+  rozměry jako web `previewShapes` canvas) renderuje pro každý nástroj
+  jeho skutečný výstup — port web `previewShape` (rect/line/point
+  patterns + `previewSizes` škály propů).
+- Karty (`MapEditor.ToolCard`) = thumbnail nahoře + label, akcent barvou
+  nástroje na spodní hraně — web card layout.
+- Ikony se renderují asynchronně (~2 framy/ikona), cachují se per-look
+  a pře-renderují při změně biomu/naladění/art packu/sezóny — jako web.
+- Speciální náhledy: `fill` = komponovaná mini-vesnice; `brush` = dvě
+  překryté razítka terénu; `door`/`window` = zakotvené do zdi místnosti;
+  `scatter` = `PropScatter.ScatterMix`; `camp` = `ExpandCamp`; `pond`/
+  `field` = oválné bloby (4-bodový rect zanechával diagonální artefakty).
+- Utility nástroje bez obsahu (select/erase/play) = kreslené glyfy
+  (kurzor, guma-kruh, žetony) přes ztlumenou travní dlaždici; fog
+  nástroje = malá scéna + pixelová veil (`fog-clear` má odhalený
+  diagonální koridor).
+- Probe hooky: `DMMAP_UI_SHOT=path` dumpne celé okno po dorenderování
+  ikon; `DMMAP_THUMB_DUMP=path` zapíše kontaktní arch všech ikon.
+
+## Škálování UI podle velikosti okna
+
+- `MapEditor._ui` = `výška okna / 720`, clamp 1–2.6, kvantizováno na
+  0.25 (`_uiBucket`) — rebuild jen při překročení bucketu, ne při každém
+  pixelu resize.
+- Helpery `Fs(px)` (font/konstanty → int) a `Us(px)` (rozměry → float)
+  násobí všechny pixelové konstanty v `BuildUi`/`ToolCard`/`CardStyle`/
+  sliderech; sdílený `Theme { DefaultFontSize = Fs(13) }` na docku
+  a action baru pokryje OptionButton/LineEdit/CheckBox/tooltipy.
+- `NotificationWMSizeChanged` → `RebuildUi` (defer): zahodí CanvasLayer
+  + `ToolThumbs` a postaví je znovu s novým `_ui`.
+- `ToolThumbs.Create(uiScale)` škáluje viewporty i preview souřadnice
+  (`_m` × vše s pixelovou sémantikou — body, `Shape.Size`, `Stroke.Width`,
+  `Prop.Scale`, glyph `Scale`) — ikony zůstávají ostré v nativním
+  rozlišení slotu. Výšky/roughness/elevation se NEškálují.
+
 ## Přístup
 
 Zdroj pravdy pro styl je webový renderer v `../DMmap` (TS port
