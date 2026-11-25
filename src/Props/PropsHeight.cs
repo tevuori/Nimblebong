@@ -24,6 +24,38 @@ public partial class PropsHeight : Node2D
         { PropKind.Rock, (15, 0.06) },
         { PropKind.Bush, (11, 0.045) },
         { PropKind.House, (36, 0.13) },
+        { PropKind.Tent, (20, 0.07) },
+        { PropKind.Campfire, (9, 0.02) },
+        { PropKind.Well, (12, 0.06) },
+        { PropKind.Ruin, (20, 0.07) },
+        { PropKind.Grave, (9, 0.035) },
+        { PropKind.Bones, (10, 0.02) },
+        { PropKind.Statue, (10, 0.12) },
+        { PropKind.StoneCircle, (22, 0.08) },
+        { PropKind.Crystal, (10, 0.08) },
+        { PropKind.Bale, (10, 0.045) },
+        { PropKind.Crate, (9, 0.05) },
+        { PropKind.Barrel, (8, 0.05) },
+        { PropKind.Tower, (20, 0.16) },
+        { PropKind.Stall, (22, 0.07) },
+        { PropKind.Cart, (16, 0.05) },
+        { PropKind.Flag, (4, 0.1) },
+        { PropKind.Barricade, (16, 0.04) },
+        { PropKind.Lantern, (4, 0.08) },
+        { PropKind.Fountain, (14, 0.05) },
+        { PropKind.Pillar, (8, 0.11) },
+        { PropKind.Marker, (8, 0.02) },
+        { PropKind.Dock, (18, 0.02) },
+        { PropKind.Boat, (14, 0.03) },
+        { PropKind.Chest, (10, 0.04) },
+        { PropKind.Portal, (12, 0.09) },
+        { PropKind.Door, (7, 0.03) },
+        { PropKind.Window, (6, 0.02) },
+        { PropKind.Table, (13, 0.035) },
+        { PropKind.Bed, (14, 0.03) },
+        { PropKind.Shelf, (12, 0.05) },
+        { PropKind.Rug, (12, 0.008) },
+        { PropKind.Fireplace, (13, 0.06) },
     };
 
     // Terrain height sampler — terrace rings cached like the heightmap
@@ -81,7 +113,9 @@ public partial class PropsHeight : Node2D
     {
         foreach (var p in _props)
         {
-            var (r, h) = Sizes[p.Kind];
+            if (!Sizes.TryGetValue(p.Kind, out var dim))
+                continue;
+            var (r, h) = dim;
             var base_ = TerrainAt(p.Pos);
             var top = Math.Min(0.97, base_ + h);
             // Houses are elongated; everything else is near-round. The

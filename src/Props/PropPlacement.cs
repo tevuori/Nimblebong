@@ -20,6 +20,41 @@ public enum PropKind
     Bush,
     /// <summary>Walls + pitched roof + chimney.</summary>
     House,
+    // Nature & wilderness (PropsNature.cs)
+    Tent,
+    Campfire,
+    Well,
+    Ruin,
+    Grave,
+    Bones,
+    Statue,
+    StoneCircle,
+    Crystal,
+    Bale,
+    Crate,
+    Barrel,
+    // Village & structures (PropsVillage.cs)
+    Tower,
+    Stall,
+    Cart,
+    Flag,
+    Barricade,
+    Lantern,
+    Fountain,
+    Pillar,
+    Marker,
+    // Water / treasure / interior (PropsInterior.cs)
+    Dock,
+    Boat,
+    Chest,
+    Portal,
+    Door,
+    Window,
+    Table,
+    Bed,
+    Shelf,
+    Rug,
+    Fireplace,
 }
 
 /// <summary>One placed map object. Scale is a multiplier on the kind's

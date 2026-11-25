@@ -157,13 +157,47 @@ public partial class SceneView : Node2D
         return true;
     }
 
+    static readonly Dictionary<string, PropKind> PropKinds = new()
+    {
+        ["tree"] = PropKind.Tree,
+        ["pine"] = PropKind.Pine,
+        ["rock"] = PropKind.Rock,
+        ["bush"] = PropKind.Bush,
+        ["house"] = PropKind.House,
+        ["tent"] = PropKind.Tent,
+        ["campfire"] = PropKind.Campfire,
+        ["well"] = PropKind.Well,
+        ["ruin"] = PropKind.Ruin,
+        ["grave"] = PropKind.Grave,
+        ["bones"] = PropKind.Bones,
+        ["statue"] = PropKind.Statue,
+        ["stonecircle"] = PropKind.StoneCircle,
+        ["crystal"] = PropKind.Crystal,
+        ["bale"] = PropKind.Bale,
+        ["crate"] = PropKind.Crate,
+        ["barrel"] = PropKind.Barrel,
+        ["tower"] = PropKind.Tower,
+        ["stall"] = PropKind.Stall,
+        ["cart"] = PropKind.Cart,
+        ["flag"] = PropKind.Flag,
+        ["barricade"] = PropKind.Barricade,
+        ["lantern"] = PropKind.Lantern,
+        ["fountain"] = PropKind.Fountain,
+        ["pillar"] = PropKind.Pillar,
+        ["marker"] = PropKind.Marker,
+        ["dock"] = PropKind.Dock,
+        ["boat"] = PropKind.Boat,
+        ["chest"] = PropKind.Chest,
+        ["portal"] = PropKind.Portal,
+        ["door"] = PropKind.Door,
+        ["window"] = PropKind.Window,
+        ["table"] = PropKind.Table,
+        ["bed"] = PropKind.Bed,
+        ["shelf"] = PropKind.Shelf,
+        ["rug"] = PropKind.Rug,
+        ["fireplace"] = PropKind.Fireplace,
+    };
+
     static PropKind MapProp(string kind) =>
-        kind switch
-        {
-            "pine" => PropKind.Pine,
-            "rock" => PropKind.Rock,
-            "bush" => PropKind.Bush,
-            "house" => PropKind.House,
-            _ => PropKind.Tree,
-        };
+        PropKinds.TryGetValue(kind, out var k) ? k : PropKind.Marker;
 }

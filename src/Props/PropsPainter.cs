@@ -141,6 +141,102 @@ public partial class PropsPainter : Node2D
                 case PropKind.House:
                     DrawHouse(p);
                     break;
+                case PropKind.Tent:
+                    DrawTent(p);
+                    break;
+                case PropKind.Campfire:
+                    DrawCampfire(p);
+                    break;
+                case PropKind.Well:
+                    DrawWell(p);
+                    break;
+                case PropKind.Ruin:
+                    DrawRuin(p);
+                    break;
+                case PropKind.Grave:
+                    DrawGrave(p);
+                    break;
+                case PropKind.Bones:
+                    DrawBones(p);
+                    break;
+                case PropKind.Statue:
+                    DrawStatue(p);
+                    break;
+                case PropKind.StoneCircle:
+                    DrawStoneCircle(p);
+                    break;
+                case PropKind.Crystal:
+                    DrawCrystal(p);
+                    break;
+                case PropKind.Bale:
+                    DrawBale(p);
+                    break;
+                case PropKind.Crate:
+                    DrawCrate(p);
+                    break;
+                case PropKind.Barrel:
+                    DrawBarrel(p);
+                    break;
+                case PropKind.Tower:
+                    DrawTower(p);
+                    break;
+                case PropKind.Stall:
+                    DrawStall(p);
+                    break;
+                case PropKind.Cart:
+                    DrawCart(p);
+                    break;
+                case PropKind.Flag:
+                    DrawFlag(p);
+                    break;
+                case PropKind.Barricade:
+                    DrawBarricade(p);
+                    break;
+                case PropKind.Lantern:
+                    DrawLantern(p);
+                    break;
+                case PropKind.Fountain:
+                    DrawFountain(p);
+                    break;
+                case PropKind.Pillar:
+                    DrawPillar(p);
+                    break;
+                case PropKind.Marker:
+                    DrawMarker(p);
+                    break;
+                case PropKind.Dock:
+                    DrawDock(p);
+                    break;
+                case PropKind.Boat:
+                    DrawBoat(p);
+                    break;
+                case PropKind.Chest:
+                    DrawChest(p);
+                    break;
+                case PropKind.Portal:
+                    DrawPortal(p);
+                    break;
+                case PropKind.Door:
+                    DrawDoor(p);
+                    break;
+                case PropKind.Window:
+                    DrawWindow(p);
+                    break;
+                case PropKind.Table:
+                    DrawTable(p);
+                    break;
+                case PropKind.Bed:
+                    DrawBed(p);
+                    break;
+                case PropKind.Shelf:
+                    DrawShelf(p);
+                    break;
+                case PropKind.Rug:
+                    DrawRug(p);
+                    break;
+                case PropKind.Fireplace:
+                    DrawFireplace(p);
+                    break;
             }
         }
     }
