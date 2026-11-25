@@ -205,21 +205,36 @@ public partial class MapEditor : Node2D
     readonly List<Vector2> _stroke = [];
     bool _drawing;
     bool _panning;
+    bool _spacePan;
+    // Click-point drawing (web clickPoints): quick clicks accumulate
+    // vertices, Enter commits them as the stroke/shape.
+    readonly List<Vector2> _clickPoints = [];
     Vector2 _panFrom;
 
     // Selection: what the select tool picked, where a move began and a
     // snapshot to revert to (the live object is mutated during drags /
     // slider edits so the canvas updates, then reverted and committed
     // once as a single history entry).
-    Prop? _selProp;
-    Stroke? _selStroke;
-    Shape? _selShape;
+    // Multi-selection (web `selected[]`): everything the select tool
+    // picked — one item from a click, many from a marquee rect.
+    readonly List<Prop> _selProps = [];
+    readonly List<Stroke> _selStrokes = [];
+    readonly List<Shape> _selShapes = [];
     Vector2 _selOrigin;
     bool _selMoving;
+    bool _marqueeing;
+    Vector2 _marqueeStart;
+    Rect2 _marquee;
     // Backups for live edits (restored before the single commit).
-    List<Vector2>? _selPtsBackup;
-    Vector2 _selPosBackup;
+    readonly Dictionary<Prop, Vector2> _selPosBackup = new();
+    readonly Dictionary<object, List<Vector2>> _selPtsBackup = new();
     (double H, double S, double R, int M)? _selShapeBackup;
+
+    /// <summary>Single-item accessors — valid only when exactly one of
+    /// that element type is selected (sliders, variant picker).</summary>
+    Prop? _selProp => _selProps.Count == 1 ? _selProps[0] : null;
+    Stroke? _selStroke => _selStrokes.Count == 1 ? _selStrokes[0] : null;
+    Shape? _selShape => _selShapes.Count == 1 ? _selShapes[0] : null;
 
     double _draftAt; // ticks when the pending live preview may run
     bool _pendingRebuild; // throttled Rebuild during selection drags
@@ -722,7 +737,7 @@ public partial class MapEditor : Node2D
         if (house != null)
         {
             var depth = _history.UndoDepth;
-            BeginSelect(new Vector2((float)house.X, (float)house.Y));
+            BeginSelect(new Vector2((float)house.X, (float)house.Y), false);
             _selOrigin = new Vector2((float)house.X, (float)house.Y);
             MoveSelectionTo(new Vector2((float)house.X + 120, (float)house.Y));
             _selEdited = true;
@@ -736,6 +751,32 @@ public partial class MapEditor : Node2D
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _view.Stage.Snapshot().SavePng("/tmp/godot-after-move.png");
         GD.Print("dumped /tmp/godot-after-move.png");
+
+        // ── marquee + rotate + duplicate (web selection ops) ──
+        {
+            ClearSelection();
+            _marqueeing = true;
+            _marqueeStart = Vector2.Zero;
+            _marquee = new Rect2(0, 0, 1600, 1000);
+            EndMarquee();
+            var total = _selProps.Count + _selStrokes.Count + _selShapes.Count;
+            GD.Print($"marquee: {total} selected (expect >0)");
+            var counts = (
+                _view.Scene.Props.Count,
+                _view.Scene.Strokes.Count,
+                _view.Scene.Shapes.Count
+            );
+            var depth = _history.UndoDepth;
+            RotateSelection(Math.PI / 12);
+            DuplicateSelection();
+            GD.Print(
+                $"rotate+dup commits: {_history.UndoDepth - depth} (expect 2), "
+                    + $"props {counts.Item1}->{_view.Scene.Props.Count}, "
+                    + $"strokes {counts.Item2}->{_view.Scene.Strokes.Count}, "
+                    + $"shapes {counts.Item3}->{_view.Scene.Shapes.Count}"
+            );
+            ClearSelection();
+        }
 
         // Optional: exercise the real backend bridge end-to-end.
         if (System.Environment.GetEnvironmentVariable("DMMAP_BRIDGE_PROBE") == "1")
@@ -785,7 +826,33 @@ public partial class MapEditor : Node2D
                 else if (k.Keycode is Key.Delete or Key.Backspace)
                     DeleteSelection();
                 else if (k.Keycode == Key.Escape)
-                    ClearSelection();
+                {
+                    if (_clickPoints.Count > 0)
+                    {
+                        _clickPoints.Clear();
+                        _ghost.SetStroke(_tool, [], 0);
+                    }
+                    else
+                        ClearSelection();
+                }
+                else if (k.Keycode == Key.Enter || k.Keycode == Key.KpEnter)
+                    CommitClickStroke();
+                else if (k.Keycode == Key.D && k.CtrlPressed)
+                    DuplicateSelection();
+                else if (k.Keycode == Key.R && !k.CtrlPressed)
+                    RotateSelection(k.ShiftPressed ? -Math.PI / 12 : Math.PI / 12);
+                else if (k.Keycode == Key.V && !k.CtrlPressed)
+                    SetTool("select");
+                else if (k.Keycode == Key.E && !k.CtrlPressed)
+                    SetTool("erase");
+                else if (k.Keycode == Key.F && !k.CtrlPressed)
+                    SetTool("fill");
+                else if (k.Keycode == Key.Space)
+                    _spacePan = true;
+                break;
+            case InputEventKey { Pressed: false } k2:
+                if (k2.Keycode == Key.Space)
+                    _spacePan = false;
                 break;
         }
     }
@@ -808,9 +875,22 @@ public partial class MapEditor : Node2D
         else if (b.ButtonIndex == MouseButton.Left)
         {
             if (b.Pressed)
-                BeginStroke();
+            {
+                if (_spacePan)
+                {
+                    _panning = true;
+                    _panFrom = b.Position;
+                }
+                else
+                    BeginStroke();
+            }
             else
-                EndStroke();
+            {
+                if (_panning)
+                    _panning = false;
+                else
+                    EndStroke();
+            }
         }
     }
 
@@ -837,7 +917,12 @@ public partial class MapEditor : Node2D
         var p = GetGlobalMousePosition();
         if (_tool.Mode == Mode.Select)
         {
-            if (_selMoving)
+            if (_marqueeing)
+            {
+                _marquee = new Rect2(_marqueeStart, p - _marqueeStart).Abs();
+                _ghost.SetMarquee(_marquee);
+            }
+            else if (_selMoving)
                 MoveSelectionTo(p);
             return;
         }
@@ -875,6 +960,21 @@ public partial class MapEditor : Node2D
             if (_tool.Mode == Mode.Prop && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
                 PlacePropAt(p);
         }
+    }
+
+    /// <summary>Enter commits the click-point polyline through the same
+    /// path a freehand drag takes (web commitClickStroke).</summary>
+    void CommitClickStroke()
+    {
+        if (_clickPoints.Count < 2)
+            return;
+        var pts = _clickPoints.ToList();
+        _clickPoints.Clear();
+        _ghost.SetStroke(_tool, [], 0);
+        _stroke.Clear();
+        _stroke.AddRange(pts);
+        _drawing = true;
+        EndStroke();
     }
 
     double StrokeWidth() =>
@@ -959,7 +1059,7 @@ public partial class MapEditor : Node2D
             _ghost.SetStroke(_tool, _stroke, _brushSize);
         }
         else if (_tool.Mode == Mode.Select)
-            BeginSelect(_stroke[0]);
+            BeginSelect(_stroke[0], Input.IsKeyPressed(Key.Shift));
         else if (_tool.Mode == Mode.Prop)
             PlacePropAt(_stroke[0]);
         else if (_tool.Mode == Mode.Label)
@@ -976,13 +1076,26 @@ public partial class MapEditor : Node2D
         _draftAt = 0;
         if (_tool.Mode == Mode.Select)
         {
-            EndSelect(GetGlobalMousePosition());
+            if (_marqueeing)
+                EndMarquee();
+            else
+                EndSelect(GetGlobalMousePosition());
             return;
         }
         _ghost.ClearDraft();
         _ghost.SetStroke(_tool, [], 0);
         if (_stroke.Count < 2)
+        {
+            // A click (not a drag): with a stroke/shape tool it adds a
+            // vertex — kreslení po bodech, Enter zapíše tah.
+            if (_tool.Mode is Mode.Stroke or Mode.Shape)
+            {
+                _clickPoints.Add(_stroke[0]);
+                _ghost.SetStroke(_tool, _clickPoints, StrokeWidth());
+            }
             return;
+        }
+        _clickPoints.Clear();
         if (_tool.Mode == Mode.Fill)
         {
             if (_stroke.Count >= 2)
@@ -1162,70 +1275,127 @@ public partial class MapEditor : Node2D
 
     // ── Selection (move / delete / param edit) ────────────────────
 
-    void BeginSelect(Vector2 p)
+    void BeginSelect(Vector2 p, bool additive)
     {
-        ClearSelection();
         var scene = _view.Scene;
         // Same top-down priority as the eraser: prop → stroke → shape.
-        _selProp = scene
+        var prop = scene
             .Props.OrderByDescending(pr => pr.Id)
             .FirstOrDefault(pr => new Vector2((float)pr.X, (float)pr.Y).DistanceTo(p) < 24 * (pr.Scale / 24 + 0.4));
-        if (_selProp != null)
+        Stroke? stroke =
+            prop == null
+                ? scene.Strokes.OrderByDescending(s => s.Id).FirstOrDefault(s => StrokeHit(s, p))
+                : null;
+        Shape? shape =
+            prop == null && stroke == null
+                ? scene.Shapes.OrderByDescending(s => s.Id).FirstOrDefault(s => Poly.PointInPolygon(p, [.. s.Points]))
+                : null;
+
+        if (prop == null && stroke == null && shape == null)
         {
-            _selPosBackup = new Vector2((float)_selProp.X, (float)_selProp.Y);
-            if (_variantOpt != null)
-                _variantOpt.Selected = _selProp.Model + 1;
+            // Empty ground — rubber-band select (web `marquee`).
+            if (!additive)
+                ClearSelection();
+            _marqueeing = true;
+            _marqueeStart = p;
+            _marquee = new Rect2(p, Vector2.Zero);
+            _ghost.SetMarquee(_marquee);
+            return;
         }
-        else if (
-            (
-                _selStroke = scene
-                    .Strokes.OrderByDescending(s => s.Id)
-                    .FirstOrDefault(s => StrokeHit(s, p))
-            )
-            != null
-        )
-        {
-            _selPtsBackup = [.. _selStroke.Points];
-        }
-        else if (
-            (
-                _selShape = scene
-                    .Shapes.OrderByDescending(s => s.Id)
-                    .FirstOrDefault(s => Poly.PointInPolygon(p, [.. s.Points]))
-            )
-            != null
-        )
-        {
-            _selPtsBackup = [.. _selShape.Points];
-            _selShapeBackup = (_selShape.Height, _selShape.Size, _selShape.Roughness, _selShape.Model);
-            SyncSlidersToSelection();
-        }
+        if (!additive)
+            ClearSelection();
+        // Shift-click toggles membership; a plain click leaves the item
+        // in the (just cleared) selection.
+        if (prop != null && !_selProps.Remove(prop))
+            _selProps.Add(prop);
+        else if (stroke != null && !_selStrokes.Remove(stroke))
+            _selStrokes.Add(stroke);
+        else if (shape != null && !_selShapes.Remove(shape))
+            _selShapes.Add(shape);
+        SnapshotBackups();
+        if (_variantOpt != null && _selProp != null)
+            _variantOpt.Selected = _selProp.Model + 1;
+        SyncSlidersToSelection();
         if (HasSelection())
         {
             _selMoving = true;
             _selOrigin = p;
-            UpdateSelectionGhost();
         }
+        UpdateSelectionGhost();
         UpdateToolUi();
     }
 
-    bool HasSelection() => _selProp != null || _selStroke != null || _selShape != null;
+    /// <summary>Snapshot every selected element's position/points so a
+    /// live drag can revert before the single commit.</summary>
+    void SnapshotBackups()
+    {
+        _selPosBackup.Clear();
+        _selPtsBackup.Clear();
+        foreach (var pr in _selProps)
+            _selPosBackup[pr] = new Vector2((float)pr.X, (float)pr.Y);
+        foreach (var st in _selStrokes)
+            _selPtsBackup[st] = [.. st.Points];
+        foreach (var sh in _selShapes)
+            _selPtsBackup[sh] = [.. sh.Points];
+        var shape = _selShape;
+        _selShapeBackup =
+            shape == null ? null : (shape.Height, shape.Size, shape.Roughness, shape.Model);
+    }
+
+    /// <summary>Pick every element intersecting the marquee rect.</summary>
+    void EndMarquee()
+    {
+        _marqueeing = false;
+        _ghost.SetMarquee(null);
+        if (_marquee.Size.LengthSquared() < 9)
+        {
+            UpdateSelectionGhost();
+            UpdateToolUi();
+            return;
+        }
+        var scene = _view.Scene;
+        bool InRect(Vector2 p) => _marquee.HasPoint(p);
+        foreach (var pr in scene.Props)
+            if (InRect(new Vector2((float)pr.X, (float)pr.Y)) && !_selProps.Contains(pr))
+                _selProps.Add(pr);
+        foreach (var st in scene.Strokes)
+            if (st.Points.Any(InRect) && !_selStrokes.Contains(st))
+                _selStrokes.Add(st);
+        foreach (var sh in scene.Shapes)
+        {
+            if (_selShapes.Contains(sh))
+                continue;
+            if (
+                sh.Points.Any(InRect)
+                || Poly.PointInPolygon(_marquee.Position, [.. sh.Points])
+                || Poly.PointInPolygon(_marquee.End, [.. sh.Points])
+            )
+                _selShapes.Add(sh);
+        }
+        SnapshotBackups();
+        SyncSlidersToSelection();
+        UpdateSelectionGhost();
+        UpdateToolUi();
+    }
+
+    bool HasSelection() =>
+        _selProps.Count > 0 || _selStrokes.Count > 0 || _selShapes.Count > 0;
 
     /// <summary>Live-move the selected element by the drag delta
     /// (mutated in place; history entry is written on release).</summary>
     void MoveSelectionTo(Vector2 p)
     {
         var delta = p - _selOrigin;
-        if (_selProp != null)
+        foreach (var (pr, pos) in _selPosBackup)
         {
-            _selProp.X = _selPosBackup.X + delta.X;
-            _selProp.Y = _selPosBackup.Y + delta.Y;
+            pr.X = pos.X + delta.X;
+            pr.Y = pos.Y + delta.Y;
         }
-        else if (_selPtsBackup != null && (_selStroke != null || _selShape != null))
+        foreach (var (el, pts) in _selPtsBackup)
         {
-            var pts = _selStroke != null ? _selStroke.Points : _selShape!.Points;
-            for (var i = 0; i < pts.Count; i++)
-                pts[i] = _selPtsBackup[i] + delta;
+            var target = el is Stroke st ? st.Points : ((Shape)el).Points;
+            for (var i = 0; i < target.Count && i < pts.Count; i++)
+                target[i] = pts[i] + delta;
         }
         _selEdited = delta.LengthSquared() > 1;
         UpdateSelectionGhost();
@@ -1242,40 +1412,38 @@ public partial class MapEditor : Node2D
         _selEdited = false;
         var delta = endPos - _selOrigin;
         // Restore the pre-drag values — Commit() re-applies the delta.
-        if (_selProp != null)
+        foreach (var (pr, pos) in _selPosBackup)
         {
-            _selProp.X = _selPosBackup.X;
-            _selProp.Y = _selPosBackup.Y;
+            pr.X = pos.X;
+            pr.Y = pos.Y;
         }
-        if (_selPtsBackup != null && (_selStroke != null || _selShape != null))
+        foreach (var (el, pts) in _selPtsBackup)
         {
-            var pts = _selStroke != null ? _selStroke.Points : _selShape!.Points;
-            for (var i = 0; i < pts.Count; i++)
-                pts[i] = _selPtsBackup[i];
+            var target = el is Stroke st ? st.Points : ((Shape)el).Points;
+            for (var i = 0; i < target.Count && i < pts.Count; i++)
+                target[i] = pts[i];
         }
         if (delta.LengthSquared() < 1)
         {
             _view.Rebuild();
             return;
         }
-        var (propId, strokeId, shapeId) = (_selProp?.Id, _selStroke?.Id, _selShape?.Id);
+        var propIds = _selProps.Select(pr => pr.Id).ToHashSet();
+        var strokeIds = _selStrokes.Select(st => st.Id).ToHashSet();
+        var shapeIds = _selShapes.Select(sh => sh.Id).ToHashSet();
         Commit(scene =>
         {
-            if (propId is { } pid && scene.Props.FirstOrDefault(q => q.Id == pid) is { } pr)
+            foreach (var pr in scene.Props.Where(q => propIds.Contains(q.Id)))
             {
                 pr.X += delta.X;
                 pr.Y += delta.Y;
             }
-            else if (strokeId is { } stid && scene.Strokes.FirstOrDefault(s => s.Id == stid) is { } st)
-            {
-                for (var i = 0; i < st.Points.Count; i++)
-                    st.Points[i] += delta;
-            }
-            else if (shapeId is { } shid && scene.Shapes.FirstOrDefault(s => s.Id == shid) is { } sh)
-            {
-                for (var i = 0; i < sh.Points.Count; i++)
-                    sh.Points[i] += delta;
-            }
+            foreach (var st in scene.Strokes.Where(q => strokeIds.Contains(q.Id)))
+            for (var i = 0; i < st.Points.Count; i++)
+                st.Points[i] += delta;
+            foreach (var sh in scene.Shapes.Where(q => shapeIds.Contains(q.Id)))
+            for (var i = 0; i < sh.Points.Count; i++)
+                sh.Points[i] += delta;
         });
         RefreshSelection();
     }
@@ -1284,23 +1452,16 @@ public partial class MapEditor : Node2D
     /// selection to the matching element in the new scene.</summary>
     void RefreshSelection()
     {
+        // Commit replaces the scene object — re-resolve every selected
+        // element in the new scene.
         var scene = _view.Scene;
-        if (_selProp != null)
-        {
-            _selProp = scene.Props.FirstOrDefault(q => q.Id == _selProp.Id) ?? _selProp;
-            _selPosBackup = new Vector2((float)_selProp.X, (float)_selProp.Y);
-        }
-        if (_selStroke != null)
-        {
-            _selStroke = scene.Strokes.FirstOrDefault(s => s.Id == _selStroke.Id) ?? _selStroke;
-            _selPtsBackup = [.. _selStroke.Points];
-        }
-        if (_selShape != null)
-        {
-            _selShape = scene.Shapes.FirstOrDefault(s => s.Id == _selShape.Id) ?? _selShape;
-            _selPtsBackup = [.. _selShape.Points];
-            _selShapeBackup = (_selShape.Height, _selShape.Size, _selShape.Roughness, _selShape.Model);
-        }
+        for (var i = _selProps.Count - 1; i >= 0; i--)
+            _selProps[i] = scene.Props.FirstOrDefault(q => q.Id == _selProps[i].Id) ?? _selProps[i];
+        for (var i = _selStrokes.Count - 1; i >= 0; i--)
+            _selStrokes[i] = scene.Strokes.FirstOrDefault(q => q.Id == _selStrokes[i].Id) ?? _selStrokes[i];
+        for (var i = _selShapes.Count - 1; i >= 0; i--)
+            _selShapes[i] = scene.Shapes.FirstOrDefault(q => q.Id == _selShapes[i].Id) ?? _selShapes[i];
+        SnapshotBackups();
         UpdateSelectionGhost();
     }
 
@@ -1308,31 +1469,131 @@ public partial class MapEditor : Node2D
     {
         if (!HasSelection())
             return;
-        var (pid, stid, shid) = (_selProp?.Id, _selStroke?.Id, _selShape?.Id);
+        var propIds = _selProps.Select(pr => pr.Id).ToHashSet();
+        var strokeIds = _selStrokes.Select(st => st.Id).ToHashSet();
+        var shapeIds = _selShapes.Select(sh => sh.Id).ToHashSet();
         Commit(scene =>
         {
-            scene.Props.RemoveAll(q => q.Id == pid);
-            if (pid == null)
-            {
-                scene.Strokes.RemoveAll(s => s.Id == stid);
-                if (stid == null)
-                    scene.Shapes.RemoveAll(s => s.Id == shid);
-            }
+            scene.Props.RemoveAll(q => propIds.Contains(q.Id));
+            scene.Strokes.RemoveAll(q => strokeIds.Contains(q.Id));
+            scene.Shapes.RemoveAll(q => shapeIds.Contains(q.Id));
         });
         ClearSelection();
     }
 
+    /// <summary>Rotate every selected element around its own center
+    /// (web `rotateBy`): props spin in place, outlines rotate around
+    /// their bbox center, and `Angle` follows so house roofs and
+    /// oriented footprints stay aligned.</summary>
+    void RotateSelection(double delta)
+    {
+        if (!HasSelection())
+            return;
+        var propIds = _selProps.Select(pr => pr.Id).ToHashSet();
+        var strokeIds = _selStrokes.Select(st => st.Id).ToHashSet();
+        var shapeIds = _selShapes.Select(sh => sh.Id).ToHashSet();
+        static Vector2 Rotate(Vector2 p, double a, Vector2 c)
+        {
+            var d = p - c;
+            return new Vector2(
+                (float)(c.X + d.X * Math.Cos(a) - d.Y * Math.Sin(a)),
+                (float)(c.Y + d.X * Math.Sin(a) + d.Y * Math.Cos(a))
+            );
+        }
+        static Vector2 BBoxCenter(List<Vector2> pts)
+        {
+            var min = pts[0];
+            var max = pts[0];
+            foreach (var q in pts)
+            {
+                min = new Vector2(Math.Min(min.X, q.X), Math.Min(min.Y, q.Y));
+                max = new Vector2(Math.Max(max.X, q.X), Math.Max(max.Y, q.Y));
+            }
+            return (min + max) / 2;
+        }
+        Commit(scene =>
+        {
+            foreach (var pr in scene.Props.Where(q => propIds.Contains(q.Id)))
+                pr.Rotation += delta;
+            foreach (var el in scene.Strokes.Where(q => strokeIds.Contains(q.Id)).Cast<object>()
+                .Concat(scene.Shapes.Where(q => shapeIds.Contains(q.Id))))
+            {
+                var pts = el is Stroke st ? st.Points : ((Shape)el).Points;
+                var c = BBoxCenter(pts);
+                for (var i = 0; i < pts.Count; i++)
+                    pts[i] = Rotate(pts[i], delta, c);
+                if (el is Shape sh)
+                    sh.Angle += delta;
+            }
+        });
+        RefreshSelection();
+    }
+
+    /// <summary>Duplicate the selection (web Ctrl+D) — clones get new
+    /// ids, are committed in one step and become the new selection.</summary>
+    void DuplicateSelection()
+    {
+        if (!HasSelection())
+            return;
+        var props = _selProps.ToList();
+        var strokes = _selStrokes.ToList();
+        var shapes = _selShapes.ToList();
+        List<long>? newIds = null;
+        Commit(scene =>
+        {
+            foreach (var pr in props)
+            {
+                var copy = pr.DeepClone();
+                copy.Id = scene.AllocId();
+                scene.Props.Add(copy);
+                (newIds ??= []).Add(copy.Id);
+            }
+            foreach (var st in strokes)
+            {
+                var copy = st.DeepClone();
+                copy.Id = scene.AllocId();
+                scene.Strokes.Add(copy);
+                (newIds ??= []).Add(copy.Id);
+            }
+            foreach (var sh in shapes)
+            {
+                var copy = sh.DeepClone();
+                copy.Id = scene.AllocId();
+                scene.Shapes.Add(copy);
+                (newIds ??= []).Add(copy.Id);
+            }
+        });
+        ClearSelection();
+        var scene2 = _view.Scene;
+        foreach (var id in newIds ?? [])
+        {
+            if (scene2.Props.FirstOrDefault(q => q.Id == id) is { } pr)
+                _selProps.Add(pr);
+            else if (scene2.Strokes.FirstOrDefault(q => q.Id == id) is { } st)
+                _selStrokes.Add(st);
+            else if (scene2.Shapes.FirstOrDefault(q => q.Id == id) is { } sh)
+                _selShapes.Add(sh);
+        }
+        SnapshotBackups();
+        UpdateSelectionGhost();
+        UpdateToolUi();
+    }
+
     void ClearSelection()
     {
-        _selProp = null;
+        _selProps.Clear();
+        _selStrokes.Clear();
+        _selShapes.Clear();
         if (_variantSection != null)
             _variantSection.Visible = _tool.Mode == Mode.Prop;
-        _selStroke = null;
-        _selShape = null;
-        _selPtsBackup = null;
+        _selPosBackup.Clear();
+        _selPtsBackup.Clear();
+        _selShapeBackup = null;
         _selMoving = false;
         _selEdited = false;
-        _ghost.SetSelection(null, null, null);
+        _marqueeing = false;
+        _ghost.SetSelection([], [], []);
+        _ghost.SetMarquee(null);
     }
 
     /// <summary>Sliders write into the selected terrain shape live;
@@ -1365,9 +1626,9 @@ public partial class MapEditor : Node2D
     void UpdateSelectionGhost()
     {
         _ghost.SetSelection(
-            _selProp == null ? null : new Vector2((float)_selProp.X, (float)_selProp.Y),
-            _selStroke == null ? null : [.. _selStroke.Points],
-            _selShape == null ? null : [.. _selShape.Points]
+            _selProps.Select(pr => new Vector2((float)pr.X, (float)pr.Y)).ToList(),
+            _selStrokes.Select(st => st.Points.ToArray()).ToList(),
+            _selShapes.Select(sh => sh.Points.ToArray()).ToList()
         );
     }
 
@@ -2167,9 +2428,10 @@ public partial class GhostLayer : Node2D
     List<Vector2> _pts = [];
     double _width;
     Massif? _draft;
-    Vector2? _selProp;
-    Vector2[]? _selLine;
-    Vector2[]? _selOutline;
+    List<Vector2> _selProps = [];
+    List<Vector2[]> _selLines = [];
+    List<Vector2[]> _selOutlines = [];
+    Rect2? _marquee;
     Vector2? _snap;
     List<Vector2> _fillRect = [];
     List<Vector2> _fillSrc = [];
@@ -2226,9 +2488,15 @@ public partial class GhostLayer : Node2D
         QueueRedraw();
     }
 
-    public void SetSelection(Vector2? prop, Vector2[]? line, Vector2[]? outline)
+    public void SetSelection(List<Vector2> props, List<Vector2[]> lines, List<Vector2[]> outlines)
     {
-        (_selProp, _selLine, _selOutline) = (prop, line, outline);
+        (_selProps, _selLines, _selOutlines) = (props, lines, outlines);
+        QueueRedraw();
+    }
+
+    public void SetMarquee(Rect2? rect)
+    {
+        _marquee = rect;
         QueueRedraw();
     }
 
@@ -2236,12 +2504,21 @@ public partial class GhostLayer : Node2D
     {
         // selection highlight
         var hi = new Color(1f, 0.85f, 0.25f, 0.9f);
-        if (_selOutline is { Length: > 2 } o)
-            DrawPolyline([.. o, o[0]], hi, 2.5f);
-        if (_selLine is { Length: > 1 } l)
-            DrawPolyline(l, hi, 3);
-        if (_selProp is { } pp)
+        foreach (var o in _selOutlines)
+            if (o.Length > 2)
+                DrawPolyline([.. o, o[0]], hi, 2.5f);
+        foreach (var l in _selLines)
+            if (l.Length > 1)
+                DrawPolyline(l, hi, 3);
+        foreach (var pp in _selProps)
             DrawArc(pp, 20, 0, Mathf.Tau, 24, hi, 2.5f);
+
+        // marquee rubber band
+        if (_marquee is { } mq)
+        {
+            DrawRect(mq, new Color(1f, 0.85f, 0.25f, 0.12f));
+            DrawRect(mq, hi, false, 1.5f);
+        }
 
         // terrain draft — the massif the stroke would create
         if (_draft is { } m)
