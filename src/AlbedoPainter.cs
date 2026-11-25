@@ -107,10 +107,10 @@ public partial class AlbedoPainter : Node2D
     /// <summary>Three-direction jittered line grid clipped to a stone
     /// face piece — reads as the packed polygonal-slab crack pattern of
     /// the 2mt ink pack. Deterministic via position-hashed wobble.</summary>
-    void CrackMesh(Vector2[] poly, Color face)
+    void CrackMesh(Vector2[] poly, Color face, float alpha = 0.55f)
     {
         var (xs, ys) = BBox(poly);
-        var ink = Palette.TintAlpha(face, -40, 0.55);
+        var ink = Palette.TintAlpha(face, -40, alpha);
         const double spacing = 26;
         foreach (var deg in new[] { 10.0, 70.0, -50.0 })
         {
@@ -219,12 +219,14 @@ public partial class AlbedoPainter : Node2D
                 if (!dirt && Biome?.ArtPack != "ink")
                     TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.38f, 0.55);
             }
-            // Ink-pack crack mesh — the 2minutetabletop signature:
-            // a jittered three-way grid of fracture lines covering the
-            // stone face like polygonal slabs.
-            if (!dirt && Biome?.ArtPack == "ink")
+            // Crack mesh on the stone face — dominant in the ink pack
+            // (the 2mt slab signature), a faint fracture hint elsewhere.
+            if (!dirt)
+            {
+                var crackInk = Biome?.ArtPack == "ink" ? 0.55f : 0.22f;
                 foreach (var poly in bandPieces)
-                    CrackMesh(poly, face);
+                    CrackMesh(poly, face, crackInk);
+            }
 
             // Terrace rings — the sedimentary strata.
             foreach (var (ring, tone) in _strata[m])

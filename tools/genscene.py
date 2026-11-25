@@ -322,6 +322,10 @@ def ref03():
         s.prop("crate", x, y, scale=44, rot=rng(x + y) * 3)
     for x, y in [(590, 340), (910, 300)]:
         s.prop("barrel", x, y, scale=42)
+    for x, y in [(640, 470), (780, 440), (860, 560), (560, 500)]:
+        s.prop("crate", x, y, scale=40, rot=rng(x * y) * 2)
+    s.prop("bones", 760, 620, scale=36)
+    s.prop("well", 680, 620, scale=34)
     # Trees — border forest + big heroes.
     s.scatter(blob(1300, 500, 360, 18.5, n=24, squash=1.0), "tree",
               step=90, density=0.7, smin=1.8, smax=2.8, seed=51,
@@ -367,7 +371,7 @@ def ref04():
               (560, 110), (390, 300)]
     for i, (x, y) in enumerate(houses):
         s.house(x, y, 62 + rng(i * 3) * 26, 44 + rng(i * 5) * 16,
-                rng(i * 7) * 0.9 - 0.45, model=2)
+                rng(i * 7) * 0.9 - 0.45, model=2, color="#b7a955")
     for x, y in [(520, 250), (560, 160), (380, 300)]:
         s.prop("crate", x, y, scale=24)
     s.prop("well", 350, 175, scale=30)
@@ -421,6 +425,8 @@ def ref05():
     s.prop("crate", cx + 90, cy - 70, scale=20, rot=0.4)
     s.prop("rug", cx, cy + 20, scale=30)
     s.prop("shelf", cx - 10, cy - 110, scale=22, rot=math.pi)
+    s.prop("bed", cx + 80, cy + 90, scale=24, rot=-0.9)
+    s.prop("fireplace", cx - 100, cy - 60, scale=22)
     # Palms + desert flora.
     for x, y, sc in [(620, 300, 3.0), (530, 500, 2.6), (750, 620, 2.8),
                      (1250, 260, 3.0), (1330, 560, 2.6), (300, 240, 2.4),
@@ -501,10 +507,14 @@ def ref07():
     homes = [(200, 200, 2.0), (320, 160, 2.2), (150, 480, 1.9),
              (660, 200, 2.0), (800, 250, 1.8), (920, 430, 1.9),
              (760, 600, 1.8), (160, 800, 1.8), (850, 850, 2.0),
-             (350, 1250, 1.9), (700, 1300, 1.8)]
+             (350, 1250, 1.9), (700, 1300, 1.8),
+             # Fork cluster — the thatch knot on the island banks.
+             (430, 560, 2.1), (370, 700, 2.0), (300, 620, 1.9),
+             (780, 720, 2.0), (860, 640, 1.9), (240, 900, 2.0),
+             (900, 920, 1.9), (380, 940, 2.1)]
     for i, (x, y, sc) in enumerate(homes):
         s.house(x, y, 52 * sc, 38 * sc, rng(i * 11) * 1.2 - 0.6,
-                model=2 if i % 4 else 0)
+                model=2 if i % 4 else 0, color="#b7a955")
     for x, y in [(260, 260), (700, 320), (180, 560), (800, 520),
                  (400, 1200), (760, 1250)]:
         s.prop("crate", x, y, scale=24)
@@ -566,6 +576,11 @@ def ref08():
              (625, 336), (648, 340)]
     for x, y in rapid:
         s.prop("rock", x, y, scale=17)
+    # Rapid foam line — a hair-thin shelf crossing the channel makes
+    # the water drop a level: CrossingPainter draws the white lip.
+    s.terrain([(500, 330), (540, 322), (600, 330), (680, 345),
+               (685, 380), (600, 368), (540, 360), (498, 366)],
+              height=7, size=26, rough=30)
     s.save("ref-08")
 
 

@@ -24,6 +24,15 @@ public partial class WaterPainter : Node2D
 
     readonly List<(Vector2[] Run, double Width)> _rivers = [];
     readonly List<(Vector2[] Run, double Width)> _roads = [];
+    readonly List<Vector2> _rocks = [];
+
+    /// <summary>Rock prop positions — those sitting in water get ripple
+    /// rings + foam specks (the web's rock-in-water pass).</summary>
+    public void SetRocks(IEnumerable<Vector2> pts)
+    {
+        _rocks.AddRange(pts);
+        QueueRedraw();
+    }
 
     public override void _Ready() => TextureRepeat = TextureRepeatEnum.Enabled;
 
@@ -116,7 +125,7 @@ public partial class WaterPainter : Node2D
     void DrawRiverGroup()
     {
         var deep = Palette.Tint(Water, -22);
-        var shallow = Palette.Tint(Water, 58);
+        var shallow = Palette.Tint(Water, 34);
         // Bank stack per stroke — wide grassy verge, pale trodden edge,
         // deep rim, inked shoreline. Drawn before the unioned fill so the
         // merged water covers the seams inside a confluence (TS order).
@@ -151,9 +160,61 @@ public partial class WaterPainter : Node2D
             );
         }
         foreach (var piece in UnionAll(_rivers, -18))
-            Fill(piece, Palette.Tint(Water, -14));
+            Fill(piece, Palette.Tint(Water, -20));
         foreach (var (run, w) in _rivers)
             DrawRiverDetails(run, w);
+        RockRipples();
+    }
+
+    /// <summary>Broken concentric ripple arcs + a foam crown around each
+    /// rock that sits inside a water piece — rapids read as a row of
+    /// these across the channel.</summary>
+    void RockRipples()
+    {
+        if (_rocks.Count == 0)
+            return;
+        var pieces = UnionAll(_rivers, 0);
+        foreach (var rock in _rocks)
+        {
+            var wet = false;
+            foreach (var piece in pieces)
+                if (Poly.PointInPolygon(rock, piece))
+                {
+                    wet = true;
+                    break;
+                }
+            if (!wet)
+                continue;
+            var seed = rock.X * 0.31 + rock.Y * 0.47;
+            // Foam crown hugging the stone.
+            DrawArc(
+                rock,
+                9f,
+                (float)(Rng.Noise(seed) * 6.28),
+                (float)(Rng.Noise(seed) * 6.28 + 3.4),
+                8,
+                new Color(0.92f, 0.97f, 0.95f, 0.7f),
+                2.4f
+            );
+            // Two broken ripple rings downstream-ish.
+            for (var ring = 0; ring < 2; ring++)
+            {
+                var r = 15f + ring * 8f;
+                for (var arc = 0; arc < 3; arc++)
+                {
+                    var a0 = (float)(Rng.Noise(seed + ring * 7 + arc * 3) * 6.28);
+                    DrawArc(
+                        rock,
+                        r,
+                        a0,
+                        a0 + (float)(0.9 + Rng.Noise(seed + arc) * 0.9),
+                        7,
+                        Palette.TintAlpha(Water, 80, 0.45f),
+                        1.6f
+                    );
+                }
+            }
+        }
     }
 
     void DrawRiverDetails(Vector2[] run, double w)
