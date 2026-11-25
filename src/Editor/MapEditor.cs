@@ -44,7 +44,9 @@ public partial class MapEditor : Node2D
         new("wall", "Kamenné zdi", "Cesty", Mode.Stroke, Kinds.Wall),
         new("fence", "Ploty", "Cesty", Mode.Stroke, Kinds.Fence),
         new("dock", "Doky a mola", "Cesty", Mode.Prop, "dock"),
-        new("house", "Budovy", "Stavby", Mode.Prop, Kinds.House),
+        new("house", "Budovy", "Stavby", Mode.Shape, Kinds.House),
+        new("room", "Místnosti", "Stavby", Mode.Shape, Kinds.Room),
+        new("floor", "Podlahy a plošiny", "Stavby", Mode.Shape, Kinds.Floor),
         new("tower", "Strážní věže", "Stavby", Mode.Prop, "tower"),
         new("stall", "Tržní stánky", "Stavby", Mode.Prop, "stall"),
         new("tent", "Stany", "Stavby", Mode.Prop, "tent"),
@@ -653,6 +655,23 @@ public partial class MapEditor : Node2D
                             );
                         }
                     });
+                break;
+            case Mode.Shape:
+                // Other area kinds (house footprint, room, floor) —
+                // plain add, no terrain merge.
+                if (pts.Count >= 4)
+                    Commit(scene =>
+                        scene.Shapes.Add(
+                            new Shape
+                            {
+                                Id = scene.AllocId(),
+                                Kind = _tool.Kind,
+                                Points = pts,
+                                Size = 20,
+                                Height = _tool.Kind is Kinds.House or Kinds.Room ? 18 : 0,
+                            }
+                        )
+                    );
                 break;
         }
         _stroke.Clear();
