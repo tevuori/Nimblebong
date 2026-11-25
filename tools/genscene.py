@@ -385,8 +385,8 @@ def ref02():
         tube(roads[0][0], 48, wob=2.0, seed=203),
         tube(roads[1][0], 40, wob=2.0, seed=205),
         tube(roads[2][0], 40, wob=2.0, seed=207),
-        blob(cx, cy, 132, 15.7, n=20, squash=0.82, wob=0.10),
-        blob(ex, ey, 142, 17.1, n=20, squash=0.70, wob=0.10),
+        blob(cx, cy, 168, 15.7, n=20, squash=0.86, wob=0.10),
+        blob(ex, ey, 165, 17.1, n=20, squash=0.74, wob=0.10),
     ]
     edge_forests = [
         (blob(35, 300, 250, 12.3, n=24, squash=1.0, wob=0.13), 72, 0.82, 31),
@@ -535,7 +535,7 @@ def ref04():
     clearings = [
         tube(river, 92, wob=4.0, seed=301),
         blob(220, 180, 305, 23.7, n=24, squash=0.72, wob=0.12),
-        blob(1030, 545, 155, 24.9, n=20, squash=0.82, wob=0.10),
+        blob(1030, 545, 195, 24.9, n=20, squash=0.88, wob=0.10),
         blob(230, 875, 145, 26.1, n=18, squash=0.72, wob=0.10),
         blob(1560, 875, 155, 28.3, n=18, squash=0.72, wob=0.10),
     ]
@@ -803,39 +803,40 @@ def ref07():
     # Roads: along both banks and across the arms — each crossing
     # spawns a wooden footbridge, like the ref's paired bridges at
     # the fork.
-    s.road([(60, 300), (300, 340), (420, 380), (620, 360), (900, 330),
-            (1100, 340)], 20)
-    s.road([(-40, 820), (180, 800), (330, 830), (470, 860),
-            (660, 840), (880, 800), (1120, 780)], 18)
-    s.road([(80, 1150), (280, 1120), (420, 1180), (700, 1160),
-            (1040, 1180)], 18)
-    s.road([(520, 60), (560, 260), (600, 480), (640, 700)], 12)
+    roads = [
+        ([(60, 300), (300, 340), (420, 380), (620, 360), (900, 330),
+          (1100, 340)], 20),
+        ([(-40, 820), (180, 800), (330, 830), (470, 860),
+          (660, 840), (880, 800), (1120, 780)], 18),
+        ([(80, 1150), (280, 1120), (420, 1180), (700, 1160),
+          (1040, 1180)], 18),
+    ]
+    for pts, width in roads:
+        s.road(pts, width)
     # Village — dense rows of golden thatched homes packed along
     # both banks of the branching river, plus a red-tile manor NW.
     homes = [
         # East bank, upper village — long thatched footprints packed
         # into irregular rows, but kept off the east-west lane at y≈340.
-        (565, 82, 142, 92, 0.08), (720, 66, 154, 96, -0.12),
-        (880, 92, 148, 90, 0.14), (1005, 78, 132, 84, -0.08),
-        (610, 205, 150, 98, 0.18), (775, 198, 160, 100, -0.10),
-        (940, 218, 142, 90, 0.16),
-        (585, 470, 146, 92, 0.10), (745, 492, 156, 98, -0.18),
-        (905, 475, 148, 92, 0.16), (1015, 520, 126, 82, -0.22),
+        (600, 80, 132, 84, 0.08), (850, 80, 138, 86, -0.12),
+        (720, 155, 132, 84, 0.14), (980, 150, 126, 80, -0.08),
+        (610, 240, 136, 88, 0.18), (840, 245, 142, 90, -0.10),
+        (990, 250, 130, 82, 0.16),
+        (620, 460, 136, 86, 0.10), (770, 515, 142, 90, -0.18),
+        (930, 460, 136, 86, 0.16), (1025, 545, 126, 82, -0.22),
         # East bank of the lower arm, split by the y≈820 bridge lane.
-        (805, 662, 142, 88, -0.12), (945, 704, 136, 86, 0.15),
-        (790, 748, 126, 82, 0.24), (955, 934, 142, 90, -0.12),
-        (795, 970, 136, 86, 0.18), (915, 1060, 128, 82, -0.18),
+        (790, 640, 142, 88, -0.12), (945, 690, 136, 86, 0.15),
+        (830, 895, 126, 82, 0.24), (970, 950, 142, 90, -0.12),
+        (820, 1045, 136, 86, 0.18), (955, 1095, 128, 82, -0.18),
         # Island wedge — fewer, diagonal large houses following the fork.
-        (430, 668, 126, 82, 0.42), (405, 760, 118, 78, -0.32),
+        (475, 720, 126, 82, 0.10),
         (430, 936, 124, 80, 0.22), (445, 1060, 118, 76, -0.12),
         # West bank lower village, clustered tightly along the water.
-        (92, 690, 132, 86, -0.20), (214, 726, 142, 90, 0.12),
-        (82, 910, 136, 88, 0.24), (196, 958, 146, 92, -0.14),
-        (92, 1065, 126, 82, 0.18),
+        (70, 640, 132, 86, -0.20), (170, 725, 132, 90, 0.12),
+        (85, 900, 136, 88, 0.24), (115, 1015, 146, 92, -0.14),
         # South village, spread along both lower banks but still dense.
-        (345, 1248, 136, 88, 0.15), (490, 1284, 148, 94, -0.18),
-        (650, 1248, 138, 88, 0.24), (795, 1300, 132, 84, -0.15),
-        (205, 1160, 128, 82, 0.25), (890, 1160, 136, 86, -0.2),
+        (205, 1248, 136, 88, 0.15), (690, 1305, 138, 94, -0.18),
+        (820, 1238, 138, 88, 0.24), (955, 1315, 132, 84, -0.15),
     ]
     for x, y, w, h, a in homes:
         # Individual hand-set dimensions replace the former repeating
@@ -855,19 +856,32 @@ def ref07():
     s.prop("cart", 460, 400, scale=80, rot=0.8)
     s.prop("cart", 200, 620, scale=76, rot=-1.4)
     s.prop("cart", 850, 580, scale=78, rot=0.4)
-    # Trees sprinkled along the banks and behind the homes.
+    # Trees sprinkled along the banks and behind the homes. The same
+    # deterministic exclusion masks protect the widened house rows,
+    # both river arms and the bridge lanes, so vegetation frames the
+    # village instead of swallowing its readable structure.
+    village_clearings = [
+        tube(upper, 56, wob=3.0, seed=601),
+        tube(arm_w, 52, wob=3.0, seed=603),
+        tube(arm_e, 52, wob=3.0, seed=605),
+    ]
+    village_clearings += [tube(pts, 30 if width >= 18 else 24,
+                               wob=2.0, seed=607 + i * 2)
+                          for i, (pts, width) in enumerate(roads)]
+    village_clearings += [sh["points"] for sh in s.d["shapes"]
+                          if sh["kind"] == "house"]
     s.scatter(blob(950, 200, 220, 15.3, n=20, squash=0.8), "tree",
               step=85, density=0.65, smin=1.7, smax=2.6, seed=81,
-              species="oak")
+              avoid=village_clearings, species="oak")
     s.scatter(blob(120, 1250, 220, 17.5, n=20, squash=0.8), "tree",
               step=85, density=0.7, smin=1.7, smax=2.6, seed=83,
-              species="oak")
+              avoid=village_clearings, species="oak")
     s.scatter(blob(540, 960, 180, 19.8, n=18, squash=0.9), "tree",
               step=80, density=0.6, smin=1.6, smax=2.4, seed=87,
-              species="oak")
+              avoid=village_clearings, species="oak")
     s.scatter(blob(980, 1150, 200, 21.4, n=18, squash=0.8), "tree",
               step=82, density=0.6, smin=1.6, smax=2.4, seed=89,
-              species="oak")
+              avoid=village_clearings, species="oak")
     s.save("ref-07")
 
 
