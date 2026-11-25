@@ -149,10 +149,13 @@ public partial class SceneView : Node2D
                 fortify.Add(st.Kind, st.Points, st.Width, st.Model);
             }
         }
+        var bridges = new BridgePainter { Stone = Biome.Stone };
+        bridges.SetStrokes(Scene.Strokes);
         AddLayer(Stage.AlbedoVp, water);
         AddLayer(Stage.AlbedoVp, crossings);
         AddLayer(Stage.HeightVp, waterH);
         AddLayer(Stage.AlbedoVp, fortify);
+        AddLayer(Stage.AlbedoVp, bridges);
 
         var anchored = interiors.AnchoredPropIds;
         var props = Scene

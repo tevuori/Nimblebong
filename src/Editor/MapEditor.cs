@@ -106,6 +106,7 @@ public partial class MapEditor : Node2D
     int _pModel;
     double _pRiverW = 30;
     double _pRoadW = 16;
+    int _roadModel; // styl mostu: 0 dřevěný, 1 kamenný, 2 lanový
 
     // Active stroke recording.
     readonly List<Vector2> _stroke = [];
@@ -136,6 +137,8 @@ public partial class MapEditor : Node2D
     HSlider _sSlope = null!;
     HSlider _sRough = null!;
     OptionButton _modelOpt = null!;
+    OptionButton _bridgeOpt = null!;
+    VBoxContainer _terrainSection = null!;
     LineEdit _seedEdit = null!;
     OptionButton _presetOpt = null!;
 
@@ -269,6 +272,64 @@ public partial class MapEditor : Node2D
         SetTool("house");
         PlacePropAt(new Vector2(800, 600));
         Undo(); // house away — verify undo rebuilds cleanly
+
+        // Bridge: a road crossing the vertical river at ~90°.
+        Commit(scene =>
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(60, 480), new(400, 470), new(760, 500), new(1000, 560)],
+                    Width = 18,
+                }
+            )
+        );
+        // Stroke continuation: second segment ending at the first's end
+        // must merge into a single stroke.
+        var strokeCount = _view.Scene.Strokes.Count;
+        Commit(scene =>
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(1010, 570), new(1200, 620), new(1400, 700)],
+                    Width = 18,
+                }
+            )
+        );
+        GD.Print(
+            $"road-merge: {_view.Scene.Strokes.Count} strokes after (was {strokeCount}, expect same + 0 merged)"
+        );
+        // Stone + rope bridge variants further down the river.
+        Commit(scene =>
+        {
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(60, 700), new(500, 690), new(820, 710)],
+                    Width = 18,
+                    Model = 1,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(120, 900), new(420, 880), new(700, 920)],
+                    Width = 14,
+                    Model = 2,
+                }
+            );
+        });
 
         // Wave-A features: pond, field, wall, fence, scatter, camp.
         var pond = new List<Vector2>();
@@ -530,6 +591,7 @@ public partial class MapEditor : Node2D
         {
             _stroke.Add(p);
             _ghost.SetStroke(_tool, _tool.Mode == Mode.Shape && _form > 0 ? FormPoints(_form) : _stroke, StrokeWidth());
+            _ghost.SetSnap(_tool.Mode is Mode.Stroke or Mode.Fog ? SnapTarget(_stroke[^1]) : null);
             if (_tool.Kind == Kinds.Terrain && _stroke.Count >= 6 && _draftAt == 0)
                 _draftAt = Time.GetTicksMsec() + 120;
             if (_tool.Mode == Mode.Prop && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
@@ -569,6 +631,30 @@ public partial class MapEditor : Node2D
             pts.Add(c + new Vector2((float)(r.X * Math.Cos(a)), (float)(r.Y * Math.Sin(a))));
         }
         return pts;
+    }
+
+    /// <summary>Point where the in-progress stroke would fuse with an
+    /// existing same-kind stroke — endpoint concat or T-junction
+    /// (mirrors MergeStrokeInto's tolerance).</summary>
+    Vector2? SnapTarget(Vector2 pen)
+    {
+        var tol = Math.Max(24, StrokeWidth());
+        foreach (var s in _view.Scene.Strokes)
+        {
+            if (s.Kind != _tool.Kind)
+                continue;
+            if (pen.DistanceTo(s.Points[0]) <= tol)
+                return s.Points[0];
+            if (pen.DistanceTo(s.Points[^1]) <= tol)
+                return s.Points[^1];
+            for (var i = 1; i < s.Points.Count; i++)
+            {
+                var proj = Geometry2D.GetClosestPointToSegment(pen, s.Points[i - 1], s.Points[i]);
+                if (pen.DistanceTo(proj) <= tol * 0.7f)
+                    return proj;
+            }
+        }
+        return null;
     }
 
     void BeginStroke()
@@ -618,6 +704,23 @@ public partial class MapEditor : Node2D
                 );
                 break;
             case Mode.Stroke:
+                // Snap both ends onto existing same-kind endpoints so
+                // the merge joins exactly instead of leaving a jog.
+                {
+                    var tol = Math.Max(24, StrokeWidth());
+                    foreach (var s in _view.Scene.Strokes)
+                    {
+                        if (s.Kind != _tool.Kind)
+                            continue;
+                        foreach (var end in new[] { s.Points[0], s.Points[^1] })
+                        {
+                            if (pts[0].DistanceTo(end) <= tol)
+                                pts[0] = end;
+                            if (pts[^1].DistanceTo(end) <= tol)
+                                pts[^1] = end;
+                        }
+                    }
+                }
                 Commit(scene =>
                 {
                     var stroke = new Stroke
@@ -626,6 +729,7 @@ public partial class MapEditor : Node2D
                         Kind = _tool.Kind,
                         Points = pts,
                         Width = StrokeWidth(),
+                        Model = _tool.Kind == Kinds.Road ? _roadModel : 0,
                     };
                     Interactions.AddStroke(scene, stroke);
                 });
@@ -1133,8 +1237,19 @@ public partial class MapEditor : Node2D
             if (t.Id == id)
             {
                 _tool = t;
+                UpdateToolUi();
                 return;
             }
+    }
+
+    /// <summary>Show only the parameter controls relevant to the
+    /// active tool (terrain sliders, road model/width, river width).</summary>
+    void UpdateToolUi()
+    {
+        if (_terrainSection != null)
+            _terrainSection.Visible = _tool.Kind == Kinds.Terrain;
+        if (_bridgeOpt != null)
+            _bridgeOpt.Visible = _tool.Kind == Kinds.Road;
     }
 
     /// <summary>Categorized tool browser — Nimblehold-style sections,
@@ -1225,10 +1340,12 @@ public partial class MapEditor : Node2D
         box.AddChild(form);
 
         box.AddChild(new HSeparator());
-        box.AddChild(new Label { Text = "Terén" });
-        _sHeight = TerrainSlider(box, "Výška", 0, 100, _pHeight, v => _pHeight = v);
-        _sSlope = TerrainSlider(box, "Šířka svahu", 10, 90, _pSlope, v => _pSlope = v);
-        _sRough = TerrainSlider(box, "Nerovnosti", 0, 100, _pRough, v => _pRough = v);
+        _terrainSection = new VBoxContainer();
+        box.AddChild(_terrainSection);
+        _terrainSection.AddChild(new Label { Text = "Terén" });
+        _sHeight = TerrainSlider(_terrainSection, "Výška", 0, 100, _pHeight, v => _pHeight = v);
+        _sSlope = TerrainSlider(_terrainSection, "Šířka svahu", 10, 90, _pSlope, v => _pSlope = v);
+        _sRough = TerrainSlider(_terrainSection, "Nerovnosti", 0, 100, _pRough, v => _pRough = v);
         _modelOpt = new OptionButton();
         foreach (var name in new[] { "Skalnatý", "Hlínitý", "Hřeben" })
             _modelOpt.AddItem(name);
@@ -1238,11 +1355,17 @@ public partial class MapEditor : Node2D
             _pModel = (int)i;
             OnTerrainSlider(_pHeight, _pSlope, _pRough, _pModel, commit: true);
         };
-        box.AddChild(_modelOpt);
+        _terrainSection.AddChild(_modelOpt);
 
         box.AddChild(new HSeparator());
         Slider(box, "Šířka řeky", 10, 60, _pRiverW, v => _pRiverW = v);
         Slider(box, "Šířka cesty", 8, 40, _pRoadW, v => _pRoadW = v);
+        _bridgeOpt = new OptionButton();
+        foreach (var name in new[] { "Most: dřevěný", "Most: kamenný", "Most: lanový" })
+            _bridgeOpt.AddItem(name);
+        _bridgeOpt.ItemSelected += i => _roadModel = (int)i;
+        box.AddChild(_bridgeOpt);
+        UpdateToolUi();
 
         box.AddChild(new HSeparator());
         var biome = new OptionButton();
@@ -1358,6 +1481,13 @@ public partial class GhostLayer : Node2D
     Vector2? _selProp;
     Vector2[]? _selLine;
     Vector2[]? _selOutline;
+    Vector2? _snap;
+
+    public void SetSnap(Vector2? p)
+    {
+        _snap = p;
+        QueueRedraw();
+    }
 
     public void SetStroke(MapEditor.ToolDef tool, List<Vector2> pts, double width)
     {
@@ -1369,6 +1499,7 @@ public partial class GhostLayer : Node2D
     {
         _pts = [];
         _draft = null;
+        _snap = null;
         QueueRedraw();
     }
 
@@ -1421,6 +1552,8 @@ public partial class GhostLayer : Node2D
         // the raw stroke on top
         if (_pts.Count < 2)
             return;
+        if (_snap is { } sn)
+            DrawArc(sn, 9, 0, Mathf.Tau, 20, new Color(1f, 0.9f, 0.4f, 0.9f), 2f);
         var pts = _pts.ToArray();
         if (_mode == MapEditor.Mode.Shape)
         {

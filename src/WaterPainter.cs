@@ -128,6 +128,8 @@ public partial class WaterPainter : Node2D
         BankShading(right, normals, -1);
         FoamSpecks(left, normals, +1, waterSeed);
         FoamSpecks(right, normals, -1, waterSeed);
+        BankDetails(run, w, left, normals, +1, waterSeed);
+        BankDetails(run, w, right, normals, -1, waterSeed);
 
         // Downstream ripple dashes — sparse, seeded, bowed mid-dash.
         var rippleInk = Palette.TintAlpha(Water, 95, 0.4);
@@ -208,6 +210,93 @@ public partial class WaterPainter : Node2D
                     (float)(Rng.Noise(i * 4.3 + waterSeed) - 0.5) * 2.5f
                 );
             DrawCircle(p, 0.8f + (float)s * 1.5f, new Color(1, 1, 1, 0.45f));
+        }
+    }
+
+    /// <summary>Grass-bank dressing (TS waterDetails): reed strokes and
+    /// turf blobs just outside the shoreline, lily pads drifting inside
+    /// on wide stretches, loose pebbles at the water edge.</summary>
+    void BankDetails(
+        Vector2[] run,
+        double w,
+        Vector2[] side,
+        Vector2[] normals,
+        int sign,
+        double waterSeed
+    )
+    {
+        var reeds = Palette.Hex("#5e7a45");
+        var turf = Palette.Hex("#76a64e");
+        var turfInk = Palette.Hex("#3e6841");
+        for (var i = 4; i < side.Length; i += 3)
+        {
+            var outward = normals[i] * sign;
+            if (outward.Y > 0.9f) // skip the shadowed south rim — reads cluttered
+                continue;
+            var p = side[i] + outward * 7f;
+            var seed = i * 6.1 + waterSeed;
+            // Reeds — two bent strokes + a grass mound.
+            if (i % 6 == 1)
+            {
+                DrawPolyline(
+                    [p + new Vector2(-3, 3), p + new Vector2(-4, -6), p + new Vector2(0, 1), p + new Vector2(5, -4)],
+                    reeds,
+                    1.3f,
+                    true
+                );
+                DrawCircle(p + outward * 2f, 3.5f, turf);
+                DrawArc(p + outward * 2f, 3.5f, 0, Mathf.Tau, 10, turfInk, 0.9f);
+            }
+            // Pebbles at the water's edge.
+            if (i % 5 == 2)
+                for (var k = 0; k < 3; k++)
+                {
+                    var ps = seed + k * 7;
+                    var pp =
+                        p
+                        - outward * 9f
+                        + new Vector2(
+                            (float)(Rng.Noise(ps) - 0.5) * 10,
+                            (float)(Rng.Noise(ps + 1) - 0.5) * 10
+                        );
+                    DrawCircle(
+                        pp,
+                        (float)(1.3 + Rng.Noise(ps + 2) * 1.7),
+                        Palette.Hex(Rng.Noise(ps + 3) > 0.5 ? "#8a8872" : "#6d6c5a")
+                    );
+                }
+            // Lily pads on wide calm stretches.
+            if (w >= 24 && i % 13 == 5)
+            {
+                var inward = outward * (float)(-w * 0.14);
+                for (var pad = 0; pad < 3; pad++)
+                {
+                    var ps = i * 11 + pad * 5 + waterSeed;
+                    var pp =
+                        side[i]
+                        + inward
+                        + new Vector2(
+                            (float)(Rng.Noise(ps) - 0.5) * 14,
+                            (float)(Rng.Noise(ps + 1) - 0.5) * 10
+                        );
+                    Fill(
+                        Poly.Ellipse(
+                            pp.X,
+                            pp.Y,
+                            4 + Rng.Noise(ps + 2) * 3.5,
+                            3 + Rng.Noise(ps + 3) * 2,
+                            Rng.Noise(ps + 4) * 3
+                        ),
+                        Palette.Hex(pad % 2 == 1 ? "#4d7d41" : "#5c8f49")
+                    );
+                }
+                if (Rng.Noise(i * 3.7 + waterSeed) > 0.72)
+                {
+                    var fp = side[i] + inward * 1.4f;
+                    DrawCircle(fp, 2.2f, Palette.Hex("#e08bb0"));
+                    DrawArc(fp, 2.2f, 0, Mathf.Tau, 10, Palette.Hex("#b35d82"), 0.9f);
+                }
+            }
         }
     }
 
