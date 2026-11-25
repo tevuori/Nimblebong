@@ -53,6 +53,7 @@ public partial class MapEditor : Node2D
         new("room", "Místnosti", "Stavby", Mode.Shape, Kinds.Room),
         new("floor", "Podlahy a plošiny", "Stavby", Mode.Shape, Kinds.Floor),
         new("tower", "Strážní věže", "Stavby", Mode.Prop, "tower"),
+        new("ruins", "Generátor zřícenin", "Stavby", Mode.Prop, "ruins-complex"),
         new("stall", "Tržní stánky", "Stavby", Mode.Prop, "stall"),
         new("tent", "Stany", "Stavby", Mode.Prop, "tent"),
         new("door", "Dveře", "Interiér", Mode.Prop, "door"),
@@ -107,7 +108,7 @@ public partial class MapEditor : Node2D
         ["river"] = "#298f99", ["pond"] = "#298f99", ["field"] = "#a8935a",
         ["road"] = "#d1b87c", ["wall"] = "#b7b69a", ["fence"] = "#8a6f4c",
         ["dock"] = "#a37d4c", ["house"] = "#ac6948", ["room"] = "#b8ad86",
-        ["floor"] = "#a37d4c", ["tower"] = "#9a9584", ["stall"] = "#a0522d",
+        ["floor"] = "#a37d4c", ["tower"] = "#9a9584", ["ruins"] = "#8a8570", ["stall"] = "#a0522d",
         ["tent"] = "#a28b61", ["door"] = "#7a5636", ["window"] = "#d8cfa8",
         ["table"] = "#9c7750", ["bed"] = "#a98a5e", ["shelf"] = "#8a6a44",
         ["rug"] = "#8a4a3c", ["fireplace"] = "#8d8378",
@@ -139,6 +140,7 @@ public partial class MapEditor : Node2D
         ["field"] = "Vymez pole nebo pastvinu — brázdy a úroda se přizpůsobí prostředí.",
         ["road"] = "Nakresli cestu. Při křížení řeky se objeví most — jeho styl zvolíš volbou Most. Konec na existující cestu se přichytí a spojí.",
         ["wall"] = "Táhni a postav kamennou zeď — uzavřená smyčka se stane budovou.",
+        ["ruins"] = "Klikni a vygeneruj zříceninu — hrad, věž,usedlost nebo kamenný kruh. Každý klik losuje novou podobu, každý kus je samostatný objekt.",
         ["fence"] = "Táhni a postav dřevěný plot.",
         ["dock"] = "Dřevěný mol nebo přístaviště u břehu.",
         ["house"] = "Nakresli půdorys. Střecha, krytina a stín vzniknou samy.",
@@ -214,6 +216,7 @@ public partial class MapEditor : Node2D
     readonly List<Vector2> _stroke = [];
     bool _drawing;
     readonly List<Vector2> _propTrail = []; // pending prop-drag stamps, committed at release
+    int _ruinClicks;
     bool _panning;
     bool _spacePan;
     // Click-point drawing (web clickPoints): quick clicks accumulate
@@ -380,6 +383,10 @@ public partial class MapEditor : Node2D
             CallDeferred(nameof(RoomProbe));
         if (System.Environment.GetEnvironmentVariable("DMMAP_WEAR_PROBE") == "1")
             CallDeferred(nameof(WearProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_LAND_PROBE") != null)
+            CallDeferred(nameof(LandProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_RUIN_PROBE") == "1")
+            CallDeferred(nameof(RuinProbe));
     }
 
     /// <summary>Probe: rotation must keep the shape's centroid fixed —
@@ -403,6 +410,66 @@ public partial class MapEditor : Node2D
     // measure interior brightness.
 
     // DMMAP_WEAR_PROBE=1 — wear ladder: four roads at 0/35/70/100%.
+
+    // DMMAP_LAND_PROBE=<seed> — generate one landscape with the given
+    // seed and dump the viewport for visual iteration.
+    async void LandProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var seedStr = System.Environment.GetEnvironmentVariable("DMMAP_LAND_PROBE") ?? "1";
+        var seed = int.Parse(seedStr);
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene => MapGenerator.MergeInto(scene, MapGenerator.GenerateLandscape(seed, MapSize)));
+        _camera.Position = MapSize / 2;
+        var z = 0.45f;
+        _camera.Zoom = new Vector2(z, z);
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var img = GetViewport().GetTexture().GetImage();
+        img.SavePng($"/tmp/godot-land-{seed}.png");
+        GD.Print($"LAND seed={seed} shot /tmp/godot-land-{seed}.png");
+        GetTree().Quit();
+    }
+
+
+    // DMMAP_RUIN_PROBE=1 — stamp one ruin of each archetype across the
+    // map and dump the viewport for visual review.
+    async void RuinProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var spots = new[] { new Vector2(320, 280), new Vector2(1150, 280), new Vector2(320, 720), new Vector2(1150, 720) };
+        Commit(scene =>
+        {
+            // Force each archetype: brute-force seeds until the roll
+            // matches — archetype derives from N(seed, 0) internally.
+            var wants = new[] { 0, 1, 2, 3 };
+            for (var w = 0; w < wants.Length; w++)
+            {
+                var seed = 0;
+                for (var cand = 0; cand < 5000; cand++)
+                {
+                    // mirror RuinGen archetype roll
+                    if ((int)(Rng.Noise(cand * 0.631 + 0 * 7.113) * 4) == wants[w]) { seed = cand; break; }
+                }
+                RuinGen.Generate(scene, spots[w], seed);
+            }
+        });
+        var zz = 2.2f;
+        _camera.Zoom = new Vector2(zz, zz);
+        for (var shot = 0; shot < spots.Length; shot++)
+        {
+            _camera.Position = spots[shot];
+            for (var i = 0; i < 24; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GetViewport().GetTexture().GetImage().SavePng($"/tmp/godot-ruin-{shot}.png");
+        }
+        GD.Print("RUIN shots done");
+        GetTree().Quit();
+    }
+
     async void WearProbe()
     {
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -1905,7 +1972,7 @@ public partial class MapEditor : Node2D
             // ghost instead of committing each one (a commit repaints
             // the whole map, so per-motion placement hitched every
             // 45 px). One commit at release places them all.
-            if (_tool.Mode == Mode.Prop && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
+            if (_tool.Mode == Mode.Prop && _tool.Kind != "ruins-complex" && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
             {
                 _propTrail.Add(p);
                 _ghost.SetPropTrail(_propTrail);
@@ -2765,6 +2832,15 @@ public partial class MapEditor : Node2D
     /// variant (seed++) instead of stacking a new prop on top.</summary>
     void PlacePropAt(Vector2 p)
     {
+        if (_tool.Kind == "ruins-complex")
+        {
+            // Procedural ruin complex — every click rolls a new seed so
+            // the user can stamp a few and keep the one they like. All
+            // pieces are real objects in a single undo step.
+            var seed = (int)(p.X * 0.37 + p.Y * 0.53) + _ruinClicks++ * 1013;
+            Commit(scene => RuinGen.Generate(scene, p, seed));
+            return;
+        }
         var existing = _view
             .Scene.Props.OrderByDescending(pr => pr.Id)
             .FirstOrDefault(pr =>

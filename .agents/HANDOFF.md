@@ -1,4 +1,67 @@
-# Handoff log
+# Handoff
+
+
+## 2026-11-26 — Devin: archetypový generátor terénu + generátor zřícenin
+
+### Hotovo (commit řada končící TBD, pushnuto)
+
+**1. Přepsaný `MapGenerator.GenerateLandscape`** — místo pár náhodných
+kopců teď generuje jeden z 5 archetypů podle seedu (jen terén + voda,
+bez props/cest/domovního osídlení — user chce podklad pro vlastní stavbu):
+
+- `0` river valley — bloudící údolí flankované terasovitými hřebeny,
+  řeka po dně údolí, přítoky z hřebenů
+- `1` ridge spine — diagonální skalní hřeben s prudkou čelní stěnou,
+  řeka v podhůří, kaskádovité potoky ze srázu
+- `2` lake bowl — prstenec kopců kolem jezera s odtokovým potokem
+- `3` plateau — vysoká plošina se srázovým okrajem (malý `Size` = prudký
+  svah/útes), nížinná řeka, vodopádový potok, občas osamělá mesa
+- `4` rolling hills — kopce v souvislých řetězcích (ne scatter), údolí
+  mezi nimi, řeka v hlavním údolí, občas jezírko
+
+Klíčové techniky: `TerracedRidge` = překrývající se protáhlé tvary
+podél společné páteře (šířka klesá s výškou → soudržná terasovitá
+escarpment), `Wander` = noise-driven bloudění cest/řek místo sinusek,
+`Foothills` = přechodové návezí upatí, globální jemné zvlnění (výška
+5-13) proti mrtvé rovině. Pozn.: údolí existují jen jako nížiny MEZI
+hřebeny — terén umí jen přidávat výšku.
+
+**2. Nový nástroj „Generátor zřícenin"** (`ruins`, kategorie Stavby) —
+klik vygeneruje procedurální komplex jako jeden undo krok, všechno jsou
+reálné objekty. `src/Editor/RuinGen.cs`, 4 archetypy:
+
+- hrad — rozbitý kruhový val s mezerou brány, věže ve stavu intact/
+  zřícený pašt (model 2)/sutě, základy velké haly + sloupy
+- věž — pašt nebo intaktní věž, radiální fragmenty hradeb, suťové suky
+- usedlost — obdélníková základová deska (floor) + BrokenWall fragmenty,
+  truhla/kosti, občas vedlejší stavba
+- kamenný kruh — stonecircle + sloupy, část padlých (rocks)
+
+`BrokenWall` krájí linii na fragmenty 30-70px s mezerami, zborcené
+úseky nahrazuje sutí. Seed = hash pozice + counter kliků → každý klik
+jiná podoba.
+
+**3. Proby**: `DMMAP_LAND_PROBE=<seed>` → /tmp/godot-land-<seed>.png,
+`DMMAP_RUIN_PROBE=1` → /tmp/godot-ruin-{0-3}.png (záběr na každý
+archetyp).
+
+### Známé limity
+
+- Terasovitý „pancake" vzhled je inherentní massif systému (stejné
+  výšky se slévají) — vyžaduje ladění height/size kombinací.
+- Některé seedy mají velké plochy klidné roviny — záměr (stavební
+  prostor), ne bug. Globální zvlnění je skoro neviditelné, možná zesílit.
+- Circle archetype je nejslabší — stonecircle prop je drobný.
+- Zříceniny nemají UI pro výběr archetypu/velikosti — seed losuje klik.
+  Drag s nástrojem negeneruje nic (záměrně, jen klik).
+
+### Regrese ověřeny
+
+DMMAP_PROBE=1 prochází (road-merge, brush, fill, marquee, rotate+dup,
+play tokens), build 0 errors.
+
+
+ log
 
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
