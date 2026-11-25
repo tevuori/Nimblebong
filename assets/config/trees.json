@@ -1,0 +1,142 @@
+{
+  "species": {
+    "oak": {
+      "size": 1,
+      "shadow": 1,
+      "deciduous": true,
+      "evergreen": false
+    },
+    "spruce": {
+      "size": 1,
+      "shadow": 0.9,
+      "deciduous": false,
+      "evergreen": true
+    },
+    "birch": {
+      "size": 1,
+      "shadow": 0.85,
+      "deciduous": true,
+      "evergreen": false
+    },
+    "palm": {
+      "size": 1,
+      "shadow": 0.9,
+      "deciduous": false,
+      "evergreen": true
+    },
+    "acacia": {
+      "size": 1,
+      "shadow": 1,
+      "deciduous": true,
+      "evergreen": false
+    },
+    "cactus": {
+      "size": 1,
+      "shadow": 0.6,
+      "deciduous": false,
+      "evergreen": false
+    },
+    "snowfir": {
+      "size": 1,
+      "shadow": 0.9,
+      "deciduous": false,
+      "evergreen": true
+    },
+    "pine": {
+      "size": 1,
+      "shadow": 0.9,
+      "deciduous": false,
+      "evergreen": true
+    },
+    "bare": {
+      "size": 1,
+      "shadow": 0.7,
+      "deciduous": false,
+      "evergreen": false
+    },
+    "mangrove": {
+      "size": 1,
+      "shadow": 0.9,
+      "deciduous": false,
+      "evergreen": true
+    },
+    "willow": {
+      "size": 1,
+      "shadow": 1,
+      "deciduous": true,
+      "evergreen": false
+    },
+    "cypress": {
+      "size": 1,
+      "shadow": 0.7,
+      "deciduous": false,
+      "evergreen": true
+    },
+    "charred": {
+      "size": 1,
+      "shadow": 0.7,
+      "deciduous": false,
+      "evergreen": false
+    },
+    "stump": {
+      "size": 1,
+      "shadow": 0.5,
+      "deciduous": false,
+      "evergreen": false
+    },
+    "deadtree": {
+      "size": 1,
+      "shadow": 0.7,
+      "deciduous": false,
+      "evergreen": false
+    },
+    "mushroom": {
+      "size": 1,
+      "shadow": 0,
+      "deciduous": false,
+      "evergreen": false
+    },
+    "shroomcluster": {
+      "size": 1,
+      "shadow": 0,
+      "deciduous": false,
+      "evergreen": false
+    },
+    "coral": {
+      "size": 1,
+      "shadow": 0,
+      "deciduous": false,
+      "evergreen": false
+    }
+  },
+  "autumn": {
+    "colors": [
+      null,
+      {
+        "to": "#e0a83a",
+        "amount": 0.5
+      },
+      {
+        "to": "#c0472a",
+        "amount": 0.45
+      },
+      {
+        "to": "#9a6a2b",
+        "amount": 0.35
+      }
+    ],
+    "evergreenTint": {
+      "to": "#3f5f3a",
+      "amount": 0.55
+    }
+  },
+  "spring": {
+    "blossomChance": 0.4,
+    "blossomColors": ["#fff6f0", "#f6b8c8"]
+  },
+  "winter": {
+    "snowColor": "#f4f7f8",
+    "coniferSnow": 0.7,
+    "snowfirSnow": 0.85
+  }
+}

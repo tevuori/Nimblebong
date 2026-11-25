@@ -201,6 +201,7 @@ public partial class SceneView : Node2D
             .ToList();
         var propsPainter = new PropsPainter
         {
+            BiomeCfg = Biome,
             Foliage = Biome.Foliage,
             Stone = Biome.Stone,
             Roof = Biome.Roof,

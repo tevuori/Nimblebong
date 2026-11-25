@@ -301,6 +301,9 @@ public partial class MapEditor : Node2D
     async void ProbeRun()
     {
         // Optional art/season override for visual checks.
+        var envBiome = System.Environment.GetEnvironmentVariable("DMMAP_BIOME");
+        if (envBiome != null)
+            _view.SetBiome(envBiome);
         var envArt = System.Environment.GetEnvironmentVariable("DMMAP_ARTPACK");
         var envSeason = System.Environment.GetEnvironmentVariable("DMMAP_SEASON");
         if (envArt != null)

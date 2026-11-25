@@ -651,6 +651,77 @@ public static class SceneConfig
         }
     }
 
+    /// <summary>trees.json — per-species size/shadow/season behavior +
+    /// seasonal tints (TS trees.species / autumn / spring / winter).</summary>
+    public class TreeConfig
+    {
+        public record Meta(double Size, double Shadow, bool Deciduous, bool Evergreen);
+        public Dictionary<string, Meta> Species { get; } = new();
+        public List<(Color? To, double Amount)> AutumnColors = [];
+        public (Color To, double Amount) AutumnEvergreen;
+        public double BlossomChance = 0.4;
+        public List<Color> BlossomColors = [];
+        public Color SnowColor = Palette.Hex("#f4f7f8");
+        public double ConiferSnow = 0.7;
+        public double SnowfirSnow = 0.85;
+
+        public Meta For(string id) =>
+            Species.TryGetValue(id, out var m) ? m : new Meta(1, 0.9, false, false);
+    }
+
+    static TreeConfig? _trees;
+
+    public static TreeConfig Trees()
+    {
+        if (_trees != null)
+            return _trees;
+        var d = ReadJson("res://assets/config/trees.json", "trees.");
+        _trees = BuildTrees(d);
+        return _trees;
+    }
+
+    static TreeConfig BuildTrees(JsonDict d)
+    {
+        var t = new TreeConfig();
+            if (IsDict(Get(d, "species"), out var sp))
+                foreach (var k in sp.Keys)
+                    if (IsDict(sp[k], out var sd))
+                        t.Species[k.AsString()] = new TreeConfig.Meta(
+                            IsNum(Get(sd, "size")) ? Get(sd, "size").AsDouble() : 1,
+                            IsNum(Get(sd, "shadow")) ? Get(sd, "shadow").AsDouble() : 0.9,
+                            IsBool(Get(sd, "deciduous")) && Get(sd, "deciduous").AsBool(),
+                            IsBool(Get(sd, "evergreen")) && Get(sd, "evergreen").AsBool()
+                        );
+            if (IsDict(Get(d, "autumn"), out var au))
+            {
+                if (IsArr(Get(au, "colors"), out var ac))
+                    foreach (var c in ac)
+                        if (c.VariantType == Variant.Type.Nil)
+                            t.AutumnColors.Add((null, 0));
+                        else if (IsDict(c, out var cd))
+                            t.AutumnColors.Add((ToColor(Get(cd, "to")), Get(cd, "amount").AsDouble()));
+                if (IsDict(Get(au, "evergreenTint"), out var eg))
+                    t.AutumnEvergreen = (ToColor(Get(eg, "to")), Get(eg, "amount").AsDouble());
+            }
+            if (IsDict(Get(d, "spring"), out var spr))
+            {
+                if (IsNum(Get(spr, "blossomChance")))
+                    t.BlossomChance = Get(spr, "blossomChance").AsDouble();
+                if (IsArr(Get(spr, "blossomColors"), out var bc))
+                    t.BlossomColors = [.. bc.Select(b => ToColor(b))];
+            }
+            if (IsDict(Get(d, "winter"), out var w))
+            {
+                if (IsColor(Get(w, "snowColor")))
+                    t.SnowColor = ToColor(Get(w, "snowColor"));
+                if (IsNum(Get(w, "coniferSnow")))
+                    t.ConiferSnow = Get(w, "coniferSnow").AsDouble();
+                if (IsNum(Get(w, "snowfirSnow")))
+                    t.SnowfirSnow = Get(w, "snowfirSnow").AsDouble();
+            }
+        return t;
+    }
+
     /// <summary>Season the scene is drawn in for a biome — the picked one
     /// when offered, else the biome's first (TS activeSeason).</summary>
     public static string ActiveSeason(ResolvedBiome b, string? season)

@@ -127,10 +127,10 @@ public partial class PropsPainter : Node2D
             switch (p.Kind)
             {
                 case PropKind.Tree:
-                    DrawTree(p);
+                    DrawSpeciesTree(p);
                     break;
                 case PropKind.Pine:
-                    DrawPine(p);
+                    DrawPine(p, BiomeCfg?.SeasonLook == "winter" ? SceneConfig.Trees().ConiferSnow : 0);
                     break;
                 case PropKind.Rock:
                     DrawRock(p);
@@ -367,11 +367,11 @@ public partial class PropsPainter : Node2D
 
     // --- conifer ------------------------------------------------------------
     // Stacked star layers shrinking upward — the TS `conifer()` port.
-    void DrawPine(PropPlacement p)
+    void DrawPine(PropPlacement p, double snow = 0, Color? colorOverride = null)
     {
         var rand = new Jitter(p.Seed);
         var r = 22 * rand.Range(0.85, 1.15);
-        var color = JitterGreen(PineGreen, rand);
+        var color = colorOverride ?? JitterGreen(PineGreen, rand);
         var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.62);
 
         ContactShadow(p, r * 0.9, r * 0.8);
@@ -404,6 +404,16 @@ public partial class PropsPainter : Node2D
             Xform(p, Poly.Ellipse(-R2 * 0.18, -R2 * 0.2, R2 * 0.5, R2 * 0.4, -0.4, 9)),
             Palette.TintAlpha(color, 40, 0.35)
         );
+        // Winter / snowfir: snow wedges on the north-west of each layer.
+        if (snow > 0)
+            for (var l = 0; l < layers; l++)
+            {
+                var R = r * (1 - l * (0.62 / layers));
+                Fill(
+                    Xform(p, Poly.Ellipse(-R * 0.22, -R * 0.24, R * 0.62 * snow, R * 0.5 * snow, -0.4, 9)),
+                    SceneConfig.Trees().SnowColor
+                );
+            }
         DrawCircle(
             Xform(p, Vector2.Zero),
             (float)Math.Max(1.2, r * 0.06 * p.Scale),
