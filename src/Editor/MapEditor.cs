@@ -17,6 +17,7 @@ public partial class MapEditor : Node2D
         Erase,
         Shape,
         Stroke,
+        Brush,
         Prop,
         Label,
         Fog,
@@ -38,6 +39,7 @@ public partial class MapEditor : Node2D
         new("select", "Vybrat", "Nástroje", Mode.Select, ""),
         new("erase", "Guma", "Nástroje", Mode.Erase, ""),
         new("terrain", "Kopce a srázy", "Terén a voda", Mode.Shape, Kinds.Terrain),
+        new("brush", "Štětec kopců", "Terén a voda", Mode.Brush, Kinds.Terrain),
         new("river", "Řeky", "Terén a voda", Mode.Stroke, Kinds.River),
         new("pond", "Jezírka", "Terén a voda", Mode.Shape, Kinds.Pond),
         new("field", "Pole a louky", "Terén a voda", Mode.Shape, Kinds.Field),
@@ -101,6 +103,8 @@ public partial class MapEditor : Node2D
     ToolDef _tool = Tools[2]; // terrain
     int _form; // 0 volný tah, 1 obdélník, 2 elipsa — pro plošné nástroje
     double _pHeight = 30;
+    double _brushSize = 42;
+    double _brushHeight = 10;
     double _pSlope = 46;
     double _pRough = 0;
     int _pModel;
@@ -140,8 +144,10 @@ public partial class MapEditor : Node2D
     OptionButton _bridgeOpt = null!;
     VBoxContainer _terrainSection = null!;
     VBoxContainer _fogSection = null!;
+    VBoxContainer _brushSection = null!;
     LineEdit _seedEdit = null!;
     OptionButton _presetOpt = null!;
+    OptionButton _seasonOpt = null!;
 
     public override void _Ready()
     {
@@ -209,6 +215,13 @@ public partial class MapEditor : Node2D
     // undo, and dumps the lit composite like the user would see it.
     async void ProbeRun()
     {
+        // Optional art/season override for visual checks.
+        var envArt = System.Environment.GetEnvironmentVariable("DMMAP_ARTPACK");
+        var envSeason = System.Environment.GetEnvironmentVariable("DMMAP_SEASON");
+        if (envArt != null)
+            _view.SetArtPack(envArt);
+        if (envSeason != null)
+            _view.SetSeason(envSeason);
         // Terrain blob via the same path a mouse stroke takes.
         var pts = new List<Vector2>();
         for (var i = 0; i < 28; i++)
@@ -493,6 +506,21 @@ public partial class MapEditor : Node2D
                 }
             );
         });
+        // Brush strokes: one pass over flat ground, then a second pass
+        // over the new hill must stack a terrace on top of it.
+        SetTool("brush");
+        _pHeight = 10;
+        _stroke.Clear();
+        _stroke.AddRange([new Vector2(1050, 200), new Vector2(1150, 210), new Vector2(1250, 200)]);
+        _brushHeight = HeightAt(_stroke[0]) + 10;
+        EndStroke();
+        var hAfter = HeightAt(new Vector2(1150, 210));
+        _stroke.Clear();
+        _stroke.AddRange([new Vector2(1100, 195), new Vector2(1180, 215), new Vector2(1220, 205)]);
+        _brushHeight = HeightAt(_stroke[1]) + 10;
+        EndStroke();
+        GD.Print($"brush: hill {hAfter:0} -> stack {HeightAt(new Vector2(1150, 210)):0} (expect +10)");
+
         // Protection: a tree inside the campfire zone must be nudged out.
         SetTool("tree");
         PlacePropAt(new Vector2(700, 750));
@@ -649,6 +677,15 @@ public partial class MapEditor : Node2D
                 MoveSelectionTo(p);
             return;
         }
+        if (_tool.Mode == Mode.Brush)
+        {
+            if (_stroke[^1].DistanceTo(p) > _brushSize * 0.45)
+            {
+                _stroke.Add(p);
+                _ghost.SetStroke(_tool, _stroke, _brushSize);
+            }
+            return;
+        }
         if (_stroke.Count == 0 || _stroke[^1].DistanceTo(p) > 4)
         {
             _stroke.Add(p);
@@ -695,6 +732,17 @@ public partial class MapEditor : Node2D
         return pts;
     }
 
+    /// <summary>Tallest terrain-shape height containing the point
+    /// (0 on flat ground) — the brush's stacking baseline.</summary>
+    double HeightAt(Vector2 p)
+    {
+        double h = 0;
+        foreach (var s in _view.Scene.Shapes)
+            if (s.Kind == Kinds.Terrain && Poly.PointInPolygon(p, [.. s.Points]))
+                h = Math.Max(h, s.Height);
+        return h;
+    }
+
     /// <summary>Point where the in-progress stroke would fuse with an
     /// existing same-kind stroke — endpoint concat or T-junction
     /// (mirrors MergeStrokeInto's tolerance).</summary>
@@ -724,7 +772,14 @@ public partial class MapEditor : Node2D
         _stroke.Clear();
         _stroke.Add(GetGlobalMousePosition());
         _drawing = true;
-        if (_tool.Mode == Mode.Select)
+        if (_tool.Mode == Mode.Brush)
+        {
+            // Height stacks: the stamp layer sits one step above the
+            // tallest terrain under the cursor (flat ground → first step).
+            _brushHeight = HeightAt(_stroke[0]) + Math.Max(4, _pHeight > 0 ? _pHeight : 10);
+            _ghost.SetStroke(_tool, _stroke, _brushSize);
+        }
+        else if (_tool.Mode == Mode.Select)
             BeginSelect(_stroke[0]);
         else if (_tool.Mode == Mode.Prop)
             PlacePropAt(_stroke[0]);
@@ -752,6 +807,34 @@ public partial class MapEditor : Node2D
             pts = FormPoints(_form);
         switch (_tool.Mode)
         {
+            case Mode.Brush:
+                Commit(scene =>
+                {
+                    foreach (var c in _stroke)
+                    {
+                        var n = 16;
+                        var poly = new List<Vector2>(n);
+                        var seed = c.X * 13.7 + c.Y * 7.3;
+                        for (var i = 0; i < n; i++)
+                        {
+                            var a = i / (double)n * Math.PI * 2;
+                            var r = _brushSize * (0.86 + Rng.Noise(seed + i * 3.1) * 0.24);
+                            poly.Add(c + new Vector2((float)(Math.Cos(a) * r), (float)(Math.Sin(a) * r)));
+                        }
+                        var shape = new Shape
+                        {
+                            Id = scene.AllocId(),
+                            Kind = Kinds.Terrain,
+                            Points = poly,
+                            Size = _pSlope,
+                            Height = _brushHeight,
+                            Roughness = _pRough,
+                            Model = _pModel,
+                        };
+                        scene.Shapes = Interactions.MergeShapeInto(scene, shape);
+                    }
+                });
+                break;
             case Mode.Fog:
                 Commit(scene =>
                     scene.Fog.Add(
@@ -1314,6 +1397,8 @@ public partial class MapEditor : Node2D
             _bridgeOpt.Visible = _tool.Kind == Kinds.Road;
         if (_fogSection != null)
             _fogSection.Visible = _tool.Mode == Mode.Fog;
+        if (_brushSection != null)
+            _brushSection.Visible = _tool.Mode == Mode.Brush;
     }
 
     /// <summary>Categorized tool browser — Nimblehold-style sections,
@@ -1429,6 +1514,9 @@ public partial class MapEditor : Node2D
             _bridgeOpt.AddItem(name);
         _bridgeOpt.ItemSelected += i => _roadModel = (int)i;
         box.AddChild(_bridgeOpt);
+        _brushSection = new VBoxContainer { Visible = false };
+        box.AddChild(_brushSection);
+        Slider(_brushSection, "Velikost štětce", 16, 90, _brushSize, v => _brushSize = v);
 
         _fogSection = new VBoxContainer();
         box.AddChild(_fogSection);
@@ -1451,7 +1539,11 @@ public partial class MapEditor : Node2D
         foreach (var id in SceneConfig.BiomeIds())
             biome.AddItem(id);
         biome.Selected = Math.Max(0, SceneConfig.BiomeIds().IndexOf("woodland"));
-        biome.ItemSelected += i => _view.SetBiome(biome.GetItemText((int)i));
+        biome.ItemSelected += i =>
+        {
+            _view.SetBiome(biome.GetItemText((int)i));
+            RebuildSeasonOptions();
+        };
         box.AddChild(biome);
 
         var mood = new OptionButton();
@@ -1460,6 +1552,18 @@ public partial class MapEditor : Node2D
         mood.Selected = Math.Max(0, SceneConfig.MoodIds().IndexOf("day"));
         mood.ItemSelected += i => _view.SetMood(mood.GetItemText((int)i));
         box.AddChild(mood);
+
+        var artPack = new OptionButton();
+        foreach (var id in new[] { "classic", "storybook", "ink" })
+            artPack.AddItem(id);
+        artPack.ItemSelected += i => _view.SetArtPack(artPack.GetItemText((int)i));
+        box.AddChild(artPack);
+
+        _seasonOpt = new OptionButton();
+        _seasonOpt.ItemSelected += i =>
+            _view.SetSeason(i == 0 ? null : _seasonOpt.GetItemText((int)i));
+        box.AddChild(_seasonOpt);
+        RebuildSeasonOptions();
 
         box.AddChild(new HSeparator());
         _presetOpt = new OptionButton();
@@ -1478,6 +1582,16 @@ public partial class MapEditor : Node2D
         gen.Pressed += Generate;
         seedRow.AddChild(gen);
         box.AddChild(seedRow);
+
+        void RebuildSeasonOptions()
+        {
+            _seasonOpt.Clear();
+            _seasonOpt.AddItem("sezóna: výchozí");
+            foreach (var id in _view.Biome.Seasons)
+                _seasonOpt.AddItem(id);
+            var cur = SceneConfig.ActiveSeason(_view.Biome, null);
+            _seasonOpt.Selected = 0;
+        }
 
         box.AddChild(new HSeparator());
         Button(box, "Zpět (Ctrl+Z)", Undo);
@@ -1644,6 +1758,17 @@ public partial class GhostLayer : Node2D
             var fc =
                 _kind == "clear" ? new Color(0.18f, 0.8f, 0.44f, 0.4f) : new Color(0.9f, 0.3f, 0.24f, 0.4f);
             DrawPolyline(pts, fc, (float)_width);
+            return;
+        }
+        if (_mode == MapEditor.Mode.Brush)
+        {
+            var fill = new Color(0.71f, 0.69f, 0.54f, 0.4f);
+            var rim = new Color(0.2f, 0.18f, 0.1f, 0.7f);
+            foreach (var c in _pts)
+            {
+                DrawCircle(c, (float)_width, fill);
+                DrawArc(c, (float)_width, 0, Mathf.Tau, 24, rim, 1.5f);
+            }
             return;
         }
         var col = _kind switch

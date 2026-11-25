@@ -39,6 +39,13 @@ public static class Palette
             a.G + (b.G - a.G) * (float)t,
             a.B + (b.B - a.B) * (float)t
         );
+
+    /// <summary>Pull a color toward its own luminance — TS `desaturate`.</summary>
+    public static Color Desaturate(Color c, double amount)
+    {
+        var lum = c.R * 0.299f + c.G * 0.587f + c.B * 0.114f;
+        return Mix(c, new Color(lum, lum, lum, c.A), amount);
+    }
 }
 
 public static class Poly

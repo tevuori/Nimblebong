@@ -81,6 +81,10 @@ public static class SceneJson
                 w.WriteEndObject();
             }
             w.WriteEndArray();
+            if (scene.ArtPack != "classic")
+                w.WriteString("artPack", scene.ArtPack);
+            if (scene.Season != null)
+                w.WriteString("season", scene.Season);
             if (scene.FogCoverAll)
                 w.WriteBoolean("fogCoverAll", true);
             w.WritePropertyName("fog");
@@ -222,6 +226,10 @@ public static class SceneJson
                     roadRiverPoints += stroke.Points.Count;
                 scene.Strokes.Add(stroke);
             }
+            if (root.TryGetProperty("artPack", out var ap) && ap.ValueKind == JsonValueKind.String)
+                scene.ArtPack = ap.GetString();
+            if (root.TryGetProperty("season", out var se) && se.ValueKind == JsonValueKind.String)
+                scene.Season = se.GetString();
             if (root.TryGetProperty("fogCoverAll", out var fca) && fca.ValueKind == JsonValueKind.True)
                 scene.FogCoverAll = true;
             foreach (var el in Members(root, "fog", warn))

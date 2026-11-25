@@ -19,6 +19,17 @@ namespace DmMap;
 /// offending path, one per line, like the TS loader's error.</summary>
 public class ConfigException(string message) : Exception(message);
 
+/// <summary>One season entry from biome JSON — the look it is drawn
+/// with plus its color overrides (TS SeasonEntry).</summary>
+public class SeasonEntry
+{
+    public string Look = "summer";
+    public string? Ground;
+    public readonly Dictionary<string, Color> Roads = new();
+    public string? WaterBank;
+    public Color? WaterEdge;
+}
+
 /// <summary>A biome JSON resolved to engine values: the seven palette
 /// colors plus extra named colors (colors.*, road.*/ground.dirt extras)
 /// as one name→Color lookup with sane defaults.</summary>
@@ -32,6 +43,20 @@ public class ResolvedBiome
     public Dictionary<string, Color> Named { get; } = new();
     /// <summary>Seasons the biome offers, in file order.</summary>
     public List<string> Seasons { get; } = [];
+    /// <summary>Season entries keyed by id (look + overrides).</summary>
+    public Dictionary<string, SeasonEntry> SeasonEntries { get; } = new();
+    /// <summary>Tree style + species list + summer tints (trees.*).</summary>
+    public string TreeStyle = "broadleaf";
+    public List<string> Species = ["oak", "spruce", "birch"];
+    public List<(Color To, double Amount)> SummerTints = [];
+    /// <summary>roofs.winterSnow — pitched roofs get snow in winter.</summary>
+    public bool WinterSnow;
+    /// <summary>Season the resolved palette was graded with (ResolveArt).</summary>
+    public string Season = "summer";
+    /// <summary>Season look applied (resolved via season entry).</summary>
+    public string SeasonLook = "summer";
+    /// <summary>Bank style override from the active season entry.</summary>
+    public string? WaterBank;
 
     /// <summary>Classic woodland fallback for palette lookups.</summary>
     static readonly Dictionary<string, Color> Defaults = new()
@@ -528,8 +553,158 @@ public static class SceneConfig
         if (IsDict(Get(root, "water"), out var water) && IsColor(Get(water, "edge")))
             b.Named["water.edge"] = ToColor(Get(water, "edge"));
         if (IsDict(Get(root, "seasons"), out var seasons))
+        {
             b.Seasons.AddRange(seasons.Keys.Select(k => k.AsString()));
+            foreach (var k in seasons.Keys)
+            {
+                var e = new SeasonEntry();
+                if (IsDict(seasons[k], out var ed))
+                {
+                    if (IsStr(Get(ed, "look")))
+                        e.Look = Get(ed, "look").AsString();
+                    if (IsColor(Get(ed, "ground")))
+                        e.Ground = Get(ed, "ground").AsString();
+                    if (IsDict(Get(ed, "roads"), out var sr))
+                        foreach (var rk in new[] { "dirt", "stone", "verge", "halo" })
+                            if (IsColor(Get(sr, rk)))
+                                e.Roads[rk] = ToColor(Get(sr, rk));
+                    if (IsDict(Get(ed, "water"), out var sw))
+                    {
+                        if (IsStr(Get(sw, "bank")))
+                            e.WaterBank = Get(sw, "bank").AsString();
+                        if (IsColor(Get(sw, "edge")))
+                            e.WaterEdge = ToColor(Get(sw, "edge"));
+                    }
+                }
+                b.SeasonEntries[k.AsString()] = e;
+            }
+        }
+        if (IsDict(Get(root, "trees"), out var trees))
+        {
+            if (IsStr(Get(trees, "style")))
+                b.TreeStyle = Get(trees, "style").AsString();
+            if (IsArr(Get(trees, "species"), out var sp))
+                b.Species = [.. sp.Select(x => x.AsString())];
+            if (IsArr(Get(trees, "summerTint"), out var tints))
+                foreach (var t in tints)
+                    if (IsDict(t, out var td) && IsColor(Get(td, "to")) && IsNum(Get(td, "amount")))
+                        b.SummerTints.Add((ToColor(Get(td, "to")), Get(td, "amount").AsDouble()));
+        }
+        if (IsDict(Get(root, "roofs"), out var roofs) && IsBool(Get(roofs, "winterSnow")))
+            b.WinterSnow = Get(roofs, "winterSnow").AsBool();
         return b;
+    }
+
+    // --- art packs & seasons (scene-biomes.ts port) ------------------------
+
+    /// <summary>Art-pack palette grade — TS applyPack: storybook warms
+    /// everything pastel, ink pulls toward warm grey at 65%.</summary>
+    static void ApplyPack(ResolvedBiome b, string pack)
+    {
+        Color H(string hex) => Palette.Hex(hex);
+        if (pack == "storybook")
+        {
+            b.Named["ground"] = Palette.Mix(Palette.Desaturate(b.At("ground"), 0.85), H("#cfe0ae"), 0.3);
+            b.Named["water"] = Palette.Mix(Palette.Desaturate(b.At("water"), 0.8), H("#93cfd3"), 0.4);
+            b.Named["foliage"] = Palette.Mix(Palette.Desaturate(b.At("foliage"), 0.85), H("#a8d49a"), 0.35);
+            b.Named["stone"] = Palette.Mix(Palette.Desaturate(b.At("stone"), 0.85), H("#ddcfb4"), 0.3);
+            b.Named["roof"] = Palette.Mix(Palette.Desaturate(b.At("roof"), 0.85), H("#e2a28e"), 0.4);
+            b.Named["wood"] = Palette.Mix(Palette.Desaturate(b.At("wood"), 0.85), H("#d3ac85"), 0.35);
+        }
+        else if (pack == "ink")
+        {
+            b.Named["ground"] = Palette.Mix(Palette.Desaturate(b.At("ground"), 0.65), H("#8c8478"), 0.12);
+            b.Named["water"] = Palette.Mix(Palette.Desaturate(b.At("water"), 0.6), H("#4e6066"), 0.22);
+            b.Named["foliage"] = Palette.Mix(Palette.Desaturate(b.At("foliage"), 0.65), H("#8c8478"), 0.12);
+            b.Named["stone"] = Palette.Mix(Palette.Desaturate(b.At("stone"), 0.65), H("#8c8478"), 0.12);
+            b.Named["roof"] = Palette.Mix(Palette.Desaturate(b.At("roof"), 0.65), H("#8c8478"), 0.12);
+            b.Named["wood"] = Palette.Mix(Palette.Desaturate(b.At("wood"), 0.65), H("#8c8478"), 0.12);
+        }
+    }
+
+    /// <summary>Season palette grade — TS applySeason: autumn burns
+    /// toward ochres, spring freshens greens, winter cools + greys.</summary>
+    static void ApplySeasonGrade(ResolvedBiome b, string look)
+    {
+        Color H(string hex) => Palette.Hex(hex);
+        if (look == "autumn")
+        {
+            b.Named["ground"] = Palette.Mix(b.At("ground"), H("#c9963e"), 0.32);
+            b.Named["foliage"] = Palette.Mix(b.At("foliage"), H("#bf6224"), 0.55);
+            b.Named["wood"] = Palette.Mix(b.At("wood"), H("#9e6234"), 0.2);
+            b.Named["water"] = Palette.Desaturate(Palette.Mix(b.At("water"), H("#2e6f7a"), 0.18), 0.9);
+        }
+        else if (look == "spring")
+        {
+            b.Named["ground"] = Palette.Mix(b.At("ground"), H("#8ec95c"), 0.3);
+            b.Named["foliage"] = Palette.Mix(b.At("foliage"), H("#63b24b"), 0.45);
+            b.Named["water"] = Palette.Mix(b.At("water"), H("#8fd0da"), 0.25);
+        }
+        else if (look == "winter")
+        {
+            b.Named["ground"] = Palette.Mix(Palette.Desaturate(b.At("ground"), 0.7), H("#a9bcc2"), 0.2);
+            b.Named["water"] = Palette.Mix(Palette.Desaturate(b.At("water"), 0.7), H("#50759a"), 0.45);
+            b.Named["foliage"] = Palette.Mix(Palette.Desaturate(b.At("foliage"), 0.65), H("#6f8178"), 0.45);
+            b.Named["stone"] = Palette.Desaturate(b.At("stone"), 0.75);
+            b.Named["roof"] = Palette.Desaturate(b.At("roof"), 0.7);
+            b.Named["wood"] = Palette.Mix(Palette.Desaturate(b.At("wood"), 0.7), H("#7d838a"), 0.15);
+        }
+    }
+
+    /// <summary>Season the scene is drawn in for a biome — the picked one
+    /// when offered, else the biome's first (TS activeSeason).</summary>
+    public static string ActiveSeason(ResolvedBiome b, string? season)
+    {
+        if (season != null && b.Seasons.Contains(season))
+            return season;
+        return b.Seasons.Count > 0 ? b.Seasons[0] : "summer";
+    }
+
+    /// <summary>Effective palette for a scene: biome run through the art
+    /// pack, then the seasonal grade, then the season entry's own
+    /// overrides (ground, roads.*, water.bank/edge). `classic`+summer is
+    /// a strict no-op returning the base object (TS resolveProfile).</summary>
+    public static ResolvedBiome ResolveArt(ResolvedBiome b, string? artPack, string? season)
+    {
+        var entry = b.SeasonEntries.TryGetValue(ActiveSeason(b, season), out var e)
+            ? e
+            : new SeasonEntry();
+        var pack = artPack ?? "classic";
+        if (pack == "classic" && entry.Look == "summer" && entry.Ground == null
+            && entry.Roads.Count == 0 && entry.WaterEdge == null && entry.WaterBank == null)
+            return b;
+        var copy = new ResolvedBiome
+        {
+            Id = b.Id,
+            Label = b.Label,
+            TreeStyle = b.TreeStyle,
+            Species = [.. b.Species],
+            SummerTints = [.. b.SummerTints],
+            WinterSnow = b.WinterSnow,
+            Season = ActiveSeason(b, season),
+            SeasonLook = entry.Look,
+            WaterBank = entry.WaterBank,
+        };
+        foreach (var kv in b.Named)
+            copy.Named[kv.Key] = kv.Value;
+        foreach (var kv in b.SeasonEntries)
+            copy.SeasonEntries[kv.Key] = kv.Value;
+        copy.Seasons.AddRange(b.Seasons);
+        ApplyPack(copy, pack);
+        ApplySeasonGrade(copy, entry.Look);
+        // Season overrides run through the pack so they fit the sheet.
+        if (entry.Ground != null)
+        {
+            var g = new ResolvedBiome();
+            g.Named["ground"] = Palette.Hex(entry.Ground);
+            ApplyPack(g, pack);
+            copy.Named["ground"] = g.Named["ground"];
+        }
+        foreach (var kv in entry.Roads)
+            copy.Named[$"road.{kv.Key}"] = kv.Value;
+        if (entry.WaterEdge is { } we)
+            copy.Named["water.edge"] = we;
+        return copy;
     }
 
     // --- moods ---------------------------------------------------------------

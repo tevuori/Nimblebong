@@ -214,6 +214,10 @@ public class Scene
     public double Height = 1000;
     public string? Biome;
     public string? Mood;
+    /// <summary>Art pack — "classic" (default), "storybook", "ink".</summary>
+    public string ArtPack = "classic";
+    /// <summary>Picked season id or null = biome default.</summary>
+    public string? Season;
     /// <summary>Global shadow toggle — default on like the web app.</summary>
     public bool CastShadows = true;
     /// <summary>Id allocator — every element gets a unique id.</summary>
@@ -241,6 +245,8 @@ public class Scene
             Height = Height,
             Biome = Biome,
             Mood = Mood,
+            ArtPack = ArtPack,
+            Season = Season,
             CastShadows = CastShadows,
             NextId = NextId,
             Shapes = [.. Shapes.Select(s => s.DeepClone())],
@@ -259,6 +265,8 @@ public class Scene
         && Height == o.Height
         && Biome == o.Biome
         && Mood == o.Mood
+        && ArtPack == o.ArtPack
+        && Season == o.Season
         && CastShadows == o.CastShadows
         && NextId == o.NextId
         && Shapes.Count == o.Shapes.Count

@@ -45,7 +45,9 @@ public partial class SceneView : Node2D
         );
         view.Scene.Width = mapSize.X;
         view.Scene.Height = mapSize.Y;
-        view.Biome = SceneConfig.LoadBiome("woodland");
+        view.Scene.Biome = "woodland";
+        view.Biome = SceneConfig.ResolveArt(
+            SceneConfig.LoadBiome("woodland"), null, null);
         view.Mood = SceneConfig.LoadMood("day");
         view.Rebuild();
         return view;
@@ -53,8 +55,31 @@ public partial class SceneView : Node2D
 
     public void SetBiome(string id)
     {
-        Biome = SceneConfig.LoadBiome(id);
         Scene.Biome = id;
+        Biome = SceneConfig.ResolveArt(
+            SceneConfig.LoadBiome(id), Scene.ArtPack, Scene.Season);
+        Rebuild();
+    }
+
+    public void SetArtPack(string id)
+    {
+        Scene.ArtPack = id;
+        ReResolveBiome();
+    }
+
+    public void SetSeason(string? id)
+    {
+        Scene.Season = id;
+        ReResolveBiome();
+    }
+
+    void ReResolveBiome()
+    {
+        Biome = SceneConfig.ResolveArt(
+            SceneConfig.LoadBiome(Scene.Biome ?? "woodland"),
+            Scene.ArtPack,
+            Scene.Season
+        );
         Rebuild();
     }
 
