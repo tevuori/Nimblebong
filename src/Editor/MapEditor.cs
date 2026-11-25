@@ -210,6 +210,7 @@ public partial class MapEditor : Node2D
     // Active stroke recording.
     readonly List<Vector2> _stroke = [];
     bool _drawing;
+    readonly List<Vector2> _propTrail = []; // pending prop-drag stamps, committed at release
     bool _panning;
     bool _spacePan;
     // Click-point drawing (web clickPoints): quick clicks accumulate
@@ -587,16 +588,56 @@ public partial class MapEditor : Node2D
                 : $"DRAG COUNTS LOST before={before[0]}/{before[1]}/{before[2]} final={final[0]}/{final[1]}/{final[2]}"
         );
         // Baseline: plain frames with the full scene, no rebuilds.
+        for (var i = 0; i < 20; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); // settle
         sw.Restart();
         for (var i = 0; i < 10; i++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         GD.Print($"DRAG idle frame avg={sw.ElapsedMilliseconds / 10.0:0.0}ms");
+        if (System.Environment.GetEnvironmentVariable("DMMAP_IDLE_VIEW_OFF") == "1")
+        {
+            _view.Visible = false;
+            sw.Restart();
+            for (var i = 0; i < 10; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GD.Print($"DRAG idle view-off avg={sw.ElapsedMilliseconds / 10.0:0.0}ms");
+            _view.Visible = true;
+        }
+        if (System.Environment.GetEnvironmentVariable("DMMAP_IDLE_UI_OFF") == "1")
+        {
+            if (_uiLayer != null)
+                _uiLayer.Visible = false;
+            _thumbs.Visible = false;
+            sw.Restart();
+            for (var i = 0; i < 10; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GD.Print($"DRAG idle ui-off avg={sw.ElapsedMilliseconds / 10.0:0.0}ms");
+        }
         // And a single commit's frame cost (what every edit pays once).
+        for (var i = 0; i < 10; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); // settle
         sw.Restart();
         Commit(scene => { });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var f1 = sw.ElapsedMilliseconds;
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        GD.Print($"DRAG single-commit 2 frames={sw.ElapsedMilliseconds}ms");
+        var f2 = sw.ElapsedMilliseconds;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GD.Print($"DRAG single-commit frames={f1}/{f2}/{sw.ElapsedMilliseconds}ms");
+        // Repeated identical commits, each followed by settle frames —
+        // per-commit cost as a series, robust against warmup noise.
+        for (var round = 0; round < 5; round++)
+        {
+            for (var i = 0; i < 8; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            sw.Restart();
+            var x = 100 + round * 30;
+            Commit(scene => scene.Props.Add(new Prop { Id = scene.AllocId(), Kind = Kinds.Tree, X = x, Y = 800, Scale = 20 }));
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var cf1 = sw.ElapsedMilliseconds;
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GD.Print($"DRAG commit round{round} frames={cf1}/{sw.ElapsedMilliseconds}ms");
+        }
         var shot = System.Environment.GetEnvironmentVariable("DMMAP_DRAG_SHOT");
         if (shot != null)
         {
@@ -1563,8 +1604,15 @@ public partial class MapEditor : Node2D
             _ghost.SetSnap(_tool.Mode is Mode.Stroke or Mode.Fog ? SnapTarget(_stroke[^1]) : null);
             if (_tool.Kind == Kinds.Terrain && _stroke.Count >= 6 && _draftAt == 0)
                 _draftAt = Time.GetTicksMsec() + 120;
+            // Prop tool drag — collect stamp positions into a trail
+            // ghost instead of committing each one (a commit repaints
+            // the whole map, so per-motion placement hitched every
+            // 45 px). One commit at release places them all.
             if (_tool.Mode == Mode.Prop && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
-                PlacePropAt(p);
+            {
+                _propTrail.Add(p);
+                _ghost.SetPropTrail(_propTrail);
+            }
         }
     }
 
@@ -1777,6 +1825,31 @@ public partial class MapEditor : Node2D
             return;
         }
         _clickPoints.Clear();
+        if (_tool.Mode == Mode.Prop && _propTrail.Count > 0)
+        {
+            var trail = _propTrail.ToList();
+            _propTrail.Clear();
+            _ghost.SetPropTrail([]);
+            var kind = _tool.Kind;
+            Commit(scene =>
+            {
+                foreach (var pt in trail)
+                    Interactions.PlaceProtected(
+                        scene,
+                        new Prop
+                        {
+                            Id = scene.AllocId(),
+                            Kind = kind,
+                            X = pt.X,
+                            Y = pt.Y,
+                            Scale = PropToolScale(kind),
+                            Rotation = 0,
+                            Seed = (int)(pt.X * 0.37 + pt.Y * 0.53),
+                            Model = _propVariant,
+                        }
+                    );
+            });
+        }
         if (_tool.Mode == Mode.Fill)
         {
             if (_stroke.Count >= 2)
@@ -3512,6 +3585,16 @@ public partial class GhostLayer : Node2D
         QueueRedraw();
     }
 
+    List<Vector2> _propTrail = [];
+
+    /// <summary>Ghosted prop-stamp positions while a prop-drag is in
+    /// flight — committed for real when the stroke ends.</summary>
+    public void SetPropTrail(List<Vector2> pts)
+    {
+        _propTrail = pts;
+        QueueRedraw();
+    }
+
     public override void _Draw()
     {
         // selection highlight
@@ -3547,6 +3630,10 @@ public partial class GhostLayer : Node2D
                 modulate: hi
             );
         }
+
+        // prop-drag trail — pending stamps as faint dashed rings
+        foreach (var pt in _propTrail)
+            DrawArc(pt, 12, 0, Mathf.Tau, 16, new Color(1f, 0.85f, 0.25f, 0.55f), 2f);
 
         // marquee rubber band
         if (_marquee is { } mq)

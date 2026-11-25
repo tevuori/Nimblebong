@@ -16,8 +16,12 @@ Shape data (core/) ──► TerrainGeometry.BuildMassifs()
    AlbedoVp    HeightVp        (vp)         (vp)      SubViewports
         └──────────┴───────┬───────┴────────────┘
                            ▼
-                    FinalVp + lighting.gdshader
-                    = normal-map diffuse + raymarch stíny + mood
+                    LitVp (½ rozlišení, Once) + lighting_bake.gdshader
+                    = normal-map diffuse + raymarch stíny — jen světelný
+                      multiplier, bake jednou po editaci, ne per-frame
+                    FinalVp (Always) + water_overlay.gdshader
+                    = albedo × light + animovaná voda + grain + parchment
+                      (levné per-pixel operace, žádný raymarch)
                            ▼
                        PNG / screen
 ```

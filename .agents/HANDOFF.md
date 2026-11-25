@@ -3,6 +3,45 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (10) — Devin, globální rendering optimalizace
+
+**Hotovo:**
+- Hloubková analýza framů nad reálnou mapou uživatele (16 shapes /
+  13 strokes / 126 props). Pozor: měření bez settle framí je značně
+  hlučná (shader warmup, lazy kompilace) — všechna čísla níž jsou
+  ustálená.
+- Idle frame 35 ms → **8,3 ms (120 FPS)**. Příčina: composite shader
+  dělal 40-krokový raymarch stínů na každý pixel každého framu
+  (1600×1000×40 ≈ 64M samplů/frame), přitom stíny jsou statické.
+  Rozdělení composite:
+  - `lighting_bake.gdshader` — diffuse + raymarch stíny, pouze světelný
+    multiplier, render Once po editaci do LitVp na **polovičním
+    rozlišení** (světlo je hladké, upscale neviditelný) = 4× méně
+    raymarch práce na editaci.
+  - `water_overlay.gdshader` — per-frame: albedo × light + animovaná
+    voda + grain + parchment. Pár texture reads, žádný raymarch.
+  - Bake je deferred o 2 framy (`_litBakeIn` v LightingStage) — render
+    order subviewportů ve frame není garantován a bake nesmí zachytit
+    pre-edit textury (jinak trvale zastaralé osvětlení).
+  - `DMMAP_NO_STATIC_REFRESH` env v SceneView už není potřeba, ale
+    zůstává pro experimenty; `DMMAP_FINAL_ONCE` kill-switch v LightingStage.
+- Prop drag (tah s nástrojem props) commitoval každých 45 px — každý
+  commit = full repaint. Teď se pozice sbírají do ghost trailu (žlutá
+  kolečka) a při puštění je **jeden** commit. Klikání beze změny.
+- ARCHITECTURE.md pipeline diagram aktualizován.
+
+**Ověření:** vizuální parita screenshotů před/po (stíny, grain, voda,
+parchment identické), probe-model ALL PASS, probe-config biomy OK,
+SMART probe OK, plný DMMAP_PROBE OK, build 0 errors.
+
+**Zbývá (dokumentované, neudělané):**
+- Commit frame ~310 ms i po optimalizacích — dominuje re-kreace painter
+  canvas items (tisíce draw primitiv znovu submitnutých do rendering
+  serveru), ne rasterizace (~85 ms) ani bake. Skutečná oprava =
+  perzistentní per-objekt canvas items nebo finger-print skip painterů
+  + explicitní z-index (velký refactor, viz note).
+- Idle 8,3 ms = vsync cap, ne bottlneck.
+
 ## 2026-11-25 (9) — Devin, rotace objektů
 
 **Hotovo:**
