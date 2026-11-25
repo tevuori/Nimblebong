@@ -12,6 +12,8 @@ JSON, bez úprav C#.
 | [`props/<id>.json`](props/README.md) | vlastní objekty na mapě (varianty skal, stromů, ruin…) | `PropDefs` |
 | [`placement.json`](#pokládání-objektů-placementjson) | ochranné zóny kolem táboráků, studní apod. | `Placement` |
 | [`fill.json`](#chytrá-výplň-filljson) | co smart fill sází kam (stromy, podrost, zvířata) | `FillRules` |
+| [`flowers.json`](props/README.md#flora-rostliny-base-flora) | druhy květů: barvy + velikost | `FlowerStyles` |
+| [`surfaces/<id>.json`](#povrchy-surfacesidjson) | plošné povrchy: bažina, bahno, suť, duny, láva… | `SurfaceDefs` |
 
 ## Společná pravidla
 
@@ -277,6 +279,48 @@ v každé **vrstvě** vybere objekt z vážené tabulky pro ten kontext.
 
 ---
 
+## Povrchy (`surfaces/<id>.json`)
+
+Plocha, která mění podklad: bažina, bahno, vysoká tráva, suťoviště,
+návěj, duny, lávové pole, led… Ve scéně je to tvar s druhem
+`surface:<id>`. Nakreslí se nástrojem ze sekce palety **Povrchy**
+(stejně jako jezírko) a překrývající se plochy stejného povrchu se sloučí.
+
+```jsonc
+{
+  "label": "Bažina",
+  "category": "Povrchy",            // sekce palety (výchozí „Povrchy“)
+  "biomes": ["woodland", "swamp"],  // chybí = všechny biomy
+  "fill": { "color": "#4f5d3a", "alpha": 0.55, "feather": 10 },  // podklad + měkký okraj (px)
+  "edge": { "color": "#3a4428", "alpha": 0.35, "width": 2 },     // volitelný lem
+  "patterns": [                     // vzory uvnitř plochy (libovolně kombinovat)
+    { "type": "ripples", "color": "#9fc0b6", "alpha": 0.5, "spacing": 18, "size": 4 },
+    { "type": "dots", "color": "#2f3a26", "alpha": 0.35, "spacing": 11, "size": 2.2 }
+  ],
+  "scatter": [                      // objekty, které se v ploše samy rozmístí
+    { "kind": "reeds", "spacing": 26, "chance": 0.45 },
+    { "kind": "puddle", "spacing": 60, "chance": 0.25, "size": 20, "scale": [0.8, 1.2] }
+  ]
+}
+```
+
+| `patterns[].type` | Vzhled | Navíc |
+|---|---|---|
+| `dots` | tečky | |
+| `stones` | kamínky s obrysem | |
+| `strokes` | stébla (tráva) | `angle` (°) |
+| `hatch` | šrafování | `angle` |
+| `ripples` | obloučky (vlnky na hladině) | |
+| `waves` | zvlněné linky (duny, závěje) | `angle` |
+| `cracks` | praskliny (led, láva) | `glow` (barva záře) |
+
+- Objekty ze `scatter` se generují při vykreslení a do scény se
+  neukládají. Plocha zůstane jeden editovatelný tvar a vypadá pokaždé
+  stejně (seed z pozice). Prop definice mimo biom se vynechají.
+- `scatter[].size` je velikost v px. Chybí-li, vezme se z `fill.json`.
+
+---
+
 ## Rychlé recepty
 
 | Chci… | Udělám |
@@ -292,6 +336,9 @@ v každé **vrstvě** vybere objekt z vážené tabulky pro ten kontext.
 | novou rostlinu | `props/<id>.json` s `"base": "flora"` + blok `flora` |
 | aby byla v paletě editoru | nic, objeví se sama v sekci podle `category` |
 | aby ji smart fill sázel | přidám id do `fill.json` → `layers.flora.contexts.<kontext>.kinds` |
+| nové květinové pole | `props/<id>.json`, `form: "flowerpatch"`, `heads: [...]` |
+| nový druh květu (barvy) | `flowers.json` (tvar květu je v C#: `PropsFlowers.cs`) |
+| novou plochu (bažina, step…) | `surfaces/<id>.json` |
 | hustší / řidší podrost | `fill.json` → vrstva `flora`: `spacing`, `chance`, `biomeChance` |
 
 ## Omezení (TODO)
@@ -308,4 +355,6 @@ Pořád v C#, kandidáti na přesun do configu:
   tvary v JSONu),
 - poměr druhů stromů ve štětci lesa a v generátoru krajiny (`MapGenerator`,
   `MapEditor`); smart fill už jede z `fill.json`,
-- typy a gradient cest.
+- typy a gradient cest,
+- nové **tvary** flory, detailů, květů a vzorů povrchů (přidává se jako
+  C# metoda; parametry a varianty pak už jen JSON).

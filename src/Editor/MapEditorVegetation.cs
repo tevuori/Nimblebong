@@ -32,9 +32,14 @@ public partial class MapEditor
     static ToolDef DefTool(PropDef d) =>
         new($"{DefToolPrefix}{d.Id}", d.Label, CategoryOf(d), Mode.Prop, d.Id);
 
-    /// <summary>Built-in tools followed by the biome's prop definitions.</summary>
+    static ToolDef SurfaceTool(SurfaceDef d) =>
+        new($"{Kinds.SurfacePrefix}{d.Id}", d.Label, d.Category, Mode.Shape, $"{Kinds.SurfacePrefix}{d.Id}");
+
+    /// <summary>Built-in tools, then the biome's prop definitions and
+    /// surfaces (assets/config/props, assets/config/surfaces).</summary>
     IEnumerable<ToolDef> PaletteTools() =>
-        Tools.Concat(PropDefs.ForBiome(_lookBiome).Select(DefTool));
+        Tools.Concat(PropDefs.ForBiome(_lookBiome).Select(DefTool))
+            .Concat(SurfaceDefs.ForBiome(_lookBiome).Select(SurfaceTool));
 
     /// <summary>Any tool by id — built-ins or a definition tool (biome
     /// agnostic; ToolThumbs renders cards through this).</summary>
@@ -45,6 +50,8 @@ public partial class MapEditor
                 return t;
         if (id.StartsWith(DefToolPrefix) && PropDefs.TryGet(id[DefToolPrefix.Length..], out var d))
             return DefTool(d);
+        if (SurfaceDefs.ForKind(id) is { } sd)
+            return SurfaceTool(sd);
         return null;
     }
 
@@ -73,8 +80,9 @@ public partial class MapEditor
         RefreshVegPlants();
     }
 
-    /// <summary>Plant list for the current biome: "Směs" + every flora
-    /// definition. Keeps the selection when the plant still exists.</summary>
+    /// <summary>Brush list for the current biome: "Směs" + every flora
+    /// and detail definition, grouped under their palette sections.
+    /// Separator rows are stored as "" (not selectable); null = mix.</summary>
     void RefreshVegPlants()
     {
         if (_vegPlant == null)
@@ -86,12 +94,21 @@ public partial class MapEditor
         _vegPlantIds.Clear();
         _vegPlant.AddItem("Směs (podle okolí)");
         _vegPlantIds.Add(null);
-        foreach (var d in PropDefs.ForBiome(_lookBiome).Where(d => d.Base == PropKind.Flora))
+        var brushable = PropDefs.ForBiome(_lookBiome)
+            .Where(d => d.Base is PropKind.Flora or PropKind.Detail)
+            .GroupBy(CategoryOf);
+        foreach (var group in brushable)
         {
-            _vegPlant.AddItem(d.Label);
-            _vegPlantIds.Add(d.Id);
+            _vegPlant.AddSeparator(group.Key);
+            _vegPlantIds.Add("");
+            foreach (var d in group)
+            {
+                _vegPlant.AddItem(d.Label);
+                _vegPlantIds.Add(d.Id);
+            }
         }
-        _vegPlant.Selected = Math.Max(0, _vegPlantIds.IndexOf(keep));
+        var idx = keep == null ? 0 : _vegPlantIds.IndexOf(keep);
+        _vegPlant.Selected = Math.Max(0, idx);
     }
 
     /// <summary>Biome switched — palette cards and plant list follow it.</summary>
@@ -108,6 +125,8 @@ public partial class MapEditor
         var chosen = _vegPlant.Selected >= 0 && _vegPlant.Selected < _vegPlantIds.Count
             ? _vegPlantIds[_vegPlant.Selected]
             : null;
+        if (chosen == "")
+            chosen = null;
         var stroke = _stroke.ToList();
         var radius = _brushSize;
         var density = _vegDensity / 100.0;

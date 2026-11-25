@@ -1,0 +1,42 @@
+{
+  "label": "Suťoviště",
+  "fill": {
+    "color": "@stone",
+    "alpha": 0.45,
+    "feather": 8
+  },
+  "patterns": [
+    {
+      "type": "stones",
+      "color": "#8a8a7a",
+      "alpha": 0.75,
+      "spacing": 9,
+      "size": 2.5
+    },
+    {
+      "type": "dots",
+      "color": "#5a5c50",
+      "alpha": 0.4,
+      "spacing": 7,
+      "size": 1.2
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "rubble",
+      "spacing": 40,
+      "chance": 0.4
+    },
+    {
+      "kind": "scree",
+      "spacing": 50,
+      "chance": 0.3
+    },
+    {
+      "kind": "rock",
+      "spacing": 90,
+      "chance": 0.2,
+      "size": 24
+    }
+  ]
+}

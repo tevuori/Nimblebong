@@ -1,0 +1,51 @@
+{
+  "label": "Bažina",
+  "biomes": [
+    "woodland",
+    "swamp"
+  ],
+  "fill": {
+    "color": "#4f5d3a",
+    "alpha": 0.55,
+    "feather": 10
+  },
+  "edge": {
+    "color": "#3a4428",
+    "alpha": 0.35,
+    "width": 2
+  },
+  "patterns": [
+    {
+      "type": "ripples",
+      "color": "#9fc0b6",
+      "alpha": 0.5,
+      "spacing": 18,
+      "size": 4
+    },
+    {
+      "type": "dots",
+      "color": "#2f3a26",
+      "alpha": 0.35,
+      "spacing": 11,
+      "size": 2.2
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "reeds",
+      "spacing": 26,
+      "chance": 0.45
+    },
+    {
+      "kind": "cotton-grass",
+      "spacing": 34,
+      "chance": 0.3
+    },
+    {
+      "kind": "puddle",
+      "spacing": 60,
+      "chance": 0.25,
+      "size": 20
+    }
+  ]
+}

@@ -120,7 +120,13 @@ public static class Kinds
         }
     }
 
-    public static bool IsArea(string kind) => Areas.Contains(kind);
+    /// <summary>Surface areas are "surface:&lt;id&gt;" — the id names a
+    /// JSON definition in assets/config/surfaces (SurfaceDefs).</summary>
+    public const string SurfacePrefix = "surface:";
+
+    public static bool IsSurface(string kind) => kind.StartsWith(SurfacePrefix, StringComparison.Ordinal);
+
+    public static bool IsArea(string kind) => Areas.Contains(kind) || IsSurface(kind);
 
     public static bool IsLine(string kind) => Lines.Contains(kind);
 

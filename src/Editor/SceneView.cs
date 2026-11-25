@@ -142,6 +142,13 @@ public partial class SceneView : Node2D
         }
         AddLayer(Stage.AlbedoVp, areas);
         AddLayer(Stage.HeightVp, areaH);
+        // Ground surfaces (marsh, scree, dunes…) — JSON-defined washes
+        // over ponds/fields, under everything else.
+        var surfaces = new SurfacePainter { Biome = Biome };
+        foreach (var sh in Scene.Shapes)
+            if (SurfaceDefs.ForKind(sh.Kind) is { } sdef)
+                surfaces.Add(sdef, sh.Points);
+        AddLayer(Stage.AlbedoVp, surfaces);
 
         // Buildings & interiors — house/room/floor footprints with
         // roofs, wall rings and door/window openings carved from props.
@@ -224,6 +231,7 @@ public partial class SceneView : Node2D
                     Text = p.Text,
                 }.WithDef(p.Kind)
             )
+            .Concat(SurfacePainter.ScatterProps(Scene, Biome.Id))
             .ToList();
         var propsPainter = new PropsPainter
         {

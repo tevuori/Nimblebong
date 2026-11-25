@@ -1,0 +1,35 @@
+{
+  "label": "Lávové pole",
+  "biomes": [
+    "volcanic"
+  ],
+  "fill": {
+    "color": "#2e2624",
+    "alpha": 0.7,
+    "feather": 8
+  },
+  "patterns": [
+    {
+      "type": "cracks",
+      "color": "#ff8a2a",
+      "alpha": 0.9,
+      "spacing": 22,
+      "size": 7,
+      "glow": "#ff5a1a"
+    },
+    {
+      "type": "dots",
+      "color": "#1a1412",
+      "alpha": 0.4,
+      "spacing": 10,
+      "size": 2
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "lava-rubble",
+      "spacing": 60,
+      "chance": 0.3
+    }
+  ]
+}

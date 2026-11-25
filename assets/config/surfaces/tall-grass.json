@@ -1,0 +1,43 @@
+{
+  "label": "Vysoká tráva",
+  "biomes": [
+    "woodland",
+    "swamp",
+    "alpine"
+  ],
+  "fill": {
+    "color": "#5f8a3a",
+    "alpha": 0.35,
+    "feather": 12
+  },
+  "patterns": [
+    {
+      "type": "strokes",
+      "color": "#3f5f2a",
+      "alpha": 0.55,
+      "spacing": 7,
+      "size": 6,
+      "angle": -70
+    },
+    {
+      "type": "strokes",
+      "color": "#8fb05a",
+      "alpha": 0.45,
+      "spacing": 9,
+      "size": 5,
+      "angle": -110
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "grass-tuft",
+      "spacing": 16,
+      "chance": 0.7
+    },
+    {
+      "kind": "fern",
+      "spacing": 40,
+      "chance": 0.2
+    }
+  ]
+}

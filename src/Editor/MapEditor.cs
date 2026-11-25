@@ -1547,6 +1547,18 @@ public partial class MapEditor : Node2D
                         }
                     });
                 break;
+            case Mode.Shape when Kinds.IsSurface(_tool.Kind):
+                if (pts.Count >= 4)
+                    Commit(scene =>
+                        scene.Shapes = Interactions.MergeShapeInto(scene, new Shape
+                        {
+                            Id = scene.AllocId(),
+                            Kind = _tool.Kind,
+                            Points = pts,
+                            Size = 20,
+                        })
+                    );
+                break;
             case Mode.Shape:
                 // Other area kinds (house footprint, room, floor) —
                 // plain add, no terrain merge.

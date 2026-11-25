@@ -2,7 +2,7 @@
   "label": "Suť",
   "base": "detail",
   "category": "Detaily a krytí",
-  "height": 0.8,
+  "height": 0.35,
   "footprint": 1.3,
   "detail": {
     "form": "rubble",

@@ -42,6 +42,31 @@ public partial class FloraProbe : Node2D
             });
         }
 
+        // Surface gallery (DMMAP_SURFACES=1): every biome surface as a
+        // lumpy blob below the prop gallery.
+        if (System.Environment.GetEnvironmentVariable("DMMAP_SURFACES") != null)
+        {
+            var surf = SurfaceDefs.ForBiome(biome);
+            for (var i = 0; i < surf.Count; i++)
+            {
+                var (col, row) = (i % 3, i / 3);
+                var cx = 95 + col * 180;
+                var cy = 120 + row * 170;
+                var pts = new List<Vector2>();
+                for (var k = 0; k < 18; k++)
+                {
+                    var a = k / 18f * Mathf.Tau;
+                    var r = 1 + 0.12f * Mathf.Sin(a * 3 + i);
+                    pts.Add(new Vector2(cx + Mathf.Cos(a) * 75 * r, cy + Mathf.Sin(a) * 55 * r));
+                }
+                scene.Shapes.Add(new Shape { Id = scene.AllocId(), Kind = Kinds.SurfacePrefix + surf[i].Id, Points = pts });
+                scene.Props.Add(new Prop
+                {
+                    Id = scene.AllocId(), Kind = "label", X = cx, Y = cy + 70, Scale = 13, Text = surf[i].Id,
+                });
+            }
+        }
+
         // Fill playground — pond, river, a low hill.
         var pond = new List<Vector2>();
         for (var k = 0; k < 20; k++)

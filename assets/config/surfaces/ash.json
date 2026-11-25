@@ -1,0 +1,39 @@
+{
+  "label": "Popel",
+  "biomes": [
+    "volcanic"
+  ],
+  "fill": {
+    "color": "#8a8580",
+    "alpha": 0.5,
+    "feather": 10
+  },
+  "patterns": [
+    {
+      "type": "dots",
+      "color": "#5a5550",
+      "alpha": 0.4,
+      "spacing": 8,
+      "size": 1.5
+    },
+    {
+      "type": "dots",
+      "color": "#b5b0aa",
+      "alpha": 0.35,
+      "spacing": 11,
+      "size": 1.2
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "ash-grass",
+      "spacing": 40,
+      "chance": 0.3
+    },
+    {
+      "kind": "charred-stump",
+      "spacing": 120,
+      "chance": 0.15
+    }
+  ]
+}

@@ -158,7 +158,7 @@ public partial class PropsPainter
     // --- rubble / scree: scattered angular stones ---------------------------
     void DetailRubble(FloraCtx f)
     {
-        FloraShade(f, f.S.Radius * 0.85, 0.18);
+        FloraShade(f, f.S.Radius * 0.7, 0.08);
         var stones = Enumerable.Range(0, f.Count)
             .Select(_ => (C: Polar(f.R.Next() * Math.Tau, f.S.Radius * Math.Pow(f.R.Next(), 0.7)), R: f.Len() * 0.5))
             .OrderBy(s => s.C.Y).ToList();

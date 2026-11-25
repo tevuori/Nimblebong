@@ -1,0 +1,30 @@
+{
+  "label": "Led",
+  "fill": {
+    "color": "#d6ecf2",
+    "alpha": 0.7,
+    "feather": 4
+  },
+  "edge": {
+    "color": "#ffffff",
+    "alpha": 0.6,
+    "width": 2
+  },
+  "patterns": [
+    {
+      "type": "cracks",
+      "color": "#ffffff",
+      "alpha": 0.8,
+      "spacing": 28,
+      "size": 9
+    },
+    {
+      "type": "hatch",
+      "color": "#a9cfdc",
+      "alpha": 0.35,
+      "spacing": 14,
+      "size": 6,
+      "angle": 35
+    }
+  ]
+}

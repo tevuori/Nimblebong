@@ -97,6 +97,46 @@ s blokem `flora`, který je pro `base: "flora"` povinný:
 | `mushrooms` | shluk klobouků s ink lemem | barva klobouku, bílé tečky |
 | `lilypads` | vroubkované listy na vodě | květ leknínu |
 | `groundcover` | nízké překrývající se skvrny (jetel, vřes) | drobné kvítky |
+| `flowerpatch` | pole 15–25 kytek v nepravidelném trsu + tráva | viz `heads` |
+
+**Květy (`heads`):** pro `flowers` a `flowerpatch` seznam druhů květů,
+každé stéblo si vybere jeden: `simple`, `dandelion`, `poppy`, `daisy`,
+`bluebell`, `cornflower`, `lavender`, `sunflower`, `tulip`, `clover`.
+Výchozí barvy a velikost každého druhu jsou v `assets/config/flowers.json`.
+`accents` je přepíše. Další klíče: `underlay` (0–1, tráva pod polem),
+`puffChance` (0–1, podíl odkvetlých pampelišek).
+
+```jsonc
+{ "label": "Vlčí máky", "base": "flora", "category": "Květiny",
+  "flora": { "form": "flowerpatch", "count": [16, 24], "radius": 16, "heads": ["poppy"] } }
+```
+
+## Detaily (`"base": "detail"`)
+
+Mapové detaily a krytí pro DM. Kreslí je `src/Props/PropsDetail.cs`
+a blok `detail` má stejné klíče jako `flora`. `leaf` je hlavní materiál
+(kůra, kámen, bahno), `leafDark` jeho stín a `accents` doplňky (mech,
+plody, svíčky, žhavé uhlíky, včely).
+
+| `form` | Co | Důležité klíče |
+|---|---|---|
+| `log` | padlý kmen s letokruhy, mech = accents | `length`, `width` (průměr) |
+| `stump` | pařez s kořeny | `radius` |
+| `bramble` | ostružiní / trní, plody = accents | `radius`, `count`, `length` |
+| `rubble` | suť, kameny | `radius`, `count`, `length` (velikost kamene) |
+| `cairn` | mohyla z kamenů | `radius`, `count` (počet pater) |
+| `signpost` | rozcestník | `length`, `width`, `count` (počet šipek) |
+| `shrine` | svatyně, svíčky = accents | `radius`, `count` |
+| `tracks` | stopy zvěře | `length`, `count`, `width`, `accentSize` |
+| `puddle` | louže / bahniště, voda = accents | `radius` |
+| `carcass` | kostra / mršina | `length`, `width` |
+| `anthill` | mraveniště | `radius`, `count` (mravenci) |
+| `beehive` | úl, včely = accents | `radius`, `count` |
+| `stalagmite` | krápníky (i ledové) | `count`, `length`, `radius` |
+| `web` | pavučina, pavouk = accents | `radius`, `count` (paprsky) |
+
+Výškový hrbol (stín) flory i detailů se odvozuje z jejich velikosti.
+`height` ho násobí a `0` znamená bez stínu (louže, stopy, lekníny).
 
 Barvy `@foliage`/`@ground` se mění se sezónou a art packem biomu.
 

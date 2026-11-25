@@ -207,7 +207,7 @@ public static class Interactions
     public static List<Shape> MergeShapeInto(Scene scene, Shape added)
     {
         var shapes = scene.Shapes;
-        if (!MergeableAreaKinds.Contains(added.Kind))
+        if (!MergeableAreaKinds.Contains(added.Kind) && !Kinds.IsSurface(added.Kind))
             return [.. shapes, added];
         var acc = new List<Vector2[]> { added.Points.ToArray() };
         var absorbed = new HashSet<Shape>();
