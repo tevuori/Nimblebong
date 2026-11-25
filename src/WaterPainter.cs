@@ -136,8 +136,8 @@ public partial class WaterPainter : Node2D
             FillRibbon(Spline.StrokePolygon(run, w + 3), deep);
             InkOutline(
                 Spline.StrokePolygon(run, w + 5),
-                Palette.Hex("#1d2b1c") with { A = 0.5f },
-                1.4f
+                Palette.Hex("#1d2b1c") with { A = 0.65f },
+                1.6f
             );
         }
         // Unioned water surface — shallow rim, then center, then a darker

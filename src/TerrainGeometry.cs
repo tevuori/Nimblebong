@@ -94,7 +94,9 @@ public static class TerrainGeometry
             {
                 var inside = tops
                     .Select((top, i) => (top, i))
-                    .Where(t => Poly.PointInPolygon(t.top[0], base_))
+                    // Centroid — a contour vertex sits exactly on the
+                    // silhouette edge, PointInPolygon there is luck.
+                    .Where(t => Poly.PointInPolygon(Poly.Centroid(t.top), base_))
                     .ToList();
                 var massif = new Massif
                 {
@@ -112,8 +114,18 @@ public static class TerrainGeometry
                     Silhouettes = silhouettes,
                     Face = face,
                 };
-                massif.Band = Subtract(base_, massif.Tops);
-                massif.Wall = Subtract(silhouettes, massif.Tops);
+                // Subtract the group's whole top set — same-height
+                // neighbours share silhouettes, and keeping a foreign
+                // top in Wall/Band paints cliff over its grass.
+                massif.Band = Subtract(base_, tops);
+                // Wall belongs to this massif's own tops only — the
+                // group union would paint neighbours' faces twice.
+                var ownSil = Union(
+                    massif
+                        .Tops.SelectMany(t => new[] { t, t.Select(p => p + face).ToArray() })
+                        .ToArray()
+                );
+                massif.Wall = Subtract(ownSil, tops);
                 massifs.Add(massif);
             }
         }

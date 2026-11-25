@@ -279,7 +279,7 @@ def ref02():
     s.road([(560, 430), (760, 480), (980, 420), (1200, 380)], 18)
     # Stone circle at center.
     cx, cy, r = 560, 330, 90
-    s.prop("stonecircle", cx, cy, scale=24 * 2.8)
+    s.prop("stonecircle", cx, cy, scale=24 * 3.6)
     for i in range(10):
         a = i / 10 * math.tau
         s.prop("rock", cx + math.cos(a) * r, cy + math.sin(a) * r * 0.8,
@@ -558,8 +558,12 @@ def ref08():
               step=85, density=0.6, smin=1.6, smax=2.4, seed=99,
               species="palm")
     for x, y in [(200, 700), (280, 1050), (820, 800), (900, 1150),
-                 (160, 1750), (950, 350)]:
+                 (160, 1750), (950, 350), (740, 480), (350, 560),
+                 (880, 1000), (240, 350), (700, 1550), (940, 600)]:
         s.prop("bush", x, y, scale=24 * 2.0, model=1)
+    s.scatter(blob(700, 500, 200, 41.3, n=18, squash=0.9), "tree",
+              step=75, density=0.65, smin=1.7, smax=2.5, seed=105,
+              species="palm")
     # Camp by the east bank.
     s.prop("tent", 850, 1250, scale=95, rot=0.4)
     s.prop("tent", 940, 1340, scale=85, rot=-0.8)
@@ -599,6 +603,10 @@ def ref09():
     s.shape("floor", [[280, 560], [800, 560], [800, 980], [280, 980]],
             model=2)
     s.shape("room", [[360, 420], [720, 420], [720, 780], [360, 780]])
+    # Crenellated parapet ring hugging the hall perimeter (model=1 =
+    # merlon ticks) — the fort curtain wall read.
+    s.stroke("wall", [[352, 412], [728, 412], [728, 788], [352, 788],
+                      [352, 412]], 14, model=1)
     for cx in (300, 780):
         s.shape("house", blob(cx, 880, 110, 3.4 + cx, n=20, squash=1.0,
                               wob=0.02), model=1, color="#b04a38")

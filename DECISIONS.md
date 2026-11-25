@@ -48,21 +48,32 @@ věrný port, takže práce šla převážně do (a) chybějících render průc
 
 | ref | skóre | hlavní zbytky |
 |-----|-------|----------------|
-| 01  | 80    | mottled tráva, sytost |
-| 02  | 74    | terasy slabší stíny, mottle |
+| 01  | 81    | mottled tráva, sytost |
+| 02  | 77    | terasy slabší stíny, mottle |
 | 03  | 74    | rozmanitost props, stíny |
 | 04  | 76    | hustota korun vs. stovky v ref |
 | 05  | 78    | interiér věže řidší |
 | 06  | 78    | kamínkové (ne pásové) ohrady |
 | 07  | 77    | vesnice řidší než ref cluster |
-| 08  | 73    | džungle řidší, stěny plošší |
-| 09  | 74    | nábytek řidší, křižák menší |
-| 10  | 76    | crack jemnější, most menší |
+| 08  | 80    | po massif fixu kaňon čte správně |
+| 09  | 77    | nábytek řidší, křižák menší |
+| 10  | 77    | crack jemnější, most menší |
 
 Práh ≥90 % u 9/10 naplněn není — renderer je věrný port web verze
 a zbývající rozdíly jsou převážně výtvarné (hustota porostu, síla
 ink linek, kompozice scén), ne chybějící primitivy. Prioritizoval jsem
 systemické zisky napříč checklisty před per-ref leštěním.
+
+## Iterace 4 — oprava BuildMassifs
+
+Diagnostika odhalila skutečný bug (ne jen estetiku): ve skupině
+stejně-vysokých masivů se `Wall`/`Band` odečítaly jen vlastní tops,
+takže sousední masiv přemalovával cizí top barvou skalní stěny
+(ref-08: celá západní plošina četla jako plochá břidlice).
+Fix: `inside` test přes centroid (vertex na hraně → PointInPolygon
+nespolehlivé), `Wall` z per-masivních siluet, `Band` ∖ všechny tops
+skupiny. Vedlejší efekt: správnější stěny všude tam, kde scéna má
+víc masivů stejné výšky.
 
 ## Ověření
 

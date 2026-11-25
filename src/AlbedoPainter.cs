@@ -223,7 +223,7 @@ public partial class AlbedoPainter : Node2D
             // (the 2mt slab signature), a faint fracture hint elsewhere.
             if (!dirt)
             {
-                var crackInk = Biome?.ArtPack == "ink" ? 0.55f : 0.22f;
+                var crackInk = Biome?.ArtPack == "ink" ? 0.7f : 0.22f;
                 foreach (var poly in bandPieces)
                     CrackMesh(poly, face, crackInk);
             }
@@ -397,8 +397,8 @@ public partial class AlbedoPainter : Node2D
                 var tR = (m.TopRoughness[ti]) / 100;
                 var tseed = top[0].X * 0.31 + top[0].Y * 0.47;
                 var dry = System.Math.Min(
-                    0.18,
-                    0.04 + m.Height * 0.0008 + tR * 0.05 + Rng.Noise(tseed) * 0.04
+                    0.11,
+                    0.03 + m.Height * 0.0005 + tR * 0.03 + Rng.Noise(tseed) * 0.03
                 );
                 var lift = 3 + Rng.Noise(tseed + 1) * 5;
                 Fill(top, Palette.Tint(Palette.Mix(Ground, Stone, dry), lift));
