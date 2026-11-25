@@ -309,15 +309,23 @@ def ref03():
     s.road([(-40, 160), (300, 220), (620, 260), (900, 300), (1180, 330)], 20)
     s.road([(500, 780), (560, 560), (640, 420), (700, 300)], 16)
     s.road([(900, 300), (860, 520), (820, 700)], 14)
-    # Wagons + tents + campfire cluster.
-    s.prop("cart", 560, 240, scale=96, rot=0.5)
-    s.prop("cart", 780, 270, scale=92, rot=-2.6)
-    s.prop("cart", 470, 480, scale=88, rot=1.2)
-    s.prop("cart", 880, 520, scale=88, rot=-0.8)
-    s.prop("tent", 660, 380, scale=80, rot=0.9)
-    s.prop("tent", 540, 560, scale=74, rot=-0.4)
-    s.prop("tent", 940, 410, scale=76, rot=2.4)
-    s.prop("campfire", 700, 490, scale=56)
+    # Wagons + tents + campfire cluster — the ref packs the meadow
+    # with a caravan ring.
+    s.prop("cart", 560, 240, scale=110, rot=0.5)
+    s.prop("cart", 780, 270, scale=104, rot=-2.6)
+    s.prop("cart", 470, 480, scale=100, rot=1.2)
+    s.prop("cart", 880, 520, scale=100, rot=-0.8)
+    s.prop("cart", 640, 180, scale=96, rot=2.9)
+    s.prop("cart", 990, 330, scale=92, rot=1.8)
+    s.prop("cart", 420, 340, scale=92, rot=-1.9)
+    s.prop("tent", 660, 380, scale=88, rot=0.9)
+    s.prop("tent", 540, 560, scale=80, rot=-0.4)
+    s.prop("tent", 940, 410, scale=84, rot=2.4)
+    s.prop("tent", 730, 260, scale=74, rot=-1.2)
+    s.prop("tent", 850, 620, scale=76, rot=0.6)
+    s.prop("stall", 780, 420, scale=78, rot=0.3)
+    s.prop("stall", 500, 400, scale=70, rot=-0.7)
+    s.prop("campfire", 700, 490, scale=60)
     for x, y in [(620, 300), (840, 350), (740, 560), (960, 470)]:
         s.prop("crate", x, y, scale=44, rot=rng(x + y) * 3)
     for x, y in [(590, 340), (910, 300)]:
@@ -370,12 +378,24 @@ def ref04():
     s.road([(480, 380), (760, 300), (1000, 260), (1260, 240),
             (1500, 220)], 14)
     s.road([(960, 460), (980, 640), (1060, 800), (1180, 900)], 12)
-    # Market stalls — big thatched rectangles NW + a second cluster E.
-    for i, (x, y, w, h, a) in enumerate([
-            (60, 60, 150, 90, -0.1), (150, 180, 140, 85, 0.15),
-            (30, 300, 130, 80, -0.05), (220, 60, 120, 75, 0.2),
-            (260, 230, 120, 70, -0.25), (80, 420, 110, 70, 0.1),
-            (1140, 60, 150, 95, 0.35), (1290, 90, 130, 80, 0.3)]):
+    # Market stalls — the ref packs dozens of small thatched sheds
+    # along the lanes; two dense NW rows + scattered singles east.
+    stalls = [
+        (60, 60, 120, 72, -0.1), (170, 80, 110, 68, 0.12),
+        (280, 70, 100, 62, 0.2), (95, 170, 115, 70, 0.05),
+        (215, 180, 105, 64, -0.15), (330, 175, 95, 58, 0.3),
+        (45, 290, 110, 68, -0.05), (165, 300, 100, 60, 0.18),
+        (285, 295, 92, 56, -0.28), (390, 260, 85, 54, 0.4),
+        (80, 420, 100, 62, 0.1), (195, 425, 90, 55, -0.2),
+        (30, 540, 95, 58, 0.22), (140, 545, 88, 52, -0.1),
+        (480, 200, 90, 56, 0.5), (560, 160, 85, 52, -0.35),
+        (620, 260, 80, 50, 0.15), (760, 180, 85, 54, -0.1),
+        (860, 300, 78, 50, 0.3), (940, 380, 80, 52, -0.2),
+        (1140, 60, 110, 66, 0.35), (1290, 90, 100, 60, 0.3),
+        (1150, 170, 95, 58, 0.15), (1450, 300, 88, 54, -0.3),
+        (1520, 420, 84, 52, 0.25), (1050, 560, 80, 50, 0.1),
+    ]
+    for x, y, w, h, a in stalls:
         s.house(x, y, w, h, a, model=2, color="#b7a955")
     # Market clutter — stall props, carts, crates, tables.
     for i, (x, y) in enumerate([(330, 150), (180, 360), (300, 420),
@@ -389,7 +409,9 @@ def ref04():
                     (1150, 300, 1.2)]:
         s.prop("cart", x, y, scale=88, rot=a)
     for x, y in [(600, 460), (740, 380), (380, 440), (1010, 420),
-                 (1300, 160)]:
+                 (1300, 160), (255, 250), (120, 360), (340, 340),
+                 (500, 290), (700, 210), (1100, 260), (60, 230),
+                 (420, 500), (900, 200), (1500, 230), (1600, 360)]:
         s.prop("crate", x, y, scale=40)
     s.prop("well", 700, 470, scale=42)
     s.prop("lantern", 640, 430, scale=30)
@@ -410,45 +432,55 @@ def ref04():
               step=100, density=0.6, smin=1.5, smax=2.4, seed=69)
     s.scatter(blob(1050, 200, 240, 55.1, n=16, squash=0.6), "tree",
               step=100, density=0.55, smin=1.4, smax=2.3, seed=71)
+    # Trees threaded between the market rows — the ref's stalls sit
+    # inside the forest, not beside it.
+    s.scatter(blob(230, 260, 330, 57.9, n=22, squash=0.7), "tree",
+              step=95, density=0.5, smin=1.4, smax=2.3, seed=73)
+    s.scatter(blob(700, 100, 300, 59.2, n=18, squash=0.5), "tree",
+              step=100, density=0.55, smin=1.4, smax=2.4, seed=79)
     s.save("ref-04")
 
 
 def ref05():
-    """Desert canyon + oasis lagoon + round tower interior."""
+    """Desert oasis — flagstone arena ringed by a red-rock mesa."""
     s = Scene(1881, 788, name="ref-05", biome="desert")
-    # Canyon ring: big massif center, lower dunes.
-    s.terrain(blob(950, 420, 520, 5.7, n=34, squash=0.6, wob=0.10),
-              height=20, size=58, rough=35)
-    s.terrain(blob(960, 430, 330, 7.9, n=28, squash=0.6, wob=0.10),
-              height=44, size=62, rough=45)
-    s.terrain(blob(1700, 200, 360, 9.5, n=26, squash=0.55, wob=0.12),
+    # One dominant orange massif looming behind the arena (ref top),
+    # lower dunes framing the sand.
+    s.terrain(blob(1000, 280, 460, 5.7, n=32, squash=0.55, wob=0.10),
+              height=34, size=64, rough=45)
+    s.terrain(blob(1750, 160, 380, 9.5, n=26, squash=0.55, wob=0.12),
               height=24, size=60, rough=40)
-    s.terrain(blob(200, 750, 320, 11.3, n=24, squash=0.4, wob=0.12),
+    s.terrain(blob(300, 720, 300, 11.3, n=24, squash=0.4, wob=0.12),
               height=18, size=55, rough=38)
+    s.terrain(blob(1600, 700, 260, 6.1, n=22, squash=0.5, wob=0.12),
+              height=16, size=50, rough=36)
     # Oasis lagoon west.
-    s.shape("pond", blob(80, 380, 340, 4.2, n=28, squash=0.9, wob=0.08))
-    # Tower (round room) at canyon top.
+    s.shape("pond", blob(60, 380, 360, 4.2, n=28, squash=0.9, wob=0.08))
+    # Flagstone arena — a paved disc with a low ring of rock chunks.
     cx, cy, r = 950, 420, 200
     pts = [[round(cx + math.cos(i / 26 * math.tau) * r, 1),
             round(cy + math.sin(i / 26 * math.tau) * r, 1)]
            for i in range(26)]
-    s.shape("room", pts, model=0)
-    s.prop("table", cx - 20, cy - 30, scale=26, rot=0.3)
-    s.prop("table", cx + 60, cy + 50, scale=24, rot=-0.6)
-    s.prop("barrel", cx - 90, cy + 60, scale=20)
-    s.prop("barrel", cx - 60, cy + 80, scale=20)
-    s.prop("crate", cx + 90, cy - 70, scale=20, rot=0.4)
-    s.prop("rug", cx, cy + 20, scale=30)
-    s.prop("shelf", cx - 10, cy - 110, scale=22, rot=math.pi)
-    s.prop("bed", cx + 80, cy + 90, scale=24, rot=-0.9)
-    s.prop("fireplace", cx - 100, cy - 60, scale=22)
-    # Palms + desert flora.
-    for x, y, sc in [(620, 300, 3.0), (530, 500, 2.6), (750, 620, 2.8),
-                     (1250, 260, 3.0), (1330, 560, 2.6), (300, 240, 2.4),
-                     (420, 180, 2.2), (480, 420, 2.8), (1350, 400, 2.6),
-                     (200, 480, 2.4), (1500, 300, 2.4)]:
-        s.prop("tree", x, y, scale=24 * sc, seed=Scene.oakseed(x, y))
-    for x, y in [(700, 200), (1150, 640), (550, 680), (1400, 420)]:
+    s.shape("floor", pts, model=2, size=56, height=6)
+    for i in range(14):
+        a = i / 14 * math.tau + 0.11
+        s.prop("rock", cx + math.cos(a) * (r + 14),
+               cy + math.sin(a) * (r + 14), scale=9 + (i % 3) * 2)
+    # A table and supplies inside the ring — the ref's meeting spot.
+    s.prop("table", cx - 10, cy - 20, scale=34, rot=0.3)
+    s.prop("crate", cx + 70, cy + 60, scale=26, rot=0.4)
+    s.prop("barrel", cx - 80, cy + 50, scale=24)
+    s.prop("rug", cx + 30, cy + 30, scale=28)
+    s.prop("campfire", cx + 60, cy - 60, scale=30)
+    # Palm ring hugging the arena's foot + lagoon edge.
+    for x, y, sc in [(700, 260, 2.8), (640, 460, 2.5), (750, 600, 2.6),
+                     (1180, 560, 2.7), (1230, 300, 2.9), (1100, 180, 2.4),
+                     (840, 620, 2.3), (1330, 430, 2.4), (420, 200, 2.2),
+                     (320, 500, 2.5), (230, 300, 2.3), (1500, 260, 2.6),
+                     (1560, 520, 2.4), (520, 680, 2.2)]:
+        s.prop("tree", x, y, scale=24 * sc, seed=Scene.oakseed(x, y),
+               species="palm")
+    for x, y in [(880, 160), (1180, 660), (560, 380), (1450, 380)]:
         s.prop("bush", x, y, scale=24 * 1.8)
     # Boulders.
     for i, (x, y) in enumerate([(760, 120), (820, 150), (1200, 680),
@@ -537,22 +569,41 @@ def ref07():
             (1100, 340)], 20)
     s.road([(80, 1150), (280, 1120), (420, 1180), (700, 1160),
             (1040, 1180)], 18)
-    # Village — thatch homes hugging the banks.
-    homes = [(200, 200, 2.0), (320, 160, 2.2), (150, 480, 1.9),
-             (660, 200, 2.0), (800, 250, 1.8), (920, 430, 1.9),
-             (760, 600, 1.8), (160, 800, 1.8), (850, 850, 2.0),
-             (350, 1250, 1.9), (700, 1300, 1.8),
-             # Fork cluster — the thatch knot on the island banks.
-             (430, 560, 2.1), (370, 700, 2.0), (300, 620, 1.9),
-             (780, 720, 2.0), (860, 640, 1.9), (240, 900, 2.0),
-             (900, 920, 1.9), (380, 940, 2.1)]
-    for i, (x, y, sc) in enumerate(homes):
-        s.house(x, y, 52 * sc, 38 * sc, rng(i * 11) * 1.2 - 0.6,
-                model=2 if i % 4 else 0, color="#b7a955")
+    # Village — the ref packs ~30 golden thatched homes along the
+    # river banks and the fork island, plus a red-tile manor NW.
+    homes = [
+        # Left bank — the main dense row.
+        (90, 180, 0.1), (200, 140, -0.2), (320, 190, 0.15),
+        (90, 300, -0.3), (230, 290, 0.2), (340, 330, -0.1),
+        (120, 430, 0.3), (250, 420, -0.2), (60, 550, 0.1),
+        (180, 560, -0.15), (300, 540, 0.25), (90, 680, -0.2),
+        (220, 700, 0.1), (330, 660, -0.3), (150, 800, 0.2),
+        (280, 820, -0.1), (90, 920, 0.3), (200, 950, -0.2),
+        # Island banks + right bank.
+        (380, 620, 0.4), (400, 760, -0.3), (360, 900, 0.2),
+        (420, 1050, -0.1), (660, 300, 0.15), (780, 360, -0.2),
+        (860, 480, 0.3), (760, 560, -0.15), (880, 660, 0.1),
+        (700, 760, -0.25), (830, 840, 0.2), (920, 960, -0.1),
+        # South village.
+        (350, 1250, 0.15), (480, 1280, -0.2), (620, 1250, 0.3),
+        (750, 1300, -0.15), (200, 1150, 0.25), (880, 1150, -0.2),
+    ]
+    for i, (x, y, a) in enumerate(homes):
+        w = 95 + rng(i * 7 + 3) * 30
+        h = 62 + rng(i * 13 + 5) * 18
+        s.house(x, y, w, h, a + rng(i * 17) * 0.3 - 0.15,
+                model=2, color="#b7a955")
+    # Red-tile manor NW corner (as in the ref).
+    for i, (x, y, a) in enumerate([(40, 60, 0.05), (170, 40, -0.1),
+                                   (60, 140, 0.15), (290, 70, 0.3)]):
+        s.house(x, y, 120 - i * 12, 80 - i * 6, a, model=0)
     for x, y in [(260, 260), (700, 320), (180, 560), (800, 520),
-                 (400, 1200), (760, 1250)]:
+                 (400, 1200), (760, 1250), (150, 350), (420, 700),
+                 (560, 700), (950, 750), (300, 480), (640, 440)]:
         s.prop("crate", x, y, scale=24)
     s.prop("well", 500, 240, scale=30)
+    s.prop("cart", 460, 400, scale=80, rot=0.8)
+    s.prop("cart", 200, 620, scale=76, rot=-1.4)
     # Trees sprinkled.
     s.scatter(blob(950, 200, 220, 15.3, n=20, squash=0.8), "tree",
               step=85, density=0.65, smin=1.7, smax=2.6, seed=81)
@@ -573,31 +624,30 @@ def ref08():
     # Canyon walls hugging both banks — ribbon massifs whose rim runs
     # just off the shoreline so the stone face drops to the water.
     s.terrain(bankpoly(river, 175, 420, side=1), height=22, size=90,
-              rough=60)
+              rough=60, model=2)
     s.terrain(bankpoly(river, 175, 420, side=-1), height=22, size=90,
-              rough=60)
+              rough=60, model=2)
     s.terrain(blob(200, 1600, 420, 7.4, n=26, squash=0.8, wob=0.10),
               height=18, size=56, rough=50)
-    # Jungle: dense forced palms hugging both canyon rims + fern
-    # undergrowth — the ref packs the tops edge-to-edge.
+    # Jungle: palms massed on the canyon rims but the ref leaves the
+    # grey rock faces and the river reading through — mixed species
+    # and looser packing so the canyon still shows.
     s.scatter(blob(280, 380, 330, 21.6, n=22, squash=1.0), "tree",
-              step=60, density=0.85, smin=1.8, smax=2.8, seed=91,
+              step=78, density=0.6, smin=1.6, smax=2.6, seed=91,
               species="palm")
     s.scatter(blob(280, 1350, 330, 23.4, n=22, squash=1.0), "tree",
-              step=60, density=0.85, smin=1.8, smax=2.8, seed=93,
+              step=78, density=0.6, smin=1.6, smax=2.6, seed=93,
               species="palm")
     s.scatter(blob(850, 1500, 300, 25.9, n=20, squash=0.9), "tree",
-              step=60, density=0.85, smin=1.8, smax=2.8, seed=97,
+              step=78, density=0.6, smin=1.6, smax=2.6, seed=97,
               species="palm")
     s.scatter(blob(880, 300, 280, 33.1, n=20, squash=1.0), "tree",
-              step=62, density=0.8, smin=1.6, smax=2.4, seed=99,
-              species="palm")
+              step=80, density=0.55, smin=1.5, smax=2.3, seed=99)
     s.scatter(blob(860, 900, 280, 38.9, n=20, squash=0.9), "tree",
-              step=62, density=0.8, smin=1.6, smax=2.6, seed=101,
+              step=80, density=0.55, smin=1.5, smax=2.4, seed=101,
               species="palm")
     s.scatter(blob(260, 800, 300, 39.7, n=20, squash=0.95), "tree",
-              step=62, density=0.8, smin=1.6, smax=2.6, seed=103,
-              species="palm")
+              step=80, density=0.55, smin=1.5, smax=2.4, seed=103)
     for x, y in [(200, 700), (280, 1050), (820, 800), (900, 1150),
                  (160, 1750), (950, 350), (740, 480), (350, 560),
                  (880, 1000), (240, 350), (700, 1550), (940, 600),
@@ -605,7 +655,7 @@ def ref08():
                  (200, 950), (780, 1750), (660, 380), (340, 850)]:
         s.prop("bush", x, y, scale=24 * 2.0, model=1)
     s.scatter(blob(700, 500, 200, 41.3, n=18, squash=0.9), "tree",
-              step=65, density=0.75, smin=1.7, smax=2.5, seed=105,
+              step=78, density=0.55, smin=1.5, smax=2.3, seed=105,
               species="palm")
     # Camp by the east bank.
     s.prop("tent", 850, 1250, scale=95, rot=0.4)
@@ -673,6 +723,16 @@ def ref09():
     s.prop("door", 540, 782, scale=30)
     s.prop("window", 430, 421, scale=22)
     s.prop("window", 640, 421, scale=22)
+    # Bar counter along the east wall + stools — the ref's tavern.
+    s.prop("table", 640, 500, scale=30, rot=math.pi / 2)
+    s.prop("table", 640, 610, scale=28, rot=math.pi / 2)
+    for x, y in [(590, 480), (590, 560), (590, 640)]:
+        s.prop("barrel", x, y, scale=16)
+    s.prop("shelf", 380, 460, scale=24, rot=math.pi / 2)
+    s.prop("fireplace", 380, 560, scale=24)
+    s.prop("table", 500, 700, scale=26, rot=0.9)
+    for x, y in [(460, 660), (540, 660), (500, 740)]:
+        s.prop("crate", x, y, scale=18)
     # Courtyard props.
     s.prop("fountain", 530, 880, scale=30)
     s.prop("cart", 850, 1080, scale=84, rot=0.8)
@@ -697,9 +757,9 @@ def ref10():
     # Gorge walls hugging the channel — ink-pack crack texture does
     # the rest (AlbedoPainter draws the 2mt crack mesh).
     s.terrain(bankpoly(river, 185, 460, side=1), height=24, size=110,
-              rough=70)
+              rough=70, model=2)
     s.terrain(bankpoly(river, 185, 460, side=-1), height=24, size=110,
-              rough=70)
+              rough=70, model=2)
     s.terrain(blob(250, 1350, 380, 12.4, n=26, squash=0.9, wob=0.12),
               height=20, size=58, rough=55)
     # Road crosses the channel E->W at the gorge narrows — BridgePainter

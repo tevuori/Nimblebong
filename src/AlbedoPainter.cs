@@ -405,13 +405,33 @@ public partial class AlbedoPainter : Node2D
                 var top = m.Tops[ti];
                 var tR = (m.TopRoughness[ti]) / 100;
                 var tseed = top[0].X * 0.31 + top[0].Y * 0.47;
-                var dry = System.Math.Min(
-                    0.11,
-                    0.03 + m.Height * 0.0005 + tR * 0.03 + Rng.Noise(tseed) * 0.03
-                );
+                // Terrain model 2 = barren rock plateau — canyon rims
+                // like the Nimblehold grey-table tops, not turf.
+                var barren = m.Model == 2;
                 var lift = 3 + Rng.Noise(tseed + 1) * 5;
-                Fill(top, Palette.Tint(Palette.Mix(Ground, Stone, dry), lift));
-                if (GrassTile > 0 && !Winter)
+                Fill(
+                    top,
+                    barren
+                        ? Palette.Tint(
+                            Palette.Mix(Stone, Cliff, 0.5 + Rng.Noise(tseed) * 0.25),
+                            lift + 4
+                        )
+                        : Palette.Tint(
+                            Palette.Mix(
+                                Ground,
+                                Stone,
+                                System.Math.Min(
+                                    0.11,
+                                    0.03 + m.Height * 0.0005 + tR * 0.03
+                                        + Rng.Noise(tseed) * 0.03
+                                )
+                            ),
+                            lift
+                        )
+                );
+                if (barren)
+                    TextureTiles.Stamp(this, top, TextureTiles.Cliff, 0.22f);
+                else if (GrassTile > 0 && !Winter)
                     TextureTiles.Stamp(this, top, TextureTiles.Grass, 0.3f);
                 var (tx, ty) = BBox(top);
                 for (var i = 0; i < 12; i++)

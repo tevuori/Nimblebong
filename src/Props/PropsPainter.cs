@@ -289,25 +289,25 @@ public partial class PropsPainter : Node2D
     void DrawTree(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var r = 24 * rand.Range(0.85, 1.15);
+        var r = 26 * rand.Range(0.85, 1.2);
         var color = JitterGreen(Foliage, rand);
-        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.5);
-        var clump = rand.Next() < 0.3;
+        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.55);
+        var clump = rand.Next() < 0.12;
 
         ContactShadow(p, r * 0.95, r * 0.8);
 
         var parts = new List<Vector2[]>();
-        var lobes = clump ? 4 + (int)(rand.Next() * 3) : 7 + (int)(rand.Next() * 4);
+        var lobes = clump ? 4 + (int)(rand.Next() * 3) : 8 + (int)(rand.Next() * 4);
         var rot = rand.Next() * Math.PI * 2;
         for (var k = 0; k < lobes; k++)
         {
             var a = rot + (k / (double)lobes) * Math.PI * 2 + (rand.Next() - 0.5) * 0.5;
-            var d = r * (clump ? 0.58 : 0.46) * rand.Range(0.8, 1.1);
-            var lr = clump ? rand.Range(0.3, 0.42) : rand.Range(0.4, 0.56);
+            var d = r * (clump ? 0.56 : 0.42) * rand.Range(0.8, 1.1);
+            var lr = clump ? rand.Range(0.34, 0.46) : rand.Range(0.48, 0.62);
             parts.Add(Blob(Math.Cos(a) * d, Math.Sin(a) * d, r * lr, rand));
         }
         if (!clump)
-            parts.Add(Blob(0, 0, r * 0.55, rand));
+            parts.Add(Blob(0, 0, r * 0.62, rand));
 
         // Shared silhouette: thick edge stroke under every piece reads
         // as one ink outline around the whole canopy.
@@ -340,9 +340,8 @@ public partial class PropsPainter : Node2D
         );
         // Trunk peeking out past the canopy's south edge — screen-south
         // (unrotated), drawn last so the lobes don't swallow it.
-        var trunk = XformU(p, Poly.Ellipse(r * 0.06, r * 0.8, r * 0.07, r * 0.18, 0.1, 8));
+        var trunk = XformU(p, Poly.Ellipse(r * 0.04, r * 0.72, r * 0.05, r * 0.1, 0.1, 8));
         Fill(trunk, Palette.Mix(Wood, Colors.Black, 0.12));
-        Stroke(trunk, Palette.Mix(Wood, Colors.Black, 0.5), (float)Math.Max(0.6, 0.9 * p.Scale));
         // Leaf-arc texture in two tones.
         foreach (var tone in new[] { Palette.Mix(color, Colors.Black, 0.2), Palette.Mix(color, Colors.White, 0.18) })
         {
