@@ -65,7 +65,31 @@ public partial class WaterPainter : Node2D
         }
         var simple = Interactions.SimplifyPath(poly, 1.2);
         if (simple.Count >= 3 && Geometry2D.TriangulatePolygon([.. simple]).Length > 0)
+        {
             DrawColoredPolygon([.. simple], color);
+            return;
+        }
+        // Last resorts — self-merge repairs winding on self-crossing
+        // unions; when even that fails, intersecting with a huge rect
+        // makes the clipper re-emit clean simply-connected pieces.
+        var repaired = false;
+        foreach (var piece in Geometry2D.MergePolygons(poly, poly))
+            if (piece.Length >= 3 && Geometry2D.TriangulatePolygon(piece).Length > 0)
+            {
+                DrawColoredPolygon(piece, color);
+                repaired = true;
+            }
+        if (repaired)
+            return;
+        Vector2[] box = [new(-8192, -8192), new(8192, -8192), new(8192, 8192), new(-8192, 8192)];
+        foreach (var piece in Geometry2D.IntersectPolygons(poly, box))
+            if (piece.Length >= 3 && Geometry2D.TriangulatePolygon(piece).Length > 0)
+            {
+                DrawColoredPolygon(piece, color);
+                repaired = true;
+            }
+        if (!repaired && System.Environment.GetEnvironmentVariable("DMMAP_DEBUG_WATER") != null)
+            GD.PrintErr($"WaterPainter: unpaintable poly pts={poly.Length}");
     }
 
     /// <summary>Ribbon fill that survives self-intersections at tight
@@ -129,26 +153,28 @@ public partial class WaterPainter : Node2D
         // Bank stack per stroke — wide grassy verge, pale trodden edge,
         // deep rim, inked shoreline. Drawn before the unioned fill so the
         // merged water covers the seams inside a confluence (TS order).
+        // Bank stack + water surface as wide polylines along the center —
+        // round joins cover confluences seamlessly and polylines can't
+        // fail triangulation the way unioned ribbon polygons do on thin
+        // branch channels.
         foreach (var (run, w) in _rivers)
         {
-            FillRibbon(Spline.StrokePolygon(run, w + 22), BankVerge);
-            FillRibbon(Spline.StrokePolygon(run, w + 18), BankEdge);
-            FillRibbon(Spline.StrokePolygon(run, w + 3), deep);
-            InkOutline(
-                Spline.StrokePolygon(run, w + 5),
-                Palette.Hex("#1d2b1c") with { A = 0.65f },
-                1.6f
-            );
+            DrawPolyline(run, BankVerge, (float)(w + 22), true);
+            DrawPolyline(run, BankEdge, (float)(w + 18), true);
+            DrawPolyline(run, deep, (float)(w + 3), true);
         }
-        // Unioned water surface — shallow rim, then center, then a darker
-        // core — so confluences read as one body of water.
-        foreach (var piece in UnionAll(_rivers, 0))
-            Fill(piece, shallow);
+        // One inked shoreline around the merged water — per-stroke
+        // outlines drew spikes where ribbons meet at a confluence.
+        foreach (var piece in UnionAll(_rivers, 5))
+            InkOutline(piece, Palette.Hex("#1d2b1c") with { A = 0.65f }, 1.6f);
+        foreach (var (run, w) in _rivers)
+            DrawPolyline(run, shallow, (float)w, true);
+        foreach (var (run, w) in _rivers)
+            DrawPolyline(run, Water, (float)Math.Max(3, w - 10), true);
+        // Hand-painted water tile — caustic ripples over the painted
+        // depth bands, wherever the union surface triangulates.
         foreach (var piece in UnionAll(_rivers, -10))
         {
-            Fill(piece, Water);
-            // Hand-painted water tile — caustic ripples over the painted
-            // depth bands, offset by a per-stroke noise seed like the web.
             var seed = piece.Length > 0 ? piece[0].X * 0.13 + piece[0].Y * 0.31 : 0;
             TextureTiles.Stamp(
                 this,
@@ -159,11 +185,93 @@ public partial class WaterPainter : Node2D
                 new Vector2((float)(Rng.Noise(seed) * 120), (float)(Rng.Noise(seed * 1.7) * 120))
             );
         }
-        foreach (var piece in UnionAll(_rivers, -18))
-            Fill(piece, Palette.Tint(Water, -20));
+        foreach (var (run, w) in _rivers)
+            DrawPolyline(run, Palette.Tint(Water, -20), (float)Math.Max(3, w - 18), true);
         foreach (var (run, w) in _rivers)
             DrawRiverDetails(run, w);
+        RiverPebbles();
         RockRipples();
+    }
+
+    /// <summary>Gravel bars — seeded clusters of wet pebbles in the
+    /// shallows near the banks, like the reference's stony riverbed
+    /// patches. Plus a few mid-channel stones that break the surface
+    /// with a foam tick.</summary>
+    void RiverPebbles()
+    {
+        var pieces = UnionAll(_rivers, -4);
+        foreach (var (run, w) in _rivers)
+        {
+            var normals = Spline.Normals(run);
+            for (var i = 0; i < run.Length; i += 5)
+            {
+                var p = run[i];
+                var ni = Math.Min(i, normals.Length - 1);
+                var n = ni >= 0 ? normals[ni] : new Vector2(0, -1);
+                var seed = p.X * 0.23 + p.Y * 0.37 + i * 2.9;
+                var roll = Rng.Noise(seed);
+                if (roll < 0.62)
+                    continue;
+                // Gravel patch hugging one bank — 3-6 pebbles fanned
+                // off the water edge.
+                var side = Rng.Noise(seed + 1) > 0.5 ? 1f : -1f;
+                var baseOff = side * (float)(w * 0.5 - 6 - Rng.Noise(seed + 2) * w * 0.2);
+                var pebbles = 3 + (int)(Rng.Noise(seed + 3) * 4);
+                for (var k = 0; k < pebbles; k++)
+                {
+                    var c = p
+                        + n * baseOff
+                        + new Vector2(
+                            (float)(Rng.Noise(seed + 4 + k * 2) - 0.5) * 16,
+                            (float)(Rng.Noise(seed + 5 + k * 2) - 0.5) * 16
+                        );
+                    var wet = false;
+                    foreach (var piece in pieces)
+                        if (Poly.PointInPolygon(c, piece))
+                        {
+                            wet = true;
+                            break;
+                        }
+                    if (!wet)
+                        continue;
+                    var r = 1.8 + Rng.Noise(seed + 6 + k) * 3.4;
+                    var lump = Poly.Ellipse(
+                        c.X,
+                        c.Y,
+                        r,
+                        r * (0.6 + Rng.Noise(seed + 7 + k) * 0.4),
+                        Rng.Noise(seed + 8 + k) * Math.PI,
+                        6
+                    );
+                    Fill(
+                        lump,
+                        Palette.Tint(
+                            Water,
+                            40 + Rng.Noise(seed + 9 + k) * 40
+                        )
+                    );
+                    DrawPolyline(lump, Palette.TintAlpha(Water, -50, 0.5f), 0.9f, true);
+                }
+                // Rare mid-channel breaker — bigger stone + foam wake.
+                if (roll > 0.93)
+                {
+                    var c = p + n * (float)((Rng.Noise(seed + 10) - 0.5) * w * 0.4);
+                    var r = 4 + Rng.Noise(seed + 11) * 5;
+                    var lump = Poly.Ellipse(c.X, c.Y, r, r * 0.75, Rng.Noise(seed + 12) * Math.PI, 7);
+                    Fill(lump, Palette.Tint(Water, 55));
+                    DrawPolyline(lump, Palette.TintAlpha(Water, -50, 0.6f), 1.1f, true);
+                    DrawArc(
+                        c,
+                        (float)(r + 5),
+                        (float)(Rng.Noise(seed + 13) * 6.28),
+                        (float)(Rng.Noise(seed + 13) * 6.28 + 2.6),
+                        7,
+                        new Color(0.92f, 0.97f, 0.95f, 0.6f),
+                        1.8f
+                    );
+                }
+            }
+        }
     }
 
     /// <summary>Broken concentric ripple arcs + a foam crown around each

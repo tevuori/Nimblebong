@@ -9,7 +9,7 @@ namespace DmMap;
 
 public static class TextureTiles
 {
-    static Texture2D? _grass, _stone, _water;
+    static Texture2D? _grass, _stone, _water, _cliff, _strata;
 
     public static Texture2D Grass =>
         _grass ??= GD.Load<Texture2D>("res://assets/textures/ground-grass.png");
@@ -19,6 +19,14 @@ public static class TextureTiles
 
     public static Texture2D Water =>
         _water ??= GD.Load<Texture2D>("res://assets/textures/water-surface.png");
+
+    /// <summary>Dressed-stone cliff face — the canyon wall tile.</summary>
+    public static Texture2D Cliff =>
+        _cliff ??= GD.Load<Texture2D>("res://assets/textures/cliff-face.png");
+
+    /// <summary>Sedimentary strata wall — the bone-slab ink face.</summary>
+    public static Texture2D Strata =>
+        _strata ??= GD.Load<Texture2D>("res://assets/textures/cliff-strata.png");
 
     /// <summary>Stamp a repeating tile clipped inside `poly`. UVs come from
     /// (world position − offset) / tile size / scale, so the pattern is

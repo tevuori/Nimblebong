@@ -345,56 +345,71 @@ def ref03():
 
 
 def ref04():
-    """Dense forest + thatch village + river."""
+    """Woodland market — thatch stalls, winding paths, cliff ridges."""
     s = Scene(1748, 950, name="ref-04")
-    s.terrain(blob(1100, 350, 400, 7.3, n=28, squash=0.6, wob=0.13),
-              height=22, size=52, rough=45)
-    s.terrain(blob(1120, 360, 230, 9.1, n=24, squash=0.6, wob=0.13),
-              height=46, size=48, rough=55)
-    s.terrain(blob(600, 780, 360, 10.6, n=26, squash=0.5, wob=0.13),
-              height=20, size=46, rough=40)
-    # River along east edge + a brook south.
-    s.river([(1560, -40), (1500, 200), (1560, 420), (1480, 620),
-             (1520, 840), (1460, 990)], 80)
-    s.river([(1100, 990), (1000, 800), (950, 640), (900, 520)], 46)
-    # Road network.
-    s.road([(-40, 300), (300, 320), (600, 380), (900, 420),
-            (1200, 460), (1500, 500)], 22)
-    s.road([(420, -40), (460, 220), (600, 380), (640, 620),
-            (700, 900)], 18)
-    s.road([(600, 380), (400, 560), (300, 780)], 14)
-    # Village — thatch cluster NW.
-    village = blob(330, 180, 260, 3.3, n=20, squash=0.7)
-    s.shape("field", village)
-    houses = [(240, 130), (360, 100), (300, 230), (430, 190),
-              (200, 260), (470, 90), (500, 200), (150, 190),
-              (560, 110), (390, 300)]
-    for i, (x, y) in enumerate(houses):
-        s.house(x, y, 62 + rng(i * 3) * 26, 44 + rng(i * 5) * 16,
-                rng(i * 7) * 0.9 - 0.45, model=2, color="#b7a955")
-    for x, y in [(520, 250), (560, 160), (380, 300)]:
-        s.prop("crate", x, y, scale=24)
-    s.prop("well", 350, 175, scale=30)
-    # Red-roof homes south.
-    for i, (x, y) in enumerate([(420, 830), (560, 870), (300, 890),
-                                (700, 840)]):
-        s.house(x, y, 72, 50, rng(i * 7) * 0.8 - 0.4)
-    # Stone circle mid-east.
-    s.prop("stonecircle", 1080, 700, scale=24 * 2.6)
-    # Dense forest — everything else.
-    s.scatter(blob(1350, 700, 450, 25.9, n=26, squash=0.9), "tree",
-              step=52, density=0.85, smin=1.5, smax=2.6, seed=61)
-    s.scatter(blob(800, 150, 500, 27.7, n=26, squash=0.55), "tree",
-              step=52, density=0.8, smin=1.5, smax=2.5, seed=63)
-    s.scatter(blob(700, 700, 380, 29.4, n=24, squash=0.7), "tree",
-              step=55, density=0.75, smin=1.5, smax=2.5, seed=67,
-              avoid=blob(560, 380, 260, 28.8))
-    s.scatter(blob(1600, 100, 240, 31.2, n=20, squash=0.8), "pine",
-              step=50, density=0.8, smin=1.6, smax=2.5, seed=69)
-    s.scatter(blob(300, 1100, 300, 35.5, n=20, squash=0.7), "tree",
-              step=55, density=0.75, smin=1.5, smax=2.4, seed=70)
-    s.scatter(blob(1150, 250, 260, 37.2, n=20, squash=0.8), "tree",
-              step=55, density=0.7, smin=1.5, smax=2.4, seed=72)
+    # White rocky ridges — a long broken terrace east, a small mound
+    # centre, a low ledge south-west. Stairs appear where paths cross.
+    ridge1 = catmull([(980, -30), (1010, 120), (960, 300), (1010, 480),
+                      (960, 620)], n=40, wob=0.06, seed=5.1)
+    s.terrain(bankpoly(ridge1, -80, 160), height=20, size=54, rough=55)
+    ridge2 = catmull([(680, -40), (700, 140), (660, 320), (700, 500)],
+                     n=40, wob=0.06, seed=7.7)
+    s.terrain(bankpoly(ridge2, -60, 120), height=16, size=46, rough=50)
+    s.terrain(blob(580, 620, 150, 11.2, n=22, squash=0.85, wob=0.12),
+              height=18, size=44, rough=48)
+    s.terrain(blob(1200, 780, 170, 13.6, n=22, squash=0.8, wob=0.12),
+              height=22, size=48, rough=50)
+    # River south-east corner with a bridge where the path crosses.
+    s.river([(1250, 990), (1240, 820), (1340, 660), (1300, 540),
+             (1360, 420), (1340, 300), (1420, 200), (1400, 60)], 74)
+    # Winding dirt path network — the market lanes.
+    s.road([(-40, 260), (240, 300), (480, 380), (700, 420), (960, 460),
+            (1240, 520), (1330, 610), (1420, 660), (1560, 680)], 20)
+    s.road([(350, -40), (380, 160), (480, 380), (560, 600), (620, 840),
+            (700, 990)], 16)
+    s.road([(480, 380), (760, 300), (1000, 260), (1260, 240),
+            (1500, 220)], 14)
+    s.road([(960, 460), (980, 640), (1060, 800), (1180, 900)], 12)
+    # Market stalls — big thatched rectangles NW + a second cluster E.
+    for i, (x, y, w, h, a) in enumerate([
+            (60, 60, 150, 90, -0.1), (150, 180, 140, 85, 0.15),
+            (30, 300, 130, 80, -0.05), (220, 60, 120, 75, 0.2),
+            (260, 230, 120, 70, -0.25), (80, 420, 110, 70, 0.1),
+            (1140, 60, 150, 95, 0.35), (1290, 90, 130, 80, 0.3)]):
+        s.house(x, y, w, h, a, model=2, color="#b7a955")
+    # Market clutter — stall props, carts, crates, tables.
+    for i, (x, y) in enumerate([(330, 150), (180, 360), (300, 420),
+                                (1050, 130), (1220, 200)]):
+        s.prop("stall", x, y, scale=70 + (i % 3) * 10, rot=rng(i * 11) - 0.5,
+               model=i % 3)
+    for x, y in [(420, 480), (520, 470), (640, 500), (840, 430),
+                 (1080, 500), (240, 500)]:
+        s.prop("table", x, y, scale=34, rot=rng(x) * 1.2 - 0.6)
+    for x, y, a in [(520, 560, 0.4), (700, 560, -0.9), (900, 380, 0.2),
+                    (1150, 300, 1.2)]:
+        s.prop("cart", x, y, scale=88, rot=a)
+    for x, y in [(600, 460), (740, 380), (380, 440), (1010, 420),
+                 (1300, 160)]:
+        s.prop("crate", x, y, scale=40)
+    s.prop("well", 700, 470, scale=42)
+    s.prop("lantern", 640, 430, scale=30)
+    s.prop("lantern", 760, 500, scale=30)
+    # Red-roof homes south-west + south-east (as in the ref).
+    for i, (x, y, a) in enumerate([(200, 830, -0.3), (330, 870, 0.2),
+                                   (260, 900, 0.6), (1180, 880, -0.4)]):
+        s.house(x, y, 80, 54, a)
+    # Scattered woodland — sparse clumps with wide grass clearings
+    # between the lanes, like the ref's open market commons.
+    s.scatter(blob(600, 150, 300, 41.2, n=20, squash=0.6), "tree",
+              step=110, density=0.65, smin=1.5, smax=2.6, seed=61)
+    s.scatter(blob(1500, 450, 280, 45.3, n=20, squash=0.8), "tree",
+              step=105, density=0.6, smin=1.5, smax=2.5, seed=63)
+    s.scatter(blob(250, 650, 280, 47.8, n=18, squash=0.7), "tree",
+              step=105, density=0.6, smin=1.5, smax=2.4, seed=67)
+    s.scatter(blob(1000, 700, 300, 51.4, n=18, squash=0.7), "tree",
+              step=100, density=0.6, smin=1.5, smax=2.4, seed=69)
+    s.scatter(blob(1050, 200, 240, 55.1, n=16, squash=0.6), "tree",
+              step=100, density=0.55, smin=1.4, smax=2.3, seed=71)
     s.save("ref-04")
 
 
@@ -444,43 +459,62 @@ def ref05():
 
 
 def ref06():
-    """Terraced fields + shrine + paths."""
+    """Hilltop graveyard — stone plot rows, ossuary mound, dead trees."""
     s = Scene(1228, 685, name="ref-06")
-    # Round terraces.
-    s.terrain(blob(330, 180, 200, 2.9, n=26, squash=0.8, wob=0.10),
-              height=20, size=48, rough=30)
-    s.terrain(blob(850, 220, 240, 4.5, n=26, squash=0.8, wob=0.10),
-              height=22, size=50, rough=35)
-    s.terrain(blob(860, 230, 140, 6.1, n=22, squash=0.8, wob=0.10),
-              height=46, size=44, rough=42)
-    s.terrain(blob(400, 520, 220, 7.8, n=26, squash=0.75, wob=0.10),
-              height=24, size=46, rough=32)
-    # Shrine on the left terrace.
-    s.prop("stonecircle", 330, 180, scale=24 * 2.3)
-    s.prop("statue", 330, 180, scale=26)
-    # Field paddocks — stone-edged rectangles (fence strokes).
-    paddocks = [(560, 400, 150, 90), (760, 430, 140, 80),
-                (600, 560, 130, 80), (1000, 350, 120, 90),
-                (1040, 500, 120, 80), (500, 300, 100, 70),
-                (920, 560, 140, 80), (1130, 420, 90, 110),
-                (620, 200, 110, 80), (480, 630, 120, 50)]
-    for x, y, w, h in paddocks:
-        pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h],
-               [x, y]]
-        s.stroke("wall", pts, 10)
-    # Paths.
-    s.road([(-30, 400), (200, 360), (450, 320), (700, 300), (950, 280)], 18)
-    s.road([(700, 300), (720, 480), (680, 685)], 14)
-    # Trees on/around terraces.
-    for x, y in [(250, 140), (420, 200), (900, 180), (830, 300),
-                 (360, 480), (480, 560), (1100, 200)]:
-        s.prop("tree", x, y, scale=24 * (1.4 + rng(x) * 0.6),
-               seed=Scene.oakseed(x, y))
-    s.scatter(blob(120, 560, 140, 13.7, n=18, squash=0.9), "tree",
-              step=80, density=0.7, smin=1.7, smax=2.5, seed=71)
-    # Chests/crates on terraces.
-    s.prop("chest", 880, 200, scale=26)
-    s.prop("bale", 400, 540, scale=28)
+    # Low pale terraces like the ref's grassy mounds.
+    s.terrain(blob(300, 160, 210, 2.9, n=26, squash=0.8, wob=0.10),
+              height=14, size=44, rough=30)
+    s.terrain(blob(880, 140, 230, 4.5, n=26, squash=0.8, wob=0.10),
+              height=16, size=46, rough=32)
+    s.terrain(blob(430, 540, 200, 7.8, n=26, squash=0.75, wob=0.10),
+              height=14, size=44, rough=28)
+    s.terrain(blob(950, 480, 190, 9.3, n=24, squash=0.8, wob=0.10),
+              height=12, size=42, rough=26)
+    # Ossuary mound centre — stone circle, skull fountain, bone piles.
+    s.prop("stonecircle", 610, 330, scale=24 * 2.4)
+    s.prop("fountain", 610, 330, scale=38)
+    s.prop("bones", 580, 300, scale=40)
+    s.prop("bones", 650, 360, scale=36)
+    s.prop("pillar", 560, 350, scale=40, rot=0.3)
+    s.prop("pillar", 665, 315, scale=36, rot=-0.5)
+    # Grave plot rows — small stone-edged rectangles everywhere,
+    # loosely following the lane directions like the ref.
+    plots = [
+        (80, 120), (140, 110), (200, 130), (90, 230), (160, 240),
+        (220, 220), (60, 340), (130, 350), (700, 60), (770, 70),
+        (840, 60), (910, 80), (980, 70), (760, 160), (830, 170),
+        (900, 160), (1020, 140), (1090, 150), (60, 500), (130, 520),
+        (200, 500), (700, 520), (770, 540), (840, 520), (910, 540),
+        (1000, 300), (1070, 320), (1130, 300), (990, 400), (1060, 420),
+        (1130, 410), (280, 90), (340, 100), (150, 600), (220, 620),
+    ]
+    for i, (x, y) in enumerate(plots):
+        w, h = 58 + (i % 3) * 8, 30 + (i % 2) * 8
+        pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]]
+        s.stroke("wall", pts, 7)
+        if i % 3 == 0:
+            s.prop("grave", x + w * 0.3, y + h * 0.5, scale=26)
+    # Coffins + leaning gravestones near the mound.
+    s.prop("grave", 480, 250, scale=30, rot=0.4)
+    s.prop("grave", 520, 220, scale=28, rot=-0.7)
+    s.prop("grave", 700, 400, scale=30, rot=1.1)
+    s.prop("chest", 560, 260, scale=30, rot=0.5)  # coffin stand-in
+    s.prop("bones", 460, 350, scale=32)
+    s.prop("ruin", 690, 300, scale=38, rot=0.6)
+    # Dirt paths crossing the yard.
+    s.road([(-30, 420), (220, 380), (480, 340), (700, 300), (980, 260),
+            (1260, 240)], 16)
+    s.road([(620, -30), (630, 160), (610, 330), (640, 500), (660, 690)], 14)
+    s.road([(80, 690), (240, 560), (480, 460), (610, 330)], 12)
+    # Bare + broadleaf trees dotting the mounds.
+    for i, (x, y) in enumerate([(240, 150), (400, 190), (880, 170),
+                                (1000, 200), (350, 480), (500, 560),
+                                (1100, 480), (150, 440), (760, 120),
+                                (560, 120), (960, 580), (60, 250),
+                                (430, 620), (1050, 60), (300, 320)]):
+        s.prop("tree", x, y, scale=24 * (1.5 + (i % 3) * 0.3),
+               seed=Scene.oakseed(x, y), model=i % 4)
+    s.prop("statue", 610, 290, scale=42)
     s.save("ref-06")
 
 
@@ -544,25 +578,34 @@ def ref08():
               rough=60)
     s.terrain(blob(200, 1600, 420, 7.4, n=26, squash=0.8, wob=0.10),
               height=18, size=56, rough=50)
-    # Jungle: forced palms + big broadleafs hugging both banks.
-    s.scatter(blob(300, 400, 300, 21.6, n=22, squash=1.0), "tree",
-              step=80, density=0.7, smin=1.8, smax=2.8, seed=91,
+    # Jungle: dense forced palms hugging both canyon rims + fern
+    # undergrowth — the ref packs the tops edge-to-edge.
+    s.scatter(blob(280, 380, 330, 21.6, n=22, squash=1.0), "tree",
+              step=60, density=0.85, smin=1.8, smax=2.8, seed=91,
               species="palm")
-    s.scatter(blob(300, 1400, 300, 23.4, n=22, squash=1.0), "tree",
-              step=80, density=0.7, smin=1.8, smax=2.8, seed=93,
+    s.scatter(blob(280, 1350, 330, 23.4, n=22, squash=1.0), "tree",
+              step=60, density=0.85, smin=1.8, smax=2.8, seed=93,
               species="palm")
-    s.scatter(blob(850, 1500, 280, 25.9, n=20, squash=0.9), "tree",
-              step=80, density=0.7, smin=1.8, smax=2.8, seed=97,
+    s.scatter(blob(850, 1500, 300, 25.9, n=20, squash=0.9), "tree",
+              step=60, density=0.85, smin=1.8, smax=2.8, seed=97,
               species="palm")
-    s.scatter(blob(880, 300, 260, 33.1, n=20, squash=1.0), "tree",
-              step=85, density=0.6, smin=1.6, smax=2.4, seed=99,
+    s.scatter(blob(880, 300, 280, 33.1, n=20, squash=1.0), "tree",
+              step=62, density=0.8, smin=1.6, smax=2.4, seed=99,
+              species="palm")
+    s.scatter(blob(860, 900, 280, 38.9, n=20, squash=0.9), "tree",
+              step=62, density=0.8, smin=1.6, smax=2.6, seed=101,
+              species="palm")
+    s.scatter(blob(260, 800, 300, 39.7, n=20, squash=0.95), "tree",
+              step=62, density=0.8, smin=1.6, smax=2.6, seed=103,
               species="palm")
     for x, y in [(200, 700), (280, 1050), (820, 800), (900, 1150),
                  (160, 1750), (950, 350), (740, 480), (350, 560),
-                 (880, 1000), (240, 350), (700, 1550), (940, 600)]:
+                 (880, 1000), (240, 350), (700, 1550), (940, 600),
+                 (150, 500), (400, 1250), (860, 700), (960, 1650),
+                 (200, 950), (780, 1750), (660, 380), (340, 850)]:
         s.prop("bush", x, y, scale=24 * 2.0, model=1)
     s.scatter(blob(700, 500, 200, 41.3, n=18, squash=0.9), "tree",
-              step=75, density=0.65, smin=1.7, smax=2.5, seed=105,
+              step=65, density=0.75, smin=1.7, smax=2.5, seed=105,
               species="palm")
     # Camp by the east bank.
     s.prop("tent", 850, 1250, scale=95, rot=0.4)

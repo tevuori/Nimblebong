@@ -5,6 +5,7 @@
 // routes a path across terrain.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace DmMap;
@@ -71,20 +72,74 @@ public partial class CrossingPainter : Node2D
             }
     }
 
-    /// <summary>Four rungs stepping up the rim across the road, with
-    /// side rails — reads as a staircase from above.</summary>
+    /// <summary>Treaded staircase climbing the rim — filled plank rungs
+    /// between inked stringers, sitting on the slope band just downhill
+    /// of the top edge so it reads as cut into the face, not floating
+    /// on the lawn.</summary>
     void DrawStairs(Vector2 p, Vector2 dir, Vector2 n, float w)
     {
+        // Which side is downhill — probe both ways for the point that
+        // falls outside every top.
+        var downhill = 1.0f;
+        foreach (var s in new[] { 1.0f, -1.0f })
+        {
+            var probe = p + dir * s * 26;
+            var inside = _massifs.Any(m => m.Tops.Any(t => Poly.PointInPolygon(probe, t)));
+            if (!inside)
+            {
+                downhill = s;
+                break;
+            }
+        }
+        var c0 = p + dir * downhill * 14; // sit on the band, not the rim line
         var half = w * 0.5f;
-        var step = w * 0.32f;
-        // side rails
-        DrawLine(p + n * half - dir * step * 2.2f, p + n * half + dir * step * 2.2f, Ink, 1.6f);
-        DrawLine(p - n * half - dir * step * 2.2f, p - n * half + dir * step * 2.2f, Ink, 1.6f);
+        var step = w * 0.34f;
+        var tread = Palette.Hex("#c2aa7c");
+        var treadDark = Palette.Hex("#a98c5e");
+        var rail = Palette.Hex("#51412c");
+
+        // Shadow under the staircase.
+        for (var i = -2; i <= 2; i++)
+            Fill(
+                Rung(c0 + dir * (i * step + 4), n, half, 4),
+                new Color(0.05f, 0.06f, 0.04f, 0.18f)
+            );
+        // Stringers — chunky ink rails a touch wider than the treads.
+        foreach (var s in new[] { -1.0f, 1.0f })
+        {
+            var a = c0 + n * s * (half + 1);
+            DrawLine(a - dir * step * 2.6f, a + dir * step * 2.6f, rail, 2.4f);
+        }
+        // Rungs — alternating plank tones like the bridge deck.
         for (var i = -2; i <= 2; i++)
         {
-            var c = p + dir * (i * step);
-            DrawLine(c + n * half * 0.92f, c - n * half * 0.92f, Ink, 2.0f);
+            var c = c0 + dir * (i * step);
+            var poly = Rung(c, n, half, 5);
+            Fill(poly, (i % 2 == 0) ? tread : treadDark);
+            DrawPolyline([.. poly, poly[0]], rail, 1.4f, true);
+            // End grain — a pale tick at each tread end.
+            foreach (var s in new[] { -1.0f, 1.0f })
+                DrawLine(
+                    c + n * s * (half - 2) - dir * 2,
+                    c + n * s * (half - 2) + dir * 2,
+                    Palette.Tint(tread, 18),
+                    1.4f
+                );
         }
+        // Landing shadow at the downhill foot.
+        DrawCircle(c0 + dir * downhill * step * 3.1f, half * 0.5f, new Color(0.05f, 0.06f, 0.04f, 0.15f));
+    }
+
+    static Vector2[] Rung(Vector2 c, Vector2 n, float half, float thick)
+    {
+        var d = new Vector2(-n.Y, n.X) * (thick / 2); // along the stair
+        return [c + n * half - d, c + n * half + d, c - n * half + d, c - n * half - d];
+    }
+
+    void Fill(Vector2[] poly, Color color)
+    {
+        if (poly.Length >= 3 && Geometry2D.TriangulatePolygon(poly).Length > 0)
+            DrawColoredPolygon(poly, color);
     }
 
     /// <summary>Bright lip across the river + foam arcs just below it

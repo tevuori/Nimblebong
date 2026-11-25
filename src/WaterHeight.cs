@@ -25,26 +25,15 @@ public partial class WaterHeight : Node2D
 
     static Color Gray(double v) => new((float)v, (float)v, (float)v);
 
-    void Fill(Vector2[] poly, Color color)
-    {
-        if (poly.Length >= 3 && Geometry2D.TriangulatePolygon(poly).Length > 0)
-            DrawColoredPolygon(poly, color);
-    }
-
-    void FillRibbon(Vector2[] poly, Color color)
-    {
-        foreach (var piece in Geometry2D.MergePolygons(poly, poly))
-            Fill(piece, color);
-    }
-
     public override void _Draw()
     {
         foreach (var (run, w) in _rivers)
         {
             // Wide shallow cut where the banks slope in, deep channel
-            // under the water surface itself.
-            FillRibbon(Spline.StrokePolygon(run, w + 12), Gray(BankCut));
-            FillRibbon(Spline.StrokePolygon(run, w), Gray(Channel));
+            // under the water surface itself — polylines can't fail
+            // triangulation the way ribbon polygons can.
+            DrawPolyline(run, Gray(BankCut), (float)(w + 12), true);
+            DrawPolyline(run, Gray(Channel), (float)w, true);
         }
     }
 }

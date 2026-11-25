@@ -206,7 +206,13 @@ public partial class AlbedoPainter : Node2D
             // band overlaps its top edge.
             var wall = TerrainGeometry.Subtract(m.Wall, higher);
             foreach (var poly in wall)
+            {
                 Fill(poly, Palette.Tint(face, dirt ? -10 : -28));
+                // Strata texture on the hanging face — the reference's
+                // striped sedimentary cliff wall.
+                if (!dirt)
+                    TextureTiles.Stamp(this, poly, TextureTiles.Strata, 0.35f, 0.6);
+            }
 
             // Slope band — pre-clipped pieces, punched out of higher tops.
             var bandPieces = TerrainGeometry.Subtract(m.Band, higher);
@@ -217,7 +223,10 @@ public partial class AlbedoPainter : Node2D
                 // the ink pack leaves the slab face clean so the crack
                 // mesh carries the texture.
                 if (!dirt && Biome?.ArtPack != "ink")
+                {
                     TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.38f, 0.55);
+                    TextureTiles.Stamp(this, poly, TextureTiles.Cliff, 0.3f, 0.5);
+                }
             }
             // Crack mesh on the stone face — dominant in the ink pack
             // (the 2mt slab signature), a faint fracture hint elsewhere.
@@ -539,6 +548,46 @@ public partial class AlbedoPainter : Node2D
                     if (dark.Length >= 3)
                         Fill(dark, Palette.TintAlpha(Cliff, -18, 0.5));
                     DrawPolyline(cpts, ink, 1.6f, true);
+                }
+            }
+
+            // Rim scree — jumbled pebbles straddling the lip break the
+            // smooth contour into the reference's rocky crumble edge.
+            if (!dirt)
+            foreach (var top in m.Tops)
+            {
+                var tcen2 = Poly.Centroid(top);
+                foreach (var (point, index) in Sample(top, 11))
+                {
+                    var seed = point.X * 0.29 + point.Y * 0.41 + index * 1.7;
+                    if (Rng.Noise(seed) < 0.38)
+                        continue;
+                    var inAng = Mathf.Atan2(tcen2.Y - point.Y, tcen2.X - point.X);
+                    var dir2 = new Vector2(
+                        (float)System.Math.Cos(inAng),
+                        (float)System.Math.Sin(inAng)
+                    );
+                    var c = point + dir2 * (float)((Rng.Noise(seed + 1) - 0.58) * 15);
+                    var count = Rng.Noise(seed + 6) < 0.4 ? 2 : 1;
+                    for (var k = 0; k < count; k++)
+                    {
+                        var cc = c
+                            + new Vector2(
+                                (float)(Rng.Noise(seed + 7 + k) - 0.5) * 8,
+                                (float)(Rng.Noise(seed + 8 + k) - 0.5) * 8
+                            );
+                        var r = 2.6 + Rng.Noise(seed + 2 + k) * 6.5;
+                        var lump = Poly.Ellipse(
+                            cc.X,
+                            cc.Y,
+                            r,
+                            r * (0.65 + Rng.Noise(seed + 3 + k) * 0.35),
+                            Rng.Noise(seed + 4 + k) * System.Math.PI,
+                            7
+                        );
+                        Fill(lump, Palette.Tint(face, -10 + Rng.Noise(seed + 5 + k) * 24));
+                        DrawPolyline(lump, Palette.TintAlpha(face, -30, 0.55), 1f, true);
+                    }
                 }
             }
         }

@@ -39,57 +39,67 @@ public partial class BridgePainter : Node2D
             else if (s.Kind == Kinds.River)
                 rivers.Add(s);
         }
+        // River surface union — the bridge deck is measured on the road's
+        // actual submerged run, so it lands bank-to-bank however skewed
+        // the crossing is.
+        var waterPolys = WaterPainter.UnionAll(
+            rivers.Select(r => (Spline.Resample(r.Points, 14), r.Width)).ToList(),
+            0
+        );
+        bool InWater(Vector2 p)
+        {
+            foreach (var w in waterPolys)
+                if (Poly.PointInPolygon(p, w))
+                    return true;
+            return false;
+        }
         foreach (var road in roads)
         {
             var rp = Spline.Resample(road.Points, 14).ToList();
-            foreach (var river in rivers)
+            // Runs of resampled road points inside the water surface.
+            var i = 0;
+            while (i < rp.Count)
             {
-                var rv = Spline.Resample(river.Points, 14).ToList();
-                for (var i = 1; i < rp.Count; i++)
-                for (var j = 1; j < rv.Count; j++)
+                if (!InWater(rp[i]))
                 {
-                    var point = SegIntersect(rp[i - 1], rp[i], rv[j - 1], rv[j]);
-                    if (point == null)
-                        continue;
-                    var pt = point.Value;
-                    // Skip hits right at either line's endpoints and hits
-                    // within a river's width of an existing bridge.
-                    if (
-                        rp[0].DistanceTo(pt) < 0.001
-                        || rp[^1].DistanceTo(pt) < 0.001
-                        || rv[0].DistanceTo(pt) < 0.001
-                        || rv[^1].DistanceTo(pt) < 0.001
-                    )
-                        continue;
-                    var near = false;
-                    foreach (var b in _bridges)
-                        if (b.Point.DistanceTo(pt) < river.Width)
-                        {
-                            near = true;
-                            break;
-                        }
-                    if (near)
-                        continue;
-                    var angle = Math.Atan2(rp[i].Y - rp[i - 1].Y, rp[i].X - rp[i - 1].X);
-                    var crossing = Math.Abs(
-                        Math.Sin(
-                            angle
-                                - Math.Atan2(rv[j].Y - rv[j - 1].Y, rv[j].X - rv[j - 1].X)
-                        )
-                    );
-                    if (crossing < 0.25)
-                        continue;
-                    _bridges.Add(
-                        new Bridge
-                        {
-                            Point = pt,
-                            Angle = angle,
-                            Length = (river.Width + 24) / crossing,
-                            Width = road.Width + 12,
-                            Model = ((road.Model % 3) + 3) % 3,
-                        }
-                    );
+                    i++;
+                    continue;
                 }
+                var a = i;
+                while (i < rp.Count && InWater(rp[i]))
+                    i++;
+                var b = i; // rp[b] is the first dry point after the run
+                // Road starting or ending inside the water is a dead-end
+                // ford, not a bridge over it.
+                if (a == 0 || b == rp.Count)
+                    continue;
+                var start = rp[Math.Max(0, a - 1)];
+                var end = rp[Math.Min(rp.Count - 1, b)];
+                var span = end - start;
+                if (span.Length() < 34)
+                    continue;
+                // Skip crossings that barely dip in — a road grazing the
+                // bank, not a bridge.
+                var mid = (start + end) / 2;
+                var near = false;
+                foreach (var br in _bridges)
+                    if (br.Point.DistanceTo(mid) < span.Length() * 0.5)
+                    {
+                        near = true;
+                        break;
+                    }
+                if (near)
+                    continue;
+                _bridges.Add(
+                    new Bridge
+                    {
+                        Point = mid,
+                        Angle = Math.Atan2(span.Y, span.X),
+                        Length = start.DistanceTo(end) + 14,
+                        Width = road.Width + 12,
+                        Model = ((road.Model % 3) + 3) % 3,
+                    }
+                );
             }
         }
         QueueRedraw();
