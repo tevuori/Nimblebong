@@ -320,7 +320,7 @@ public partial class MapEditor : Node2D
         _thumbs = ToolThumbs.Create(_ui);
         AddChild(_thumbs);
         _history = new SceneHistory(_view.Scene);
-        _ghost = new GhostLayer();
+        _ghost = new GhostLayer { View = _view };
         AddChild(_ghost);
         _playLayer = new PlayLayer { Visible = false };
         AddChild(_playLayer);
@@ -345,6 +345,51 @@ public partial class MapEditor : Node2D
         var uiShot = System.Environment.GetEnvironmentVariable("DMMAP_UI_SHOT");
         if (uiShot != null)
             CallDeferred(nameof(UiShot), uiShot);
+        var ghostShot = System.Environment.GetEnvironmentVariable("DMMAP_GHOST_SHOT");
+        if (ghostShot != null)
+            CallDeferred(nameof(GhostShot), ghostShot);
+    }
+
+    /// <summary>Probe: bake a road + river, activate the painted stroke
+    /// ghost on a T-junction arm, dump the window, quit.</summary>
+    async void GhostShot(string path)
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene =>
+        {
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(200, 420), new(520, 430), new(880, 500), new(1100, 560)],
+                    Width = 18,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.River,
+                    Points = [new(240, 120), new(500, 180), new(760, 140)],
+                    Width = 22,
+                }
+            );
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _tool = Tools.First(t => t.Kind == Kinds.Road);
+        _ghost.SetStroke(
+            _tool,
+            [new(560, 190), new(575, 300), new(588, 380), new(600, 448)],
+            StrokeWidth()
+        );
+        _ghost.SetSnap(new Vector2(600, 448));
+        for (var i = 0; i < 4; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GetViewport().GetTexture().GetImage().SavePng(path);
+        GetTree().Quit();
     }
 
     /// <summary>Rebuild the dock + thumbnails when the window crosses a
@@ -2709,11 +2754,17 @@ public partial class MapEditor : Node2D
 /// the baked composite.</summary>
 public partial class GhostLayer : Node2D
 {
+    /// <summary>View reference for the painted stroke preview — its
+    /// Scene instance is swapped on every commit, so always read
+    /// View.Scene live.</summary>
+    public SceneView? View;
+
     MapEditor.Mode _mode;
     string _kind = "";
     List<Vector2> _pts = [];
     double _width;
     Massif? _draft;
+    WaterPainter? _strokePaint;
     List<Vector2> _selProps = [];
     List<Vector2[]> _selLines = [];
     List<Vector2[]> _selOutlines = [];
@@ -2749,7 +2800,77 @@ public partial class GhostLayer : Node2D
     public void SetStroke(MapEditor.ToolDef tool, List<Vector2> pts, double width)
     {
         (_mode, _kind, _pts, _width) = (tool.Mode, tool.Kind, [.. pts], width);
+        UpdateStrokePaint();
         QueueRedraw();
+    }
+
+    /// <summary>Painted stroke preview — like the web draft: run the
+    /// in-progress road/river through the real WaterPainter over the
+    /// baked map, merged exactly as the commit would merge it. The
+    /// host's repainted pixels are identical, so junctions read clean
+    /// and nothing dims the existing stroke.</summary>
+    void UpdateStrokePaint()
+    {
+        _strokePaint ??= new WaterPainter { Visible = false };
+        if (_strokePaint.GetParent() == null)
+            AddChild(_strokePaint);
+        _strokePaint.ClearRuns();
+        _strokePaint.Visible = false;
+        var preview = PreviewStroke();
+        if (preview is not { } st)
+            return;
+        var biome = View!.Biome;
+        _strokePaint.Water = biome.Water;
+        _strokePaint.RoadDirt = biome.At("road.dirt");
+        _strokePaint.RoadVerge = biome.At("road.verge");
+        _strokePaint.RoadHalo = biome.At("road.halo");
+        if (st.Kind == Kinds.Road)
+            _strokePaint.AddRoad(st.Points, st.Width);
+        else
+            _strokePaint.AddRiver(st.Points, st.Width);
+        _strokePaint.Visible = true;
+    }
+
+    /// <summary>The stroke the commit would store — merged into the
+    /// touching same-kind host (endpoint concat or T-junction arm),
+    /// else the draft alone. Returns the single changed entry.</summary>
+    Stroke? PreviewStroke()
+    {
+        if (
+            View == null
+            || _mode != MapEditor.Mode.Stroke
+            || _pts.Count < 2
+            || _kind is not (Kinds.Road or Kinds.River)
+        )
+            return null;
+        var scene = View.Scene;
+        // Mirror the commit path exactly: endpoint snap to same-kind
+        // ends, simplify, then merge — the preview is what gets stored.
+        var pts = Interactions.SimplifyPath(_pts);
+        var tol = Math.Max(24, _width);
+        foreach (var s in scene.Strokes)
+        {
+            if (s.Kind != _kind)
+                continue;
+            if (pts[0].DistanceTo(s.Points[0]) <= tol)
+                pts[0] = s.Points[0];
+            if (pts[0].DistanceTo(s.Points[^1]) <= tol)
+                pts[0] = s.Points[^1];
+            if (pts[^1].DistanceTo(s.Points[0]) <= tol)
+                pts[^1] = s.Points[0];
+            if (pts[^1].DistanceTo(s.Points[^1]) <= tol)
+                pts[^1] = s.Points[^1];
+        }
+        var added = new Stroke
+        {
+            Kind = _kind,
+            Points = pts,
+            Width = _width,
+        };
+        var merged = Interactions.MergeStrokeInto(scene.Strokes, added);
+        return merged.FirstOrDefault(m =>
+            !scene.Strokes.Any(s => s.Points.SequenceEqual(m.Points))
+        );
     }
 
     public void Clear()
@@ -2757,6 +2878,7 @@ public partial class GhostLayer : Node2D
         _pts = [];
         _draft = null;
         _snap = null;
+        UpdateStrokePaint();
         QueueRedraw();
     }
 
@@ -2869,6 +2991,10 @@ public partial class GhostLayer : Node2D
             }
             return;
         }
+        // Road/river drafts paint through the real renderer instead
+        // (the translucent ribbon dimmed everything underneath).
+        if (_mode == MapEditor.Mode.Stroke && _strokePaint?.Visible == true)
+            return;
         var col = _kind switch
         {
             Kinds.Wall => new Color(0.72f, 0.71f, 0.6f, 0.5f),

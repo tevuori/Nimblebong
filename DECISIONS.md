@@ -40,6 +40,20 @@
   `Prop.Scale`, glyph `Scale`) — ikony zůstávají ostré v nativním
   rozlišení slotu. Výšky/roughness/elevation se NEškálují.
 
+## Ghost tahu cesta/řeka — malovaný preview místo půlprůhledné čáry
+
+- Web editor renderuje draft skutečným rendererem (`withDraft` v
+  scene-renderer.ts) — Godot port kreslil jen translucidní polyline,
+  která existující tahy pod sebou opticky „šedla“.
+- `GhostLayer` teď pro `Kinds.Road`/`Kinds.River` drží child
+  `WaterPainter` a renderuje **mergnutý** tah (stejný postup jako
+  commit: endpoint snap → `SimplifyPath` → `MergeStrokeInto`, maluje se
+  jen změněný záznam). Host se překreslí identickými pixely, takže
+  T-křižovatka čte čistě už během tahu. Barvy z `View.Biome` živě.
+- `WaterPainter.ClearRuns()` resetuje frontu pro per-move rebuild.
+- Probe hook: `DMMAP_GHOST_SHOT=path` nabakeuje cestu+řeku, aktivuje
+  ghost na T-ramenu a dumpne okno.
+
 ## Přístup
 
 Zdroj pravdy pro styl je webový renderer v `../DMmap` (TS port
