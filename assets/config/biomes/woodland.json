@@ -1,0 +1,97 @@
+{
+  "label": "Zelené pohraničí",
+  "seasons": {
+    "spring": {
+      "look": "spring"
+    },
+    "summer": {
+      "look": "summer"
+    },
+    "autumn": {
+      "look": "autumn",
+      "ground": "#8d8150",
+      "scatter": {
+        "leaves": 2.5
+      }
+    },
+    "winter": {
+      "look": "winter",
+      "ground": "#dfe6e3",
+      "scatter": {
+        "snow": 3,
+        "grass": 0.25
+      },
+      "roads": {
+        "dirt": "#b5a991",
+        "stone": "#aab0ae",
+        "verge": "#c3cbc7",
+        "halo": "#ffffff40"
+      },
+      "water": {
+        "bank": "stone",
+        "edge": "#e8eef0"
+      }
+    }
+  },
+  "palette": {
+    "ground": "#8aab54",
+    "cliff": "#b4b18a",
+    "water": "#298f99",
+    "foliage": "#4e7440",
+    "stone": "#a4a68e",
+    "roof": "#ac6948",
+    "wood": "#a37d4c"
+  },
+  "labels": {
+    "trees": "Listnaté stromy",
+    "bush": "Kvetoucí keře",
+    "house": "Dřevěné domy",
+    "scatter": "Lesní porost"
+  },
+  "trees": {
+    "style": "broadleaf",
+    "species": ["oak", "spruce", "birch"],
+    "summerTint": [
+      {
+        "to": "#63b24b",
+        "amount": 0.45
+      },
+      {
+        "to": "#c2b84a",
+        "amount": 0.28
+      }
+    ]
+  },
+  "ground": {
+    "dirt": "#7d5f3c",
+    "grass": 1,
+    "stones": 0.8,
+    "flowers": 1,
+    "flowerColors": ["#f6f3ea", "#f2d14b", "#d9534f", "#9b7fd1", "#f29ac0"],
+    "patches": 1,
+    "leaves": 1,
+    "snow": 1,
+    "extra": "twigs",
+    "grassTile": 0.3
+  },
+  "roofs": {
+    "material": "tile",
+    "chimney": true,
+    "moss": 0.35,
+    "extra": "none",
+    "winterSnow": true
+  },
+  "water": {
+    "bank": "grass",
+    "edge": null
+  },
+  "roads": {
+    "dirt": "#d1b87c",
+    "stone": "#b3b39b",
+    "verge": "#a7aa64",
+    "halo": "#e6dda055"
+  },
+  "colors": {
+    "lilyPads": "#5d8a45"
+  }
+}

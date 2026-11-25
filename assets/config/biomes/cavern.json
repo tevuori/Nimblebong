@@ -1,0 +1,71 @@
+{
+  "label": "Krystalové podzemí",
+  "seasons": {
+    "summer": {
+      "look": "summer",
+      "label": "Věčné šero"
+    }
+  },
+  "palette": {
+    "ground": "#545c66",
+    "cliff": "#858395",
+    "water": "#438d9b",
+    "foliage": "#8a739c",
+    "stone": "#9291a5",
+    "roof": "#77718d",
+    "wood": "#8d7893"
+  },
+  "labels": {
+    "trees": "Obří houby",
+    "bush": "Svítící houby",
+    "house": "Podzemní úkryty",
+    "scatter": "Houbový prales"
+  },
+  "trees": {
+    "style": "mushroom",
+    "species": ["mushroom", "shroomcluster", "coral"],
+    "summerTint": []
+  },
+  "ground": {
+    "dirt": "#3a3c46",
+    "dryGrass": "#55606a",
+    "grass": 0.1,
+    "stones": 1.4,
+    "flowers": 0.4,
+    "flowerColors": ["#7fe3d0", "#b48ef0", "#8fd3ff"],
+    "patches": 0.8,
+    "leaves": 0,
+    "snow": 0,
+    "extra": "crystals",
+    "grassTile": 0
+  },
+  "roofs": {
+    "material": "slate",
+    "chimney": false,
+    "moss": 0.1,
+    "extra": "crystal-lamps",
+    "winterSnow": false
+  },
+  "water": {
+    "bank": "stone",
+    "edge": "#6e7a8c"
+  },
+  "roads": {
+    "dirt": "#7d7a86",
+    "stone": "#8e8ca0",
+    "verge": "#6f7d99",
+    "halo": "#9fe8e01a"
+  },
+  "colors": {
+    "waterShallow": "#5fd0c4",
+    "market": "#6e6355cc",
+    "plaza": "#6e6857cc",
+    "window": "#9fe8e0",
+    "bed": "#5a6d8c",
+    "statueGem": "#a5e6e0",
+    "stonecircle": "#7f9aa8",
+    "pillarRune": "#8fe8e0",
+    "pillarGem": "#9fe8e0",
+    "graveGem": "#9fe8e0"
+  }
+}

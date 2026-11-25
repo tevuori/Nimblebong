@@ -1,0 +1,67 @@
+{
+  "label": "Pískovcová poušť",
+  "seasons": {
+    "summer": {
+      "look": "summer",
+      "label": "Horké období"
+    },
+    "autumn": {
+      "look": "autumn",
+      "label": "Chladné období"
+    }
+  },
+  "palette": {
+    "ground": "#dabb85",
+    "cliff": "#bb7953",
+    "water": "#36a6ae",
+    "foliage": "#648a44",
+    "stone": "#ba8963",
+    "roof": "#d1ad7b",
+    "wood": "#b49262"
+  },
+  "labels": {
+    "trees": "Palmy",
+    "bush": "Kaktusy",
+    "house": "Hliněné domky",
+    "scatter": "Oáze a kaktusy"
+  },
+  "trees": {
+    "style": "palm",
+    "species": ["palm", "acacia", "cactus"],
+    "summerTint": []
+  },
+  "ground": {
+    "dirt": "#b88752",
+    "dryGrass": "#a08f52",
+    "grass": 0.18,
+    "stones": 1.2,
+    "flowers": 0.12,
+    "flowerColors": ["#e8615a", "#f2c94c", "#f7f3e3"],
+    "patches": 0.7,
+    "leaves": 0.2,
+    "snow": 0.3,
+    "extra": "ripples",
+    "grassTile": 0
+  },
+  "roofs": {
+    "material": "flat",
+    "chimney": false,
+    "moss": 0,
+    "extra": "none",
+    "winterSnow": false
+  },
+  "water": {
+    "bank": "sand",
+    "edge": null
+  },
+  "roads": {
+    "dirt": "#c9a46a",
+    "stone": "#c2b08c",
+    "verge": "#b99a62",
+    "halo": "#f0dcaa44"
+  },
+  "colors": {
+    "hill": "#deab70",
+    "plateauTufts": "#9e79432b"
+  }
+}

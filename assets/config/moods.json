@@ -1,0 +1,54 @@
+{
+  "shadowless": ["label", "terrain"],
+  "suns": {
+    "high": { "dir": [-0.5, -0.62], "elev": 0.12 },
+    "east": { "dir": [0.9, -0.18], "elev": 0.06 },
+    "west": { "dir": [-0.9, -0.18], "elev": 0.06 },
+    "night": { "dir": [-0.4, -0.7], "elev": 0.1 }
+  },
+  "channels": {
+    "sky": { "color": "#87a8cc", "budget": 0.42, "intensity": 0.4 },
+    "sun": { "color": "#ffd9a0", "budget": 0.55, "intensity": 0.6 },
+    "indirect": { "color": "#ffb37a", "budget": 0.4, "intensity": 0.35 }
+  },
+  "moods": {
+    "day": {
+      "sun": "high",
+      "shadows": true,
+      "ambient": 0.66,
+      "sunColor": "#6b614d",
+      "strength": 1
+    },
+    "dawn": {
+      "sun": "east",
+      "shadows": true,
+      "ambient": 0.5,
+      "sunColor": "#8a5c3a",
+      "strength": 0.95,
+      "emissive": true
+    },
+    "dusk": {
+      "sun": "west",
+      "shadows": true,
+      "ambient": 0.4,
+      "sunColor": "#7a4526",
+      "strength": 1,
+      "emissive": true
+    },
+    "night": {
+      "sun": "night",
+      "shadows": true,
+      "ambient": 0.3,
+      "sunColor": "#2e3a6e",
+      "strength": 0.6,
+      "emissive": true
+    },
+    "fog": {
+      "sun": "high",
+      "shadows": false,
+      "ambient": 0.8,
+      "sunColor": "#66665c",
+      "strength": 0.4
+    }
+  }
+}

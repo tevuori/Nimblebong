@@ -1,0 +1,82 @@
+{
+  "label": "Mlžné močály",
+  "seasons": {
+    "spring": {
+      "look": "summer"
+    },
+    "summer": {
+      "look": "spring"
+    },
+    "autumn": {
+      "look": "autumn"
+    },
+    "winter": {
+      "look": "winter",
+      "roads": {
+        "dirt": "#9c8f78",
+        "stone": "#a1a5a0",
+        "verge": "#b9c1bb",
+        "halo": "#ffffff33"
+      },
+      "water": {
+        "bank": "stone",
+        "edge": "#d9e2e0"
+      }
+    }
+  },
+  "palette": {
+    "ground": "#6d7f5f",
+    "cliff": "#85866b",
+    "water": "#527c68",
+    "foliage": "#536e50",
+    "stone": "#788270",
+    "roof": "#777b4b",
+    "wood": "#777057"
+  },
+  "labels": {
+    "trees": "Mangrovy",
+    "bush": "Rákosí",
+    "house": "Domky na kůlech",
+    "scatter": "Bažinný porost"
+  },
+  "trees": {
+    "style": "mangrove",
+    "species": ["mangrove", "willow", "cypress"],
+    "summerTint": []
+  },
+  "ground": {
+    "dirt": "#4d4330",
+    "grass": 1.25,
+    "stones": 0.3,
+    "flowers": 0.35,
+    "flowerColors": ["#f5f0c8", "#e6d36a", "#ffffff"],
+    "patches": 1.3,
+    "leaves": 0.8,
+    "snow": 0.7,
+    "extra": "puddles",
+    "grassTile": 0.3
+  },
+  "roofs": {
+    "material": "shingle",
+    "chimney": true,
+    "moss": 0.6,
+    "extra": "none",
+    "winterSnow": true
+  },
+  "water": {
+    "bank": "grass",
+    "edge": null
+  },
+  "roads": {
+    "dirt": "#a8946a",
+    "stone": "#9fa18c",
+    "verge": "#7d8a5a",
+    "halo": "#d8d4a033"
+  },
+  "colors": {
+    "bankReeds": "#5d6e4a",
+    "lilyPads": "#5e7440",
+    "cemetery": "#45503d88",
+    "grave": "#6d7564"
+  }
+}
