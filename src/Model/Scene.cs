@@ -130,6 +130,9 @@ public class Shape
     public double Roughness;
     /// <summary>Variant index 0..VariantCount-1 (TS `model`).</summary>
     public int Model;
+    /// <summary>Rotation in radians (TS `angle`) — orients the roof
+    /// frame of houses; the outline is already baked rotated.</summary>
+    public double Angle;
     /// <summary>"#rrggbb" override, null = palette default.</summary>
     public string? Color;
 
@@ -146,6 +149,7 @@ public class Shape
             Height = Height,
             Roughness = Roughness,
             Model = Model,
+            Angle = Angle,
             Color = Color,
         };
 }
@@ -267,6 +271,7 @@ public class Scene
         && a.Height == b.Height
         && a.Roughness == b.Roughness
         && a.Model == b.Model
+        && a.Angle == b.Angle
         && a.Color == b.Color
         && a.Points.SequenceEqual(b.Points);
 

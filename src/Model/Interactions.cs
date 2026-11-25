@@ -244,6 +244,7 @@ public static class Interactions
                     Height = added.Height,
                     Roughness = added.Roughness,
                     Model = added.Model,
+                    Angle = added.Angle,
                     Color = added.Color,
                 }
             );

@@ -59,6 +59,8 @@ public static class SceneJson
                 w.WriteNumber("height", s.Height);
                 w.WriteNumber("roughness", s.Roughness);
                 w.WriteNumber("model", s.Model);
+                if (s.Angle != 0)
+                    w.WriteNumber("angle", s.Angle);
                 if (s.Color != null)
                     w.WriteString("color", s.Color);
                 w.WriteEndObject();
@@ -476,6 +478,7 @@ public static class SceneJson
             Height = Clamped(el, "height", 0, 100, 0),
             Roughness = Clamped(el, "roughness", 0, 100, 0),
             Model = model,
+            Angle = Clamped(el, "angle", -Math.PI * 2, Math.PI * 2, 0),
             Color = ColorField(el, warn),
         };
     }
