@@ -93,7 +93,7 @@ public partial class PropsPainter
 
     void DrawTent(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 14 * rand.Range(0.85, 1.15);
         // TS woodland tent cloth; per-instance nudge toward sun-bleached
         // canvas or weathered olive.
@@ -233,7 +233,7 @@ public partial class PropsPainter
 
     void DrawCampfire(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 10 * rand.Range(0.85, 1.2);
         var stone = Palette.Mix(Stone, Palette.Hex("#5a5c48"), rand.Next() * 0.3);
         var cold = rand.Next() < 0.22;
@@ -366,7 +366,7 @@ public partial class PropsPainter
 
     void DrawWell(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 12 * rand.Range(0.9, 1.15);
         var stone = Palette.Mix(Stone, Colors.Black, rand.Next() * 0.12);
 
@@ -446,7 +446,7 @@ public partial class PropsPainter
 
     void DrawRuin(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 18 * rand.Range(0.85, 1.15);
         var color = Palette.Mix(
             Stone,
@@ -564,7 +564,7 @@ public partial class PropsPainter
 
     void DrawGrave(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 10 * rand.Range(0.9, 1.2);
         var color = Palette.Mix(Stone, Colors.Black, rand.Next() * 0.15);
         var earth = Palette.Hex("#6b5844");
@@ -691,7 +691,7 @@ public partial class PropsPainter
 
     void DrawStatue(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 10 * rand.Range(0.9, 1.2);
         var color = Palette.Mix(
             Stone,
@@ -817,7 +817,7 @@ public partial class PropsPainter
 
     void DrawStoneCircle(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 20 * rand.Range(0.85, 1.15);
         var stone = Palette.Mix(Stone, Colors.Black, rand.Next() * 0.12);
 
@@ -920,7 +920,7 @@ public partial class PropsPainter
 
     void DrawCrystal(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 11 * rand.Range(0.9, 1.25);
         var color = Palette.Mix(
             Palette.Hex("#a7c3cf"),
@@ -968,7 +968,7 @@ public partial class PropsPainter
 
     void DrawBale(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 10 * rand.Range(0.85, 1.2);
         var straw = Palette.Mix(
             Palette.Hex("#c9a94e"),
@@ -1039,7 +1039,7 @@ public partial class PropsPainter
 
     void DrawCrate(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 9 * rand.Range(0.85, 1.25);
         var wood = Palette.Mix(
             Palette.Hex("#ac8955"),
@@ -1117,7 +1117,7 @@ public partial class PropsPainter
 
     void DrawBarrel(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 8 * rand.Range(0.85, 1.25);
         var wood = Palette.Mix(WoodT, rand.Next() < 0.5 ? Colors.White : Colors.Black, rand.Next() * 0.14);
         var edge = Palette.Hex("#514632");
@@ -1175,7 +1175,7 @@ public partial class PropsPainter
     // one inked silhouette. Woodland dressing: grass through the bones.
     void DrawBones(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 12 * rand.Range(0.9, 1.2);
         var fill = Palette.Mix(
             Palette.Hex("#d8cdb2"),

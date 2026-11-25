@@ -186,6 +186,9 @@ public class Prop
     /// <summary>Deterministic variation seed — seeded noise input,
     /// replaces per-kind model where a continuous variation is wanted.</summary>
     public int Seed;
+    /// <summary>Explicit variant index (I/II/III = 0/1/2); -1 = seeded
+    /// auto — the TS `prop.model`.</summary>
+    public int Model = -1;
     /// <summary>Caption text — only the "label" prop kind uses it.</summary>
     public string? Text;
 
@@ -199,6 +202,7 @@ public class Prop
             Scale = Scale,
             Rotation = Rotation,
             Seed = Seed,
+            Model = Model,
             Text = Text,
         };
 }
@@ -304,5 +308,7 @@ public class Scene
         && a.Y == b.Y
         && a.Scale == b.Scale
         && a.Rotation == b.Rotation
-        && a.Seed == b.Seed;
+        && a.Seed == b.Seed
+        && a.Model == b.Model
+        && a.Text == b.Text;
 }

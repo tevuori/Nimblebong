@@ -288,7 +288,7 @@ public partial class PropsPainter : Node2D
     // variant where the lobes sit apart so sky shows between them.
     void DrawTree(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 24 * rand.Range(0.85, 1.15);
         var color = JitterGreen(Foliage, rand);
         var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.62);
@@ -369,7 +369,7 @@ public partial class PropsPainter : Node2D
     // Stacked star layers shrinking upward — the TS `conifer()` port.
     void DrawPine(PropPlacement p, double snow = 0, Color? colorOverride = null)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 22 * rand.Range(0.85, 1.15);
         var color = colorOverride ?? JitterGreen(PineGreen, rand);
         var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.62);
@@ -426,7 +426,7 @@ public partial class PropsPainter : Node2D
     // variant makes a tall crag with a small stone at its foot.
     void DrawRock(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 13 * rand.Range(0.9, 1.3);
         var color = Palette.Mix(
             Stone,
@@ -504,7 +504,7 @@ public partial class PropsPainter : Node2D
     // blossom speckles.
     void DrawBush(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 10 * rand.Range(0.9, 1.3);
         var color = JitterGreen(Palette.Mix(Foliage, Colors.Black, 0.15), rand);
         var edge = Palette.Mix(color, Palette.Hex("#2e3a22"), 0.65);
@@ -555,7 +555,7 @@ public partial class PropsPainter : Node2D
     // slope vs. shaded south slope, ridge cap, chimney.
     void DrawHouse(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var w = rand.Range(52, 64);
         var h = rand.Range(38, 46);
         var roof = Palette.Mix(

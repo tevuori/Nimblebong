@@ -195,6 +195,7 @@ public partial class SceneView : Node2D
                     p.Seed
                 )
                 {
+                    Model = p.Model,
                     Text = p.Text,
                 }
             )

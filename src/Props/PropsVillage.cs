@@ -121,7 +121,7 @@ public partial class PropsPainter
     // square keep, ruined stump (TS tower models 0/1/2).
     void DrawTower(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 13 * rand.Range(0.9, 1.15);
         var stone = Palette.Mix(
@@ -294,7 +294,7 @@ public partial class PropsPainter
     // produce, crates, smith's pot — same seeded picks here.
     void DrawStall(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 20 * rand.Range(0.9, 1.1);
         var canopy = Palette.Mix(
@@ -394,7 +394,7 @@ public partial class PropsPainter
     // Models: open bed, canvas-covered, hay load (TS cart 0/1/2).
     void DrawCart(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 15 * rand.Range(0.9, 1.15);
         // Bed in the lighter profile-wood register — raw Wood reads as
@@ -480,7 +480,7 @@ public partial class PropsPainter
     // (TS flag 0/1/2). Faction red with a seeded hue nudge.
     void DrawFlag(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 16 * rand.Range(0.9, 1.1);
         var flag = Palette.Mix(
@@ -538,7 +538,7 @@ public partial class PropsPainter
     // crates & barrels (TS barricade 0/1/2).
     void DrawBarricade(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 15 * rand.Range(0.9, 1.15);
         var wood = Palette.Mix(
@@ -610,7 +610,7 @@ public partial class PropsPainter
     // (TS lantern 0/1/2). Warm flame + a soft glow blob.
     void DrawLantern(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 12 * rand.Range(0.9, 1.15);
         var body = Palette.Hex("#6d5f45");
@@ -680,7 +680,7 @@ public partial class PropsPainter
     // square basin, dry mossy basin (TS fountain 0/1/2).
     void DrawFountain(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 16 * rand.Range(0.9, 1.1);
         var stone = Palette.Mix(
@@ -807,7 +807,7 @@ public partial class PropsPainter
     // capital), broken stump, rune monolith (TS pillar 0/1/2).
     void DrawPillar(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 9 * rand.Range(0.95, 1.2);
         var stone = Palette.Mix(
@@ -935,7 +935,7 @@ public partial class PropsPainter
     // roman-I glyph stands in (no text in the painter).
     void DrawMarker(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var model = (int)(rand.Next() * 3);
         var r = 10 * rand.Range(0.95, 1.15);
         var color = Palette.Hex("#d34f3d");

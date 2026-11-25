@@ -24,7 +24,7 @@ public partial class PropsPainter
             speciesList.Count > 0
                 ? speciesList[(int)(p.Seed * 7919 % speciesList.Count)]
                 : "oak";
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var meta = TreeCfg.For(species);
         var look = BiomeCfg?.SeasonLook ?? "summer";
         var winterBare = look == "winter" && meta.Deciduous;

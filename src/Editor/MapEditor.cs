@@ -230,9 +230,13 @@ public partial class MapEditor : Node2D
     VBoxContainer _terrainSection = null!;
     VBoxContainer _fogSection = null!;
     VBoxContainer _brushSection = null!;
+    VBoxContainer _variantSection = null!;
     LineEdit _seedEdit = null!;
     OptionButton _presetOpt = null!;
     OptionButton _seasonOpt = null!;
+    OptionButton _variantOpt = null!;
+    /// <summary>Variant picker for prop tools: -1 auto, 0/1/2 = I/II/III.</summary>
+    int _propVariant = -1;
 
     public override void _Ready()
     {
@@ -1071,6 +1075,8 @@ public partial class MapEditor : Node2D
         if (_selProp != null)
         {
             _selPosBackup = new Vector2((float)_selProp.X, (float)_selProp.Y);
+            if (_variantOpt != null)
+                _variantOpt.Selected = _selProp.Model + 1;
         }
         else if (
             (
@@ -1102,6 +1108,7 @@ public partial class MapEditor : Node2D
             _selOrigin = p;
             UpdateSelectionGhost();
         }
+        UpdateToolUi();
     }
 
     bool HasSelection() => _selProp != null || _selStroke != null || _selShape != null;
@@ -1220,6 +1227,8 @@ public partial class MapEditor : Node2D
     void ClearSelection()
     {
         _selProp = null;
+        if (_variantSection != null)
+            _variantSection.Visible = _tool.Mode == Mode.Prop;
         _selStroke = null;
         _selShape = null;
         _selPtsBackup = null;
@@ -1294,6 +1303,7 @@ public partial class MapEditor : Node2D
                     Scale = _tool.Kind is Kinds.House or "tower" or "stall" ? 26 : 24,
                     Rotation = 0,
                     Seed = (int)(p.X * 0.37 + p.Y * 0.53),
+                    Model = _propVariant,
                 }
             )
         );
@@ -1506,6 +1516,9 @@ public partial class MapEditor : Node2D
             _fogSection.Visible = _tool.Mode == Mode.Fog;
         if (_brushSection != null)
             _brushSection.Visible = _tool.Mode == Mode.Brush;
+        if (_variantSection != null)
+            _variantSection.Visible =
+                _tool.Mode == Mode.Prop || (_tool.Mode == Mode.Select && _selProp != null);
         foreach (var kv in _toolCards)
             kv.Value.SetPressedNoSignal(kv.Key == _tool.Id);
     }
@@ -1696,6 +1709,29 @@ public partial class MapEditor : Node2D
         _brushSection = new VBoxContainer { Visible = false };
         box.AddChild(_brushSection);
         Slider(_brushSection, "Velikost štětce", 16, 90, _brushSize, v => _brushSize = v);
+
+        _variantSection = new VBoxContainer();
+        box.AddChild(_variantSection);
+        _variantOpt = new OptionButton();
+        _variantOpt.AddItem("Varianta: automatická");
+        _variantOpt.AddItem("Varianta I");
+        _variantOpt.AddItem("Varianta II");
+        _variantOpt.AddItem("Varianta III");
+        _variantOpt.ItemSelected += i =>
+        {
+            if (_selProp != null && i > 0)
+            {
+                var model = (int)i - 1;
+                Commit(scene =>
+                {
+                    var pr = scene.Props.FirstOrDefault(q => q.Id == _selProp.Id);
+                    if (pr != null)
+                        pr.Model = model;
+                });
+            }
+            _propVariant = (int)i - 1;
+        };
+        _variantSection.AddChild(_variantOpt);
 
         _waterSection = new VBoxContainer();
         box.AddChild(_waterSection);

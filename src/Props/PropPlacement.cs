@@ -71,6 +71,12 @@ public class PropPlacement
     public float Scale = 1f;
     public float Rotation;
     public double Seed;
+    /// <summary>Explicit variant index; -1 = seeded auto (TS prop.model).</summary>
+    public int Model = -1;
+    /// <summary>Seed shifted by the explicit variant so picking one gives
+    /// a different deterministic look for kinds without discrete
+    /// variant branches.</summary>
+    public double VarSeed => Model >= 0 ? Seed + Model * 977 : Seed;
     /// <summary>Caption — the "label" kind draws this.</summary>
     public string? Text;
 

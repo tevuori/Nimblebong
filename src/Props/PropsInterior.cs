@@ -116,10 +116,10 @@ public partial class PropsPainter
     // context we don't have, so they're skipped.)
     void DrawDock(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 16 * rand.Range(0.9, 1.15);
         var roll = rand.Next();
-        var model = roll < 0.22 ? 2 : roll < 0.55 ? 1 : 0;
+        var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (roll < 0.22 ? 2 : roll < 0.55 ? 1 : 0);
         var edge = Palette.Hex("#4d3f2c");
         var post = Palette.Hex("#5e4f3a");
         var deck = Timber;
@@ -319,10 +319,10 @@ public partial class PropsPainter
     // sailboat with mast + triangle sail. (TS `boat`.)
     void DrawBoat(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 13 * rand.Range(0.9, 1.15);
         var roll = rand.Next();
-        var model = roll < 0.55 ? 0 : roll < 0.8 ? 1 : 2;
+        var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (roll < 0.55 ? 0 : roll < 0.8 ? 1 : 2);
         var edge = Palette.Hex("#3d4137");
 
         ContactShadow(p, r * 1.1, r * 0.55);
@@ -436,7 +436,7 @@ public partial class PropsPainter
     // variant spills coin discs. (TS `chest` — model 1 gets an iron lid.)
     void DrawChest(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 10 * rand.Range(0.9, 1.15);
         // The TS rotates chests by a small seed-derived tilt.
         var q = new PropPlacement(p.Kind, p.X, p.Y, p.Scale, p.Rotation + rand.Range(-0.2, 0.2), p.Seed);
@@ -493,10 +493,10 @@ public partial class PropsPainter
     // biome-dependent, woodland default here.)
     void DrawPortal(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 14 * rand.Range(0.9, 1.15);
         var roll = rand.Next();
-        var model = roll < 0.5 ? 0 : roll < 0.8 ? 1 : 2;
+        var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (roll < 0.5 ? 0 : roll < 0.8 ? 1 : 2);
         var glow = Palette.Hex("#c4aef0");
         var stone = Palette.Hex("#9a86c8");
         var edge = Palette.Hex("#4a4f46");
@@ -608,7 +608,7 @@ public partial class PropsPainter
     // room wall.)
     void DrawDoor(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 11 * rand.Range(0.95, 1.15);
         var w = r;
         var edge = Palette.Hex("#3e3021");
@@ -677,7 +677,7 @@ public partial class PropsPainter
     // opening from above. (TS `window`.)
     void DrawWindow(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 9 * rand.Range(0.95, 1.15);
         var glass = rand.Next() < 0.3 ? Palette.Hex("#a9c4c9") : Palette.Hex("#cfe3de");
         var frameEdge = Palette.Hex("#3e3629");
@@ -714,10 +714,10 @@ public partial class PropsPainter
     // panel. (TS `table`.)
     void DrawTable(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 13 * rand.Range(0.9, 1.15);
         var roll = rand.Next();
-        var model = roll < 0.4 ? 0 : roll < 0.75 ? 1 : 2;
+        var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (roll < 0.4 ? 0 : roll < 0.75 ? 1 : 2);
         var edge = Palette.Hex("#4d3a26");
 
         ContactShadow(p, r, r * 0.7);
@@ -759,10 +759,10 @@ public partial class PropsPainter
     // (TS `bed`; the blanket color is the biome "bed" scene color.)
     void DrawBed(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 16 * rand.Range(0.9, 1.15);
         var roll = rand.Next();
-        var model = roll < 0.5 ? 0 : roll < 0.8 ? 1 : 2;
+        var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (roll < 0.5 ? 0 : roll < 0.8 ? 1 : 2);
         var frame = Palette.Hex("#8a6a44");
         var blanket = Palette.Mix(Palette.Hex("#8a4a3c"), FoliageCool, rand.Next() * 0.35);
         var sheet = Palette.Hex("#e8ddc5");
@@ -809,7 +809,7 @@ public partial class PropsPainter
     // where volumes are out), or a two-drawer dresser. (TS `shelf`.)
     void DrawShelf(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 12 * rand.Range(0.95, 1.15);
         var edge = Palette.Hex("#4d3a26");
         var dresser = rand.Next() < 0.25;
@@ -875,10 +875,10 @@ public partial class PropsPainter
     // (TS `rug` — rugs deliberately cast no shadow.)
     void DrawRug(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 15 * rand.Range(0.9, 1.15);
         var roll = rand.Next();
-        var model = roll < 0.45 ? 1 : roll < 0.7 ? 2 : 0;
+        var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (roll < 0.45 ? 1 : roll < 0.7 ? 2 : 0);
         var cloth = Palette.Mix(Palette.Hex("#8a4a3c"), Palette.Hex("#5a6d8c"), rand.Next() * 0.4);
         var trim = Palette.Hex("#d8c9a0");
 
@@ -953,7 +953,7 @@ public partial class PropsPainter
     // (TS `fireplace`.)
     void DrawFireplace(PropPlacement p)
     {
-        var rand = new Jitter(p.Seed);
+        var rand = new Jitter(p.VarSeed);
         var r = 13 * rand.Range(0.9, 1.15);
         var cold = rand.Next() < 0.2;
         var stone = Palette.Mix(Stone, Colors.Black, rand.Next() * 0.15);
