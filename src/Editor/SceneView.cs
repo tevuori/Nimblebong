@@ -29,6 +29,20 @@ public partial class SceneView : Node2D
     {
         var view = new SceneView { Stage = LightingStage.Create(mapSize) };
         view.AddChild(view.Stage);
+        // Fog-of-war overlay — dark veil over unrevealed regions,
+        // drawn above the lit map but below the editor's ghost layer.
+        var fogMat = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/fog.gdshader") };
+        fogMat.SetShaderParameter("uMask", view.Stage.FogVp.GetTexture());
+        view.AddChild(
+            new TextureRect
+            {
+                Texture = view.Stage.FogVp.GetTexture(),
+                Material = fogMat,
+                Size = mapSize,
+                StretchMode = TextureRect.StretchModeEnum.Scale,
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+            }
+        );
         view.Scene.Width = mapSize.X;
         view.Scene.Height = mapSize.Y;
         view.Biome = SceneConfig.LoadBiome("woodland");
@@ -154,6 +168,10 @@ public partial class SceneView : Node2D
         AddLayer(Stage.HeightVp, propsH);
         propsH.SetMassifs(massifs);
         propsH.SetProps(props);
+
+        // Fog mask — repainted in place each commit.
+        Stage.Fog.Strokes = Scene.Fog;
+        Stage.Fog.QueueRedraw();
 
         Mood.ApplyTo(Stage);
     }

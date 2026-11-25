@@ -18,8 +18,13 @@ public partial class BridgeDialog : AcceptDialog
     Button _send = null!;
     Func<byte[]> _pngProvider = () => [];
     Func<Scene> _sceneProvider = () => new Scene();
+    Func<Image>? _fogProvider;
 
-    public static BridgeDialog Create(Func<byte[]> pngProvider, Func<Scene>? sceneProvider = null)
+    public static BridgeDialog Create(
+        Func<byte[]> pngProvider,
+        Func<Scene>? sceneProvider = null,
+        Func<Image>? fogProvider = null
+    )
     {
         var d = new BridgeDialog
         {
@@ -28,8 +33,16 @@ public partial class BridgeDialog : AcceptDialog
         };
         if (sceneProvider != null)
             d._sceneProvider = sceneProvider;
+        d._fogProvider = fogProvider;
         d.Build();
         return d;
+    }
+
+    /// <summary>Fog mask to upload — null when the scene has no fog.</summary>
+    Image? FogMask()
+    {
+        var scene = _sceneProvider();
+        return scene.Fog.Count > 0 ? _fogProvider?.Invoke() : null;
     }
 
     /// <summary>Marker props → DR tokens. Marker Scale maps to token
@@ -96,7 +109,8 @@ public partial class BridgeDialog : AcceptDialog
                 png,
                 _live.ButtonPressed,
                 s => _status.Text = s,
-                Tokens()
+                Tokens(),
+                FogMask()
             );
             _status.Text = res.Message;
         }

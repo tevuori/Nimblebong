@@ -18,10 +18,12 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using HttpClient = System.Net.Http.HttpClient;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Godot;
 
 namespace DmMap;
 
@@ -45,7 +47,8 @@ public static class DrBridge
         byte[] png,
         bool setLive,
         Action<string>? status = null,
-        List<Dictionary<string, object>>? tokens = null
+        List<Dictionary<string, object>>? tokens = null,
+        Image? fogMask = null
     )
     {
         var res = new Result();
@@ -221,16 +224,46 @@ public static class DrBridge
                 Say("Poznámka: tokeny se nepodařilo přidat.");
         }
 
+        // ── 5c. optional: fog progress mask ──
+        if (fogMask != null)
+        {
+            Say("Nahrávám mlhu…");
+            try
+            {
+                var fogPng = FogPng(fogMask);
+                using var fogForm = new MultipartFormDataContent();
+                var fogFile = new ByteArrayContent(fogPng);
+                fogFile.Headers.ContentType = new("image/png");
+                fogForm.Add(fogFile, "image", "fog.png");
+                using var fogMsg = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"{baseUrl}/api/map/{mapId}/fog"
+                )
+                {
+                    Content = fogForm,
+                };
+                fogMsg.Headers.Authorization = new("Bearer", password);
+                var fogRes = await Http.SendAsync(fogMsg);
+                if (!fogRes.IsSuccessStatusCode)
+                    Say($"Poznámka: /fog vrátil HTTP {(int)fogRes.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                Say($"Poznámka: /fog selhal: {ex.Message}");
+            }
+        }
+
         // ── 6. optional: set as live map ──
         if (setLive)
         {
             Say("Nastavuji živou mapu…");
             try
             {
-                // /send expects a multipart "image" field — the map
-                // shown to players live (same PNG we uploaded).
+                // /send expects a multipart "image" field — what players
+                // see: the map under the fog overlay (or clean when no fog).
+                var livePng = fogMask == null ? png : CompositeWithFog(png, fogMask);
                 using var form = new MultipartFormDataContent();
-                var file = new ByteArrayContent(png);
+                var file = new ByteArrayContent(livePng);
                 file.Headers.ContentType = new("image/png");
                 form.Add(file, "image", "map.png");
                 using var reqMsg = new HttpRequestMessage(
@@ -332,6 +365,48 @@ public static class DrBridge
             // transient poll failure — the caller retries until its deadline
         }
         return events;
+    }
+
+    /// <summary>Grayscale mask → the overlay image the backend serves:
+    /// dark pixels where shrouded, transparent where revealed.</summary>
+    static byte[] FogPng(Image mask)
+    {
+        var img = (Image)mask.Duplicate();
+        img.Convert(Image.Format.Rgba8);
+        var w = img.GetWidth();
+        var h = img.GetHeight();
+        for (var y = 0; y < h; y++)
+        for (var x = 0; x < w; x++)
+        {
+            var m = img.GetPixel(x, y).R;
+            img.SetPixel(x, y, new Color(0.05f, 0.055f, 0.07f, 1f - m));
+        }
+        return img.SavePngToBuffer();
+    }
+
+    /// <summary>Map pixels under the same veil the editor draws —
+    /// players' live view of a map that has a fog mask.</summary>
+    static byte[] CompositeWithFog(byte[] mapPng, Image mask)
+    {
+        var img = new Image();
+        if (img.LoadPngFromBuffer(mapPng) != Error.Ok)
+            return mapPng;
+        var w = img.GetWidth();
+        var h = img.GetHeight();
+        var mw = mask.GetWidth();
+        var mh = mask.GetHeight();
+        for (var y = 0; y < h; y++)
+        for (var x = 0; x < w; x++)
+        {
+            var m = mask.GetPixel((int)((double)x / w * mw), (int)((double)y / h * mh)).R;
+            var a = (1f - m) * 0.92f;
+            if (a <= 0.004f)
+                continue;
+            var c = img.GetPixel(x, y);
+            var veil = new Color(0.04f, 0.05f, 0.07f);
+            img.SetPixel(x, y, c.Lerp(veil, a));
+        }
+        return img.SavePngToBuffer();
     }
 
     static async Task Post(string url, string body)

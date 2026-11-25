@@ -79,6 +79,19 @@ public static class SceneJson
                 w.WriteEndObject();
             }
             w.WriteEndArray();
+            w.WritePropertyName("fog");
+            w.WriteStartArray();
+            foreach (var s in scene.Fog)
+            {
+                w.WriteStartObject();
+                w.WriteNumber("id", s.Id);
+                w.WriteString("kind", s.Kind);
+                w.WritePropertyName("points");
+                WritePoints(w, s.Points);
+                w.WriteNumber("width", s.Width);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
             w.WritePropertyName("props");
             w.WriteStartArray();
             foreach (var p in scene.Props)
@@ -204,6 +217,12 @@ public static class SceneJson
                 if (riverRoad)
                     roadRiverPoints += stroke.Points.Count;
                 scene.Strokes.Add(stroke);
+            }
+            foreach (var el in Members(root, "fog", warn))
+            {
+                var fog = ReadFog(el, scene, warn);
+                if (fog != null)
+                    scene.Fog.Add(fog);
             }
             foreach (var el in Members(root, "props", warn))
             {
@@ -487,6 +506,27 @@ public static class SceneJson
             Points = points,
             Width = Clamped(el, "width", MinSize, MaxSize, 24),
             Model = (int)Clamped(el, "model", 0, 4, 0),
+        };
+    }
+
+    /// <summary>Fog strokes accept only clear/shroud kinds; they live
+    /// outside Kinds.IsLine so the line validator can't be reused.</summary>
+    static Stroke? ReadFog(JsonElement el, Scene scene, List<string> warn)
+    {
+        if (el.ValueKind != JsonValueKind.Object)
+            return null;
+        var kind = el.TryGetProperty("kind", out var k) ? k.GetString() : null;
+        if (kind is not ("clear" or "shroud"))
+            return null;
+        var points = ReadPoints(el, scene.Width, scene.Height, "fog", warn);
+        if (points == null)
+            return null;
+        return new Stroke
+        {
+            Id = ReadId(el),
+            Kind = kind,
+            Points = points,
+            Width = Clamped(el, "width", 4, MaxSize, 80),
         };
     }
 

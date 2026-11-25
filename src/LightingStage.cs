@@ -10,8 +10,10 @@ public partial class LightingStage : Node2D
     public SubViewport AlbedoVp = null!;
     public SubViewport HeightVp = null!;
     public SubViewport FinalVp = null!;
+    public SubViewport FogVp = null!;
     public AlbedoPainter Albedo = null!;
     public HeightmapPainter Height = null!;
+    public FogMask Fog = null!;
     TextureRect _composite = null!;
 
     public static LightingStage Create(Vector2 mapSize)
@@ -20,6 +22,10 @@ public partial class LightingStage : Node2D
         stage.AlbedoVp = NewViewport(mapSize);
         stage.HeightVp = NewViewport(mapSize);
         stage.FinalVp = NewViewport(mapSize);
+        stage.FogVp = NewViewport(mapSize);
+        stage.FogVp.TransparentBg = true;
+        stage.Fog = new FogMask { MapSize = mapSize };
+        stage.FogVp.AddChild(stage.Fog);
         stage.Albedo = new AlbedoPainter { MapSize = mapSize };
         stage.Height = new HeightmapPainter { MapSize = mapSize };
         stage.AlbedoVp.AddChild(stage.Albedo);
@@ -38,6 +44,7 @@ public partial class LightingStage : Node2D
         stage.AddChild(stage.AlbedoVp);
         stage.AddChild(stage.HeightVp);
         stage.AddChild(stage.FinalVp);
+        stage.AddChild(stage.FogVp);
         // Show the baked result on screen too.
         stage.AddChild(
             new TextureRect
@@ -71,6 +78,9 @@ public partial class LightingStage : Node2D
 
     /// <summary>Current lit pixels — for probes and exports.</summary>
     public Image Snapshot() => FinalVp.GetTexture().GetImage();
+
+    /// <summary>Grayscale fog mask (white = revealed) — bridge input.</summary>
+    public Image FogImage() => FogVp.GetTexture().GetImage();
 
     public Material DebugMaterial() => _composite.Material;
 }

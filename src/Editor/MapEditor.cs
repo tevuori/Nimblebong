@@ -19,6 +19,7 @@ public partial class MapEditor : Node2D
         Stroke,
         Prop,
         Label,
+        Fog,
     }
 
     /// <summary>One palette entry: label + category + what it commits.</summary>
@@ -85,6 +86,8 @@ public partial class MapEditor : Node2D
         new("portal", "Magické brány", "Osídlení a dekorace", Mode.Prop, "portal"),
         new("marker", "Značky", "Mapa a hra", Mode.Prop, "marker"),
         new("label", "Popisky", "Mapa a hra", Mode.Label, "label"),
+        new("fog-clear", "Mlha: odhalit", "Mapa a hra", Mode.Fog, "clear"),
+        new("fog-shroud", "Mlha: zahalit", "Mapa a hra", Mode.Fog, "shroud"),
     ];
 
     static readonly Vector2 MapSize = new(1600, 1000);
@@ -148,7 +151,8 @@ public partial class MapEditor : Node2D
         BuildUi();
         _bridge = BridgeDialog.Create(
             () => _view.Stage.Snapshot().SavePngToBuffer(),
-            () => _history.Current
+            () => _history.Current,
+            () => _view.Stage.FogImage()
         );
         AddChild(_bridge);
         if (System.Environment.GetEnvironmentVariable("DMMAP_PROBE") == "1")
@@ -345,6 +349,26 @@ public partial class MapEditor : Node2D
             scene.Props.Add(
                 new Prop { Id = scene.AllocId(), Kind = "marker", X = 700, Y = 690, Scale = 22 }
             );
+            // Fog: reveal a strip across the left half, then re-shroud
+            // a smaller patch inside it.
+            scene.Fog.Add(
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = "clear",
+                    Points = [new(80, 620), new(500, 620), new(900, 540)],
+                    Width = 180,
+                }
+            );
+            scene.Fog.Add(
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = "shroud",
+                    Points = [new(400, 560), new(560, 660)],
+                    Width = 110,
+                }
+            );
         });
         // Protection: a tree inside the campfire zone must be nudged out.
         SetTool("tree");
@@ -352,6 +376,7 @@ public partial class MapEditor : Node2D
         for (var i = 0; i < 8; i++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _view.Stage.Snapshot().SavePng("/tmp/godot-editor.png");
+        _view.Stage.FogImage().SavePng("/tmp/godot-fog.png");
         GD.Print("dumped /tmp/godot-editor.png");
 
         // ── generated map + selection move + crossings ──
@@ -515,6 +540,7 @@ public partial class MapEditor : Node2D
             Kinds.River => _pRiverW,
             Kinds.Road => _pRoadW,
             Kinds.Wall => 20,
+            _ when _tool.Mode == Mode.Fog => 90,
             _ => 8,
         };
 
@@ -575,6 +601,19 @@ public partial class MapEditor : Node2D
             pts = FormPoints(_form);
         switch (_tool.Mode)
         {
+            case Mode.Fog:
+                Commit(scene =>
+                    scene.Fog.Add(
+                        new Stroke
+                        {
+                            Id = scene.AllocId(),
+                            Kind = _tool.Kind,
+                            Points = pts,
+                            Width = StrokeWidth(),
+                        }
+                    )
+                );
+                break;
             case Mode.Stroke:
                 Commit(scene =>
                 {
@@ -1383,6 +1422,13 @@ public partial class GhostLayer : Node2D
         if (_mode == MapEditor.Mode.Shape)
         {
             DrawPolyline([.. pts, pts[0]], new Color(0.2f, 0.18f, 0.1f, 0.7f), 2);
+            return;
+        }
+        if (_mode == MapEditor.Mode.Fog)
+        {
+            var fc =
+                _kind == "clear" ? new Color(0.18f, 0.8f, 0.44f, 0.4f) : new Color(0.9f, 0.3f, 0.24f, 0.4f);
+            DrawPolyline(pts, fc, (float)_width);
             return;
         }
         var col = _kind switch
