@@ -3,7 +3,7 @@
 
 ## 2026-11-26 — Devin: archetypový generátor terénu + generátor zřícenin
 
-### Hotovo (commit řada končící TBD, pushnuto)
+### Hotovo (commit 2375669, pushnuto)
 
 **1. Přepsaný `MapGenerator.GenerateLandscape`** — místo pár náhodných
 kopců teď generuje jeden z 5 archetypů podle seedu (jen terén + voda,
