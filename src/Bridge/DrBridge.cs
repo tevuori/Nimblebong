@@ -44,7 +44,8 @@ public static class DrBridge
         string title,
         byte[] png,
         bool setLive,
-        Action<string>? status = null
+        Action<string>? status = null,
+        List<Dictionary<string, object>>? tokens = null
     )
     {
         var res = new Result();
@@ -198,6 +199,27 @@ public static class DrBridge
         }
         var mapId = mc.GetProperty("createdMap").GetProperty("id").GetString()!;
         res.MapId = mapId;
+
+        // ── 5b. optional: drop marker props as map tokens ──
+        if (tokens is { Count: > 0 })
+        {
+            Say("Přidávám tokeny…");
+            var added = await Graphql(
+                sidUrl,
+                3,
+                "mutation($input: MapTokenAddManyInput!) { mapTokenAddMany(input: $input) }",
+                new Dictionary<string, object>
+                {
+                    ["input"] = new Dictionary<string, object>
+                    {
+                        ["mapId"] = mapId,
+                        ["tokens"] = tokens,
+                    },
+                }
+            );
+            if (added == null)
+                Say("Poznámka: tokeny se nepodařilo přidat.");
+        }
 
         // ── 6. optional: set as live map ──
         if (setLive)

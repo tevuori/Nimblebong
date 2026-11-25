@@ -142,7 +142,10 @@ public partial class MapEditor : Node2D
         _camera = new Camera2D { Position = MapSize / 2, Enabled = true };
         AddChild(_camera);
         BuildUi();
-        _bridge = BridgeDialog.Create(() => _view.Stage.Snapshot().SavePngToBuffer());
+        _bridge = BridgeDialog.Create(
+            () => _view.Stage.Snapshot().SavePngToBuffer(),
+            () => _history.Current
+        );
         AddChild(_bridge);
         if (System.Environment.GetEnvironmentVariable("DMMAP_PROBE") == "1")
             CallDeferred(nameof(ProbeRun));
@@ -378,7 +381,19 @@ public partial class MapEditor : Node2D
                 "Godot bridge test",
                 _view.Stage.Snapshot().SavePngToBuffer(),
                 setLive: true,
-                s => GD.Print("bridge: ", s)
+                s => GD.Print("bridge: ", s),
+                tokens:
+                [
+                    new Dictionary<string, object>
+                    {
+                        ["x"] = 400.0,
+                        ["y"] = 300.0,
+                        ["color"] = "#e5484d",
+                        ["label"] = "test token",
+                        ["radius"] = 14.0,
+                        ["isVisibleForPlayers"] = true,
+                    },
+                ]
             );
             GD.Print($"bridge result: ok={res.Ok} mapId={res.MapId} msg={res.Message}");
         }

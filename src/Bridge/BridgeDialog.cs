@@ -1,7 +1,9 @@
+#nullable enable
 // Upload dialog — server URL, DM password, title, live-map toggle.
 // Exports the current render and pushes it through DrBridge; the
 // status label shows each step of the flow.
 using System;
+using System.Collections.Generic;
 using Godot;
 
 namespace DmMap;
@@ -15,16 +17,43 @@ public partial class BridgeDialog : AcceptDialog
     Label _status = null!;
     Button _send = null!;
     Func<byte[]> _pngProvider = () => [];
+    Func<Scene> _sceneProvider = () => new Scene();
 
-    public static BridgeDialog Create(Func<byte[]> pngProvider)
+    public static BridgeDialog Create(Func<byte[]> pngProvider, Func<Scene>? sceneProvider = null)
     {
         var d = new BridgeDialog
         {
             Title = "Odeslat do DMmap",
             _pngProvider = pngProvider,
         };
+        if (sceneProvider != null)
+            d._sceneProvider = sceneProvider;
         d.Build();
         return d;
+    }
+
+    /// <summary>Marker props → DR tokens. Marker Scale maps to token
+    /// radius; no label/text in our model yet — leave label empty.</summary>
+    List<Dictionary<string, object>> Tokens()
+    {
+        var tokens = new List<Dictionary<string, object>>();
+        foreach (var p in _sceneProvider().Props)
+        {
+            if (p.Kind != "marker")
+                continue;
+            tokens.Add(
+                new Dictionary<string, object>
+                {
+                    ["x"] = p.X,
+                    ["y"] = p.Y,
+                    ["color"] = "#e5484d",
+                    ["label"] = "",
+                    ["radius"] = Math.Max(8, p.Scale * 0.5),
+                    ["isVisibleForPlayers"] = true,
+                }
+            );
+        }
+        return tokens;
     }
 
     void Build()
@@ -66,7 +95,8 @@ public partial class BridgeDialog : AcceptDialog
                 _title.Text,
                 png,
                 _live.ButtonPressed,
-                s => _status.Text = s
+                s => _status.Text = s,
+                Tokens()
             );
             _status.Text = res.Message;
         }
