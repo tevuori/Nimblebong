@@ -39,6 +39,46 @@ Shape data (core/) ──► TerrainGeometry.BuildMassifs()
 - Painters nesahají na cizí vrstvy; nové prvky = nový painter soubor,
   integrace přes `LightingStage`.
 
+## Editor (`src/Editor/`)
+
+- `SceneView` — scéna→painter orchestrátor; cache masivů (`_massifsValid`
+  + `ShapesEqual`) — rebuild props/řek přeskakuje drahý clipper.
+  `Massifs` vystaven pro hit-test výběru a live preview.
+- `MapEditor` — vstup/nástroje/kamera/české UI. Nástroje: Vybrat, Terén,
+  Řeka, Cesta, props, Guma. Vše přes `SceneHistory` (undo-able).
+- Výběr: `BeginSelect/MoveSelectionTo/EndSelect` — objekt se živě
+  posouvá mutací in-place, při puštění se revertne a zapíše JEDEN commit
+  (delta). Stejný vzor pro slidery (`OnTerrainSlider` live + commit na
+  `DragEnded`). Po commitu `RefreshSelection` re-resolvne id v nové scéně.
+- Live preview: během tahu terénu se throttle (120 ms) staví draft
+  `BuildMassifs` jen z taženého tvaru → `GhostLayer.SetDraft`.
+- `CrossingPainter` — schody/vodopády jako inside/outside přechody
+  resamplovaných strokes proti `Massif.Tops`. Neukládá se do scény,
+  kreslí se automaticky.
+- `MapGenerator` — seed→celá `Scene` (masivy, řeka, cesta, lesy přes
+  `PropScatter`, vesnice, scatter). Vstup do `SceneHistory` celý najednou.
+- Klik prop-nástrojem na existující prop → `Seed++` (cyklování variant).
+
+## Bridge (`src/Bridge/`)
+
+`DrBridge.UploadMap` — DMmap backend (:3000). GraphQL jede přes
+socket.io EIO4 long-polling (žádný WS client):
+
+```
+GET  /api/socket.io/?EIO=4&transport=polling   → "0{sid}"
+POST sid  "40"                                 → connect
+POST sid  42["authenticate",{password,desiredRole:"admin"}]
+GET  sid                                       → 42["authenticated"]
+POST sid  42["@graphql/execute",{id,operation,variables}]
+GET  sid                                       → 42["@graphql/result",{...}]
+PUT  {uploadUrl}   raw PNG (relativní → prepend baseUrl!)
+POST /api/map/{id}/send  Bearer + multipart "image"  → živá mapa
+```
+
+- `mapImageRequestUpload`/`mapCreate` vyžadují socket auth jako admin.
+- `BridgeDialog` — server/heslo/název/živá-mapa, status řádek.
+- `DMMAP_BRIDGE_PROBE=1` v probe → end-to-end test proti :3000.
+
 ## Probe workflow (self-verify vizuálně)
 
 ```

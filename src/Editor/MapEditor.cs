@@ -1,3 +1,4 @@
+#nullable enable
 // Map editor — the interactive milestone: draw terrain strokes with
 // the mouse, lay rivers/roads, place props, undo, pan/zoom. Czech UI.
 using System;
@@ -11,6 +12,7 @@ public partial class MapEditor : Node2D
 {
     public enum Tool
     {
+        Select,
         Terrain,
         River,
         Road,
@@ -44,6 +46,31 @@ public partial class MapEditor : Node2D
     bool _panning;
     Vector2 _panFrom;
 
+    // Selection: what the select tool picked, where a move began and a
+    // snapshot to revert to (the live object is mutated during drags /
+    // slider edits so the canvas updates, then reverted and committed
+    // once as a single history entry).
+    Prop? _selProp;
+    Stroke? _selStroke;
+    Shape? _selShape;
+    Vector2 _selOrigin;
+    bool _selMoving;
+    // Backups for live edits (restored before the single commit).
+    List<Vector2>? _selPtsBackup;
+    Vector2 _selPosBackup;
+    (double H, double S, double R, int M)? _selShapeBackup;
+
+    double _draftAt; // ticks when the pending live preview may run
+    bool _pendingRebuild; // throttled Rebuild during selection drags
+    bool _selEdited; // selection was live-edited → commit on release
+    bool _syncing; // slider→selection feedback guard
+    BridgeDialog? _bridge;
+    HSlider _sHeight = null!;
+    HSlider _sSlope = null!;
+    HSlider _sRough = null!;
+    OptionButton _modelOpt = null!;
+    LineEdit _seedEdit = null!;
+
     public override void _Ready()
     {
         _view = SceneView.Create(MapSize);
@@ -54,8 +81,52 @@ public partial class MapEditor : Node2D
         _camera = new Camera2D { Position = MapSize / 2, Enabled = true };
         AddChild(_camera);
         BuildUi();
+        _bridge = BridgeDialog.Create(() => _view.Stage.Snapshot().SavePngToBuffer());
+        AddChild(_bridge);
         if (System.Environment.GetEnvironmentVariable("DMMAP_PROBE") == "1")
             CallDeferred(nameof(ProbeRun));
+    }
+
+    /// <summary>Throttled work: live massif preview while a terrain
+    /// stroke is in flight, plus deferred rebuilds for selection drags.</summary>
+    public override void _Process(double delta)
+    {
+        var now = Time.GetTicksMsec();
+        if (_drawing && _tool == Tool.Terrain && _draftAt > 0 && now >= _draftAt)
+        {
+            _draftAt = 0;
+            UpdateDraftPreview();
+        }
+        if (_pendingRebuild && now - _lastRebuild >= 90)
+        {
+            _pendingRebuild = false;
+            _lastRebuild = now;
+            _view.Rebuild();
+        }
+    }
+
+    ulong _lastRebuild;
+
+    /// <summary>Draft massif from the in-flight stroke — band + top
+    /// fills drawn translucently in the ghost layer.</summary>
+    void UpdateDraftPreview()
+    {
+        if (_stroke.Count < 6)
+            return;
+        var massifs = TerrainGeometry.BuildMassifs(
+            [
+                new TerrainShape
+                {
+                    Model = _pModel,
+                    Height = _pHeight,
+                    Size = _pSlope,
+                    Roughness = _pRough,
+                    Outline = [.. Interactions.SimplifyPath(_stroke, 4)],
+                },
+            ]
+        );
+        if (massifs.Count > 0)
+            _ghost.SetDraft(massifs[0]);
     }
 
     // Scripted self-test — exercises stroke commits, merge, props,
@@ -84,7 +155,8 @@ public partial class MapEditor : Node2D
                 }
             )
         );
-        // A river + road.
+        // A river that cuts straight through the massif (waterfalls)
+        // and a road crossing it (stairs) — exercises CrossingPainter.
         Commit(scene =>
             Interactions.AddStroke(
                 scene,
@@ -94,12 +166,29 @@ public partial class MapEditor : Node2D
                     Kind = Kinds.River,
                     Points =
                     [
-                        new(650, -10),
-                        new(680, 250),
-                        new(620, 500),
-                        new(700, 1020),
+                        new(500, -10),
+                        new(470, 250),
+                        new(520, 500),
+                        new(600, 1020),
                     ],
                     Width = 30,
+                }
+            )
+        );
+        Commit(scene =>
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points =
+                    [
+                        new(180, 320),
+                        new(400, 300),
+                        new(620, 280),
+                    ],
+                    Width = 18,
                 }
             )
         );
@@ -112,6 +201,48 @@ public partial class MapEditor : Node2D
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _view.Stage.Snapshot().SavePng("/tmp/godot-editor.png");
         GD.Print("dumped /tmp/godot-editor.png");
+
+        // ── generated map + selection move + crossings ──
+        _seedEdit.Text = "42";
+        Generate();
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _view.Stage.Snapshot().SavePng("/tmp/godot-generated.png");
+        GD.Print("dumped /tmp/godot-generated.png");
+
+        // selection: grab the first house, move it, verify one commit
+        var house = _view.Scene.Props.FirstOrDefault(p => p.Kind == Kinds.House);
+        if (house != null)
+        {
+            var depth = _history.UndoDepth;
+            BeginSelect(new Vector2((float)house.X, (float)house.Y));
+            _selOrigin = new Vector2((float)house.X, (float)house.Y);
+            MoveSelectionTo(new Vector2((float)house.X + 120, (float)house.Y));
+            _selEdited = true;
+            EndSelect(new Vector2((float)house.X + 120, (float)house.Y));
+            GD.Print(
+                $"select-move commits: {_history.UndoDepth - depth} (expect 1), "
+                    + $"house at {_view.Scene.Props.First(p => p.Kind == Kinds.House).X:0}"
+            );
+        }
+        for (var i = 0; i < 20; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _view.Stage.Snapshot().SavePng("/tmp/godot-after-move.png");
+        GD.Print("dumped /tmp/godot-after-move.png");
+
+        // Optional: exercise the real backend bridge end-to-end.
+        if (System.Environment.GetEnvironmentVariable("DMMAP_BRIDGE_PROBE") == "1")
+        {
+            var res = await DrBridge.UploadMap(
+                "http://127.0.0.1:3000",
+                "x",
+                "Godot bridge test",
+                _view.Stage.Snapshot().SavePngToBuffer(),
+                setLive: true,
+                s => GD.Print("bridge: ", s)
+            );
+            GD.Print($"bridge result: ok={res.Ok} mapId={res.MapId} msg={res.Message}");
+        }
         GetTree().Quit();
     }
 
@@ -132,6 +263,10 @@ public partial class MapEditor : Node2D
                     Undo();
                 else if (k.IsActionPressed("ui_redo"))
                     Redo();
+                else if (k.Keycode is Key.Delete or Key.Backspace)
+                    DeleteSelection();
+                else if (k.Keycode == Key.Escape)
+                    ClearSelection();
                 break;
         }
     }
@@ -181,10 +316,18 @@ public partial class MapEditor : Node2D
         if (!_drawing)
             return;
         var p = GetGlobalMousePosition();
+        if (_tool == Tool.Select)
+        {
+            if (_selMoving)
+                MoveSelectionTo(p);
+            return;
+        }
         if (_stroke.Count == 0 || _stroke[^1].DistanceTo(p) > 4)
         {
             _stroke.Add(p);
             _ghost.SetStroke(_tool, _stroke, StrokeWidth());
+            if (_tool == Tool.Terrain && _stroke.Count >= 6 && _draftAt == 0)
+                _draftAt = Time.GetTicksMsec() + 120;
             if (IsPropTool(_tool) && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
                 PlacePropAt(p);
         }
@@ -203,7 +346,9 @@ public partial class MapEditor : Node2D
         _stroke.Clear();
         _stroke.Add(GetGlobalMousePosition());
         _drawing = true;
-        if (IsPropTool(_tool))
+        if (_tool == Tool.Select)
+            BeginSelect(_stroke[0]);
+        else if (IsPropTool(_tool))
             PlacePropAt(_stroke[0]);
         else if (_tool == Tool.Erase)
             EraseAt(_stroke[0]);
@@ -212,7 +357,14 @@ public partial class MapEditor : Node2D
     void EndStroke()
     {
         _drawing = false;
-        _ghost.Clear();
+        _draftAt = 0;
+        if (_tool == Tool.Select)
+        {
+            EndSelect(GetGlobalMousePosition());
+            return;
+        }
+        _ghost.ClearDraft();
+        _ghost.SetStroke(_tool, [], 0);
         if (_stroke.Count < 2)
             return;
         var pts = Interactions.SimplifyPath(_stroke, 2.0);
@@ -255,8 +407,229 @@ public partial class MapEditor : Node2D
 
     static bool IsPropTool(Tool t) => t is Tool.Tree or Tool.Pine or Tool.Rock or Tool.Bush or Tool.House;
 
+    // ── Selection (move / delete / param edit) ────────────────────
+
+    void BeginSelect(Vector2 p)
+    {
+        ClearSelection();
+        var scene = _view.Scene;
+        // Same top-down priority as the eraser: prop → stroke → shape.
+        _selProp = scene
+            .Props.OrderByDescending(pr => pr.Id)
+            .FirstOrDefault(pr => new Vector2((float)pr.X, (float)pr.Y).DistanceTo(p) < 24 * (pr.Scale / 24 + 0.4));
+        if (_selProp != null)
+        {
+            _selPosBackup = new Vector2((float)_selProp.X, (float)_selProp.Y);
+        }
+        else if (
+            (
+                _selStroke = scene
+                    .Strokes.OrderByDescending(s => s.Id)
+                    .FirstOrDefault(s => StrokeHit(s, p))
+            )
+            != null
+        )
+        {
+            _selPtsBackup = [.. _selStroke.Points];
+        }
+        else if (
+            (
+                _selShape = scene
+                    .Shapes.OrderByDescending(s => s.Id)
+                    .FirstOrDefault(s => Poly.PointInPolygon(p, [.. s.Points]))
+            )
+            != null
+        )
+        {
+            _selPtsBackup = [.. _selShape.Points];
+            _selShapeBackup = (_selShape.Height, _selShape.Size, _selShape.Roughness, _selShape.Model);
+            SyncSlidersToSelection();
+        }
+        if (HasSelection())
+        {
+            _selMoving = true;
+            _selOrigin = p;
+            UpdateSelectionGhost();
+        }
+    }
+
+    bool HasSelection() => _selProp != null || _selStroke != null || _selShape != null;
+
+    /// <summary>Live-move the selected element by the drag delta
+    /// (mutated in place; history entry is written on release).</summary>
+    void MoveSelectionTo(Vector2 p)
+    {
+        var delta = p - _selOrigin;
+        if (_selProp != null)
+        {
+            _selProp.X = _selPosBackup.X + delta.X;
+            _selProp.Y = _selPosBackup.Y + delta.Y;
+        }
+        else if (_selPtsBackup != null && (_selStroke != null || _selShape != null))
+        {
+            var pts = _selStroke != null ? _selStroke.Points : _selShape!.Points;
+            for (var i = 0; i < pts.Count; i++)
+                pts[i] = _selPtsBackup[i] + delta;
+        }
+        _selEdited = delta.LengthSquared() > 1;
+        UpdateSelectionGhost();
+        _pendingRebuild = true;
+    }
+
+    /// <summary>Revert the live mutation and write one history entry
+    /// with the final offset.</summary>
+    void EndSelect(Vector2 endPos)
+    {
+        _selMoving = false;
+        if (!_selEdited)
+            return;
+        _selEdited = false;
+        var delta = endPos - _selOrigin;
+        // Restore the pre-drag values — Commit() re-applies the delta.
+        if (_selProp != null)
+        {
+            _selProp.X = _selPosBackup.X;
+            _selProp.Y = _selPosBackup.Y;
+        }
+        if (_selPtsBackup != null && (_selStroke != null || _selShape != null))
+        {
+            var pts = _selStroke != null ? _selStroke.Points : _selShape!.Points;
+            for (var i = 0; i < pts.Count; i++)
+                pts[i] = _selPtsBackup[i];
+        }
+        if (delta.LengthSquared() < 1)
+        {
+            _view.Rebuild();
+            return;
+        }
+        var (propId, strokeId, shapeId) = (_selProp?.Id, _selStroke?.Id, _selShape?.Id);
+        Commit(scene =>
+        {
+            if (propId is { } pid && scene.Props.FirstOrDefault(q => q.Id == pid) is { } pr)
+            {
+                pr.X += delta.X;
+                pr.Y += delta.Y;
+            }
+            else if (strokeId is { } stid && scene.Strokes.FirstOrDefault(s => s.Id == stid) is { } st)
+            {
+                for (var i = 0; i < st.Points.Count; i++)
+                    st.Points[i] += delta;
+            }
+            else if (shapeId is { } shid && scene.Shapes.FirstOrDefault(s => s.Id == shid) is { } sh)
+            {
+                for (var i = 0; i < sh.Points.Count; i++)
+                    sh.Points[i] += delta;
+            }
+        });
+        RefreshSelection();
+    }
+
+    /// <summary>Commit replaces the scene object — re-resolve the
+    /// selection to the matching element in the new scene.</summary>
+    void RefreshSelection()
+    {
+        var scene = _view.Scene;
+        if (_selProp != null)
+        {
+            _selProp = scene.Props.FirstOrDefault(q => q.Id == _selProp.Id) ?? _selProp;
+            _selPosBackup = new Vector2((float)_selProp.X, (float)_selProp.Y);
+        }
+        if (_selStroke != null)
+        {
+            _selStroke = scene.Strokes.FirstOrDefault(s => s.Id == _selStroke.Id) ?? _selStroke;
+            _selPtsBackup = [.. _selStroke.Points];
+        }
+        if (_selShape != null)
+        {
+            _selShape = scene.Shapes.FirstOrDefault(s => s.Id == _selShape.Id) ?? _selShape;
+            _selPtsBackup = [.. _selShape.Points];
+            _selShapeBackup = (_selShape.Height, _selShape.Size, _selShape.Roughness, _selShape.Model);
+        }
+        UpdateSelectionGhost();
+    }
+
+    void DeleteSelection()
+    {
+        if (!HasSelection())
+            return;
+        var (pid, stid, shid) = (_selProp?.Id, _selStroke?.Id, _selShape?.Id);
+        Commit(scene =>
+        {
+            scene.Props.RemoveAll(q => q.Id == pid);
+            if (pid == null)
+            {
+                scene.Strokes.RemoveAll(s => s.Id == stid);
+                if (stid == null)
+                    scene.Shapes.RemoveAll(s => s.Id == shid);
+            }
+        });
+        ClearSelection();
+    }
+
+    void ClearSelection()
+    {
+        _selProp = null;
+        _selStroke = null;
+        _selShape = null;
+        _selPtsBackup = null;
+        _selMoving = false;
+        _selEdited = false;
+        _ghost.SetSelection(null, null, null);
+    }
+
+    /// <summary>Sliders write into the selected terrain shape live;
+    /// the change commits when the drag ends (one undo step).</summary>
+    void OnTerrainSlider(double h, double s, double r, int m, bool commit)
+    {
+        (_pHeight, _pSlope, _pRough, _pModel) = (h, s, r, m);
+        if (_selShape is not { Kind: Kinds.Terrain } shape)
+            return;
+        if (commit)
+        {
+            // Revert live values then write one history entry.
+            if (_selShapeBackup is { } b)
+                (shape.Height, shape.Size, shape.Roughness, shape.Model) = b;
+            var id = shape.Id;
+            Commit(scene =>
+            {
+                if (scene.Shapes.FirstOrDefault(q => q.Id == id) is { } sh)
+                    (sh.Height, sh.Size, sh.Roughness, sh.Model) = (h, s, r, m);
+            });
+            RefreshSelection();
+        }
+        else
+        {
+            (shape.Height, shape.Size, shape.Roughness, shape.Model) = (h, s, r, m);
+            _pendingRebuild = true;
+        }
+    }
+
+    void UpdateSelectionGhost()
+    {
+        _ghost.SetSelection(
+            _selProp == null ? null : new Vector2((float)_selProp.X, (float)_selProp.Y),
+            _selStroke == null ? null : [.. _selStroke.Points],
+            _selShape == null ? null : [.. _selShape.Points]
+        );
+    }
+
+    /// <summary>Clicking a prop tool on an existing prop cycles its
+    /// variant (seed++) instead of stacking a new prop on top.</summary>
     void PlacePropAt(Vector2 p)
     {
+        var existing = _view
+            .Scene.Props.OrderByDescending(pr => pr.Id)
+            .FirstOrDefault(pr => new Vector2((float)pr.X, (float)pr.Y).DistanceTo(p) < 20);
+        if (existing != null)
+        {
+            var id = existing.Id;
+            Commit(scene =>
+            {
+                if (scene.Props.FirstOrDefault(q => q.Id == id) is { } pr)
+                    pr.Seed++;
+            });
+            return;
+        }
         var kind = _tool switch
         {
             Tool.Pine => "pine",
@@ -381,6 +754,32 @@ public partial class MapEditor : Node2D
         GD.Print("exported ", ProjectSettings.GlobalizePath("user://dmmap-export.png"));
     }
 
+    /// <summary>Seed → whole generated scene as one undo-able commit.</summary>
+    void Generate()
+    {
+        var seed = int.TryParse(_seedEdit.Text, out var s)
+            ? s
+            : _seedEdit.Text.GetHashCode();
+        var gen = MapGenerator.Generate(seed, MapSize);
+        ClearSelection();
+        _history.Commit(gen);
+        _view.Scene = _history.Current;
+        _view.Rebuild();
+    }
+
+    /// <summary>Sliders reflect the selected terrain shape's params.</summary>
+    void SyncSlidersToSelection()
+    {
+        if (_selShape is not { Kind: Kinds.Terrain } sh)
+            return;
+        _syncing = true;
+        _sHeight.Value = sh.Height;
+        _sSlope.Value = sh.Size;
+        _sRough.Value = sh.Roughness;
+        _modelOpt.Selected = Math.Clamp(sh.Model, 0, 2);
+        _syncing = false;
+    }
+
     // ── UI ───────────────────────────────────────────────────────
 
     void BuildUi()
@@ -402,6 +801,7 @@ public partial class MapEditor : Node2D
         var group = new ButtonGroup();
         (string Label, Tool T)[] tools =
         [
+            ("Vybrat", Tool.Select),
             ("Terén", Tool.Terrain),
             ("Řeka", Tool.River),
             ("Cesta", Tool.Road),
@@ -428,15 +828,19 @@ public partial class MapEditor : Node2D
 
         box.AddChild(new HSeparator());
         box.AddChild(new Label { Text = "Terén" });
-        Slider(box, "Výška", 0, 100, _pHeight, v => _pHeight = v);
-        Slider(box, "Šířka svahu", 10, 90, _pSlope, v => _pSlope = v);
-        Slider(box, "Nerovnosti", 0, 100, _pRough, v => _pRough = v);
-        var model = new OptionButton();
+        _sHeight = TerrainSlider(box, "Výška", 0, 100, _pHeight, v => _pHeight = v);
+        _sSlope = TerrainSlider(box, "Šířka svahu", 10, 90, _pSlope, v => _pSlope = v);
+        _sRough = TerrainSlider(box, "Nerovnosti", 0, 100, _pRough, v => _pRough = v);
+        _modelOpt = new OptionButton();
         foreach (var name in new[] { "Skalnatý", "Hlínitý", "Hřeben" })
-            model.AddItem(name);
-        model.Selected = _pModel;
-        model.ItemSelected += i => _pModel = (int)i;
-        box.AddChild(model);
+            _modelOpt.AddItem(name);
+        _modelOpt.Selected = _pModel;
+        _modelOpt.ItemSelected += i =>
+        {
+            _pModel = (int)i;
+            OnTerrainSlider(_pHeight, _pSlope, _pRough, _pModel, commit: true);
+        };
+        box.AddChild(_modelOpt);
 
         box.AddChild(new HSeparator());
         Slider(box, "Šířka řeky", 10, 60, _pRiverW, v => _pRiverW = v);
@@ -458,10 +862,25 @@ public partial class MapEditor : Node2D
         box.AddChild(mood);
 
         box.AddChild(new HSeparator());
+        var seedRow = new HBoxContainer();
+        _seedEdit = new LineEdit
+        {
+            Text = "42",
+            PlaceholderText = "seed",
+            CustomMinimumSize = new Vector2(80, 0),
+        };
+        seedRow.AddChild(_seedEdit);
+        var gen = new Godot.Button { Text = "Generovat", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        gen.Pressed += Generate;
+        seedRow.AddChild(gen);
+        box.AddChild(seedRow);
+
+        box.AddChild(new HSeparator());
         Button(box, "Zpět (Ctrl+Z)", Undo);
         Button(box, "Uložit", Save);
         Button(box, "Načíst", Load);
         Button(box, "Export PNG", ExportPng);
+        Button(box, "Odeslat do DR", () => _bridge?.PopupCentered());
         Button(box, "Nový", () =>
             Commit(scene =>
             {
@@ -487,6 +906,35 @@ public partial class MapEditor : Node2D
         box.AddChild(s);
     }
 
+    /// <summary>Terrain slider: live-writes into the selected shape
+    /// while dragging, single commit when the drag ends.</summary>
+    HSlider TerrainSlider(VBoxContainer box, string label, double min, double max, double value, Action<double> set)
+    {
+        var l = new Label();
+        var s = new HSlider { MinValue = min, MaxValue = max, Value = value };
+        void Sync() => l.Text = $"{label}: {s.Value:0}";
+        s.ValueChanged += v =>
+        {
+            if (_syncing)
+            {
+                Sync();
+                return;
+            }
+            set(v);
+            Sync();
+            OnTerrainSlider(_pHeight, _pSlope, _pRough, _pModel, commit: false);
+        };
+        s.DragEnded += changed =>
+        {
+            if (changed && !_syncing)
+                OnTerrainSlider(_pHeight, _pSlope, _pRough, _pModel, commit: true);
+        };
+        Sync();
+        box.AddChild(l);
+        box.AddChild(s);
+        return s;
+    }
+
     static void Button(VBoxContainer box, string label, Action action)
     {
         var b = new Godot.Button { Text = label };
@@ -495,13 +943,18 @@ public partial class MapEditor : Node2D
     }
 }
 
-/// <summary>Ghost preview of the in-progress stroke — drawn in the
-/// main viewport above the baked composite.</summary>
+/// <summary>Ghost preview — in-progress stroke, live massif draft
+/// and the selection highlight, drawn in the main viewport above
+/// the baked composite.</summary>
 public partial class GhostLayer : Node2D
 {
     MapEditor.Tool _tool;
     List<Vector2> _pts = [];
     double _width;
+    Massif? _draft;
+    Vector2? _selProp;
+    Vector2[]? _selLine;
+    Vector2[]? _selOutline;
 
     public void SetStroke(MapEditor.Tool tool, List<Vector2> pts, double width)
     {
@@ -512,11 +965,57 @@ public partial class GhostLayer : Node2D
     public void Clear()
     {
         _pts = [];
+        _draft = null;
+        QueueRedraw();
+    }
+
+    /// <summary>Translucent massif ghost while a terrain stroke is
+    /// being drawn — band + top fills at half alpha.</summary>
+    public void SetDraft(Massif m)
+    {
+        _draft = m;
+        QueueRedraw();
+    }
+
+    public void ClearDraft()
+    {
+        _draft = null;
+        QueueRedraw();
+    }
+
+    public void SetSelection(Vector2? prop, Vector2[]? line, Vector2[]? outline)
+    {
+        (_selProp, _selLine, _selOutline) = (prop, line, outline);
         QueueRedraw();
     }
 
     public override void _Draw()
     {
+        // selection highlight
+        var hi = new Color(1f, 0.85f, 0.25f, 0.9f);
+        if (_selOutline is { Length: > 2 } o)
+            DrawPolyline([.. o, o[0]], hi, 2.5f);
+        if (_selLine is { Length: > 1 } l)
+            DrawPolyline(l, hi, 3);
+        if (_selProp is { } pp)
+            DrawArc(pp, 20, 0, Mathf.Tau, 24, hi, 2.5f);
+
+        // terrain draft — the massif the stroke would create
+        if (_draft is { } m)
+        {
+            var band = new Color(0.71f, 0.69f, 0.54f, 0.45f);
+            var top = new Color(0.49f, 0.65f, 0.32f, 0.5f);
+            foreach (var poly in m.Band)
+                if (Geometry2D.TriangulatePolygon(poly).Length > 0)
+                    DrawColoredPolygon(poly, band);
+            foreach (var poly in m.Tops)
+                if (Geometry2D.TriangulatePolygon(poly).Length > 0)
+                    DrawColoredPolygon(poly, top);
+            foreach (var poly in m.Tops)
+                DrawPolyline([.. poly, poly[0]], new Color(0.2f, 0.18f, 0.1f, 0.8f), 2);
+        }
+
+        // the raw stroke on top
         if (_pts.Count < 2)
             return;
         var pts = _pts.ToArray();

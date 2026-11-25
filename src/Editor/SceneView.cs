@@ -14,9 +14,16 @@ public partial class SceneView : Node2D
     public Scene Scene = new();
     public ResolvedBiome Biome = null!;
     public ResolvedMood Mood = null!;
+    /// <summary>The massifs built during the last Rebuild — used by the
+    /// editor for selection hit-testing and live previews.</summary>
+    public List<Massif> Massifs = [];
 
     // Per-layer painters, rebuilt from scratch each commit.
     readonly List<Node> _layers = [];
+    // Massif cache — props/strokes rebuilds skip the expensive clipper
+    // when the terrain shapes didn't change.
+    List<TerrainShape> _lastShapes = [];
+    bool _massifsValid;
 
     public static SceneView Create(Vector2 mapSize)
     {
@@ -62,29 +69,40 @@ public partial class SceneView : Node2D
                 Outline = [.. s.Points],
             })
             .ToList();
-        var massifs = TerrainGeometry.BuildMassifs(shapes);
-        var albedo = Stage.Albedo;
-        albedo.Ground = Biome.Ground;
-        albedo.Cliff = Biome.Cliff;
-        albedo.Stone = Biome.Stone;
-        albedo.SetMassifs(massifs);
-        Stage.Height.SetMassifs(massifs);
+        if (!_massifsValid || !ShapesEqual(_lastShapes, shapes))
+        {
+            Massifs = TerrainGeometry.BuildMassifs(shapes);
+            _lastShapes = shapes;
+            _massifsValid = true;
+            var albedo = Stage.Albedo;
+            albedo.Ground = Biome.Ground;
+            albedo.Cliff = Biome.Cliff;
+            albedo.Stone = Biome.Stone;
+            albedo.SetMassifs(Massifs);
+            Stage.Height.SetMassifs(Massifs);
+        }
+        var massifs = Massifs;
 
         var water = new WaterPainter { Water = Biome.Water };
         var waterH = new WaterHeight();
+        var crossings = new CrossingPainter { WaterLight = Biome.Water };
+        crossings.SetMassifs(massifs);
         foreach (var st in Scene.Strokes)
         {
             if (st.Kind == Kinds.River)
             {
                 water.AddRiver(st.Points, st.Width);
                 waterH.AddRiver(st.Points, st.Width);
+                crossings.AddStroke(st.Kind, st.Points, st.Width);
             }
             else if (st.Kind == Kinds.Road)
             {
                 water.AddRoad(st.Points, st.Width);
+                crossings.AddStroke(st.Kind, st.Points, st.Width);
             }
         }
         AddLayer(Stage.AlbedoVp, water);
+        AddLayer(Stage.AlbedoVp, crossings);
         AddLayer(Stage.HeightVp, waterH);
 
         var props = Scene
@@ -118,6 +136,25 @@ public partial class SceneView : Node2D
     {
         vp.AddChild(painter);
         _layers.Add(painter);
+    }
+
+    static bool ShapesEqual(List<TerrainShape> a, List<TerrainShape> b)
+    {
+        if (a.Count != b.Count)
+            return false;
+        for (var i = 0; i < a.Count; i++)
+        {
+            var (x, y) = (a[i], b[i]);
+            if (
+                x.Model != y.Model
+                || x.Height != y.Height
+                || x.Size != y.Size
+                || x.Roughness != y.Roughness
+                || !x.Outline.SequenceEqual(y.Outline)
+            )
+                return false;
+        }
+        return true;
     }
 
     static PropKind MapProp(string kind) =>
