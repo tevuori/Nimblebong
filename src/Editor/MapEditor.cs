@@ -92,6 +92,7 @@ public partial class MapEditor : Node2D
 
     // Current tool + parameters.
     ToolDef _tool = Tools[2]; // terrain
+    int _form; // 0 volný tah, 1 obdélník, 2 elipsa — pro plošné nástroje
     double _pHeight = 30;
     double _pSlope = 46;
     double _pRough = 0;
@@ -450,7 +451,7 @@ public partial class MapEditor : Node2D
         if (_stroke.Count == 0 || _stroke[^1].DistanceTo(p) > 4)
         {
             _stroke.Add(p);
-            _ghost.SetStroke(_tool, _stroke, StrokeWidth());
+            _ghost.SetStroke(_tool, _tool.Mode == Mode.Shape && _form > 0 ? FormPoints(_form) : _stroke, StrokeWidth());
             if (_tool.Kind == Kinds.Terrain && _stroke.Count >= 6 && _draftAt == 0)
                 _draftAt = Time.GetTicksMsec() + 120;
             if (_tool.Mode == Mode.Prop && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
@@ -466,6 +467,30 @@ public partial class MapEditor : Node2D
             Kinds.Wall => 20,
             _ => 8,
         };
+
+    /// <summary>Bounding-box rect/ellipse polygon for shape tools
+    /// when a constrained form is selected.</summary>
+    List<Vector2> FormPoints(int form)
+    {
+        var min = _stroke[0];
+        var max = _stroke[0];
+        foreach (var p in _stroke)
+        {
+            min = min.Min(p);
+            max = max.Max(p);
+        }
+        if (form == 1)
+            return [min, new Vector2(max.X, min.Y), max, new Vector2(min.X, max.Y)];
+        var c = (min + max) / 2;
+        var r = (max - min) / 2;
+        var pts = new List<Vector2>();
+        for (int i = 0; i < 28; i++)
+        {
+            var a = i / 28.0 * Mathf.Tau;
+            pts.Add(c + new Vector2((float)(r.X * Math.Cos(a)), (float)(r.Y * Math.Sin(a))));
+        }
+        return pts;
+    }
 
     void BeginStroke()
     {
@@ -494,6 +519,8 @@ public partial class MapEditor : Node2D
         if (_stroke.Count < 2)
             return;
         var pts = Interactions.SimplifyPath(_stroke, 2.0);
+        if (_tool.Mode == Mode.Shape && _form > 0)
+            pts = FormPoints(_form);
         switch (_tool.Mode)
         {
             case Mode.Stroke:
@@ -1042,6 +1069,13 @@ public partial class MapEditor : Node2D
         search.TextChanged += _ => PopulateToolTree(search.Text);
         box.AddChild(_toolTree);
         PopulateToolTree("");
+
+        var form = new OptionButton();
+        form.AddItem("Volný tah");
+        form.AddItem("Obdélník");
+        form.AddItem("Elipsa");
+        form.ItemSelected += i => _form = (int)i;
+        box.AddChild(form);
 
         box.AddChild(new HSeparator());
         box.AddChild(new Label { Text = "Terén" });
