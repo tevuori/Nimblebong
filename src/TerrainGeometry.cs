@@ -92,11 +92,15 @@ public static class TerrainGeometry
                     Wobble(rawBase, size, wseed)
                 ))
             {
+                // Centroid plus two edge midpoints — a contour vertex
+                // sits exactly on the silhouette edge, PointInPolygon
+                // there is luck.
+                bool Owns(Vector2[] top) =>
+                    Poly.PointInPolygon(Poly.Centroid(top), base_)
+                    || Poly.PointInPolygon((top[0] + top[top.Length / 3]) / 2, base_);
                 var inside = tops
                     .Select((top, i) => (top, i))
-                    // Centroid — a contour vertex sits exactly on the
-                    // silhouette edge, PointInPolygon there is luck.
-                    .Where(t => Poly.PointInPolygon(Poly.Centroid(t.top), base_))
+                    .Where(t => Owns(t.top))
                     .ToList();
                 var massif = new Massif
                 {
@@ -106,10 +110,11 @@ public static class TerrainGeometry
                     Roughness = inside.Count > 0
                         ? inside.Max(t => topRough[t.i])
                         : topRough[0],
-                    Tops = inside.Count > 0 ? inside.Select(t => t.top).ToList() : [tops[0]],
-                    TopRoughness = inside.Count > 0
-                        ? inside.Select(t => topRough[t.i]).ToList()
-                        : [topRough[0]],
+                    // A band-only base piece borrows no foreign top —
+                    // painting another massif's contour would double
+                    // its ink outline.
+                    Tops = inside.Select(t => t.top).ToList(),
+                    TopRoughness = inside.Select(t => topRough[t.i]).ToList(),
                     Base = base_,
                     Silhouettes = silhouettes,
                     Face = face,
