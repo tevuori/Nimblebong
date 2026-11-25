@@ -86,7 +86,7 @@ public partial class WaterPainter : Node2D
     /// <summary>Union a list of stroke ribbons into clean surface pieces —
     /// crossing strokes merge into one body, disjoint strokes stay separate
     /// (TS unionCached). Self-merge repairs bow-ties at tight bends.</summary>
-    static List<Vector2[]> UnionAll(IReadOnlyList<(Vector2[] Run, double Width)> strokes, double delta)
+    internal static List<Vector2[]> UnionAll(IReadOnlyList<(Vector2[] Run, double Width)> strokes, double delta)
     {
         var polys = new List<Vector2[]>();
         foreach (var (run, w) in strokes)

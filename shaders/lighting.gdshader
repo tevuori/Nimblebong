@@ -5,6 +5,7 @@
 shader_type canvas_item;
 
 uniform sampler2D uHeight : filter_linear;
+uniform sampler2D uWater : filter_linear;
 uniform float uBaseline = 0.16;
 uniform vec2 uSunDir = vec2(-0.5, -0.62); // toward the sun (canvas coords, y down)
 uniform float uSunElev = 0.12;            // height units per px travelled
@@ -64,6 +65,19 @@ void fragment() {
             if (occ > 0.985) break;
         }
     }
-    COLOR = vec4(albedo.rgb * (uAmbient * (1.0 - occ * 0.45) + uSunColor * diff * (1.0 - occ * 0.85)), 1.0);
+    vec3 lit = albedo.rgb * (uAmbient * (1.0 - occ * 0.45) + uSunColor * diff * (1.0 - occ * 0.85));
+    // Animated water: slow wave tint drift + sparse moving glints,
+    // confined to the water mask (uWater alpha = coverage).
+    float w = texture(uWater, UV).a;
+    if (w > 0.01) {
+        vec2 wp = UV / texel;
+        float wave = sin(wp.x * 0.11 + TIME * 1.3) * sin(wp.y * 0.09 - TIME * 0.9);
+        lit = mix(lit, lit * 1.07 + vec3(0.01, 0.025, 0.03), w * (0.45 + 0.3 * wave));
+        float g = sin(wp.x * 0.31 + wp.y * 0.17 + TIME * 1.9)
+                * sin(wp.y * 0.37 - wp.x * 0.13 - TIME * 1.4);
+        float glint = smoothstep(0.93, 1.0, g);
+        lit += vec3(0.9, 0.95, 1.0) * glint * 0.22 * w;
+    }
+    COLOR = vec4(lit, 1.0);
     }
 }

@@ -177,6 +177,7 @@ public partial class SceneView : Node2D
         var bridges = new BridgePainter { Stone = Biome.Stone };
         bridges.SetStrokes(Scene.Strokes);
         AddLayer(Stage.AlbedoVp, water);
+        Stage.Water.SetWater(Scene);
         AddLayer(Stage.AlbedoVp, crossings);
         AddLayer(Stage.HeightVp, waterH);
         AddLayer(Stage.AlbedoVp, fortify);

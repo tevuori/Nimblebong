@@ -11,9 +11,11 @@ public partial class LightingStage : Node2D
     public SubViewport HeightVp = null!;
     public SubViewport FinalVp = null!;
     public SubViewport FogVp = null!;
+    public SubViewport WaterVp = null!;
     public AlbedoPainter Albedo = null!;
     public HeightmapPainter Height = null!;
     public FogMask Fog = null!;
+    public WaterMask Water = null!;
     TextureRect _composite = null!;
 
     public static LightingStage Create(Vector2 mapSize)
@@ -26,6 +28,10 @@ public partial class LightingStage : Node2D
         stage.FogVp.TransparentBg = true;
         stage.Fog = new FogMask { MapSize = mapSize };
         stage.FogVp.AddChild(stage.Fog);
+        stage.WaterVp = NewViewport(mapSize);
+        stage.WaterVp.TransparentBg = true;
+        stage.Water = new WaterMask { MapSize = mapSize };
+        stage.WaterVp.AddChild(stage.Water);
         stage.Albedo = new AlbedoPainter { MapSize = mapSize };
         stage.Height = new HeightmapPainter { MapSize = mapSize };
         stage.AlbedoVp.AddChild(stage.Albedo);
@@ -40,11 +46,13 @@ public partial class LightingStage : Node2D
             StretchMode = TextureRect.StretchModeEnum.Scale,
         };
         material.SetShaderParameter("uHeight", stage.HeightVp.GetTexture());
+        material.SetShaderParameter("uWater", stage.WaterVp.GetTexture());
         stage.FinalVp.AddChild(stage._composite);
         stage.AddChild(stage.AlbedoVp);
         stage.AddChild(stage.HeightVp);
         stage.AddChild(stage.FinalVp);
         stage.AddChild(stage.FogVp);
+        stage.AddChild(stage.WaterVp);
         // Show the baked result on screen too.
         stage.AddChild(
             new TextureRect
