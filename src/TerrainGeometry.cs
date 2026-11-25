@@ -95,9 +95,24 @@ public static class TerrainGeometry
                 // Centroid plus two edge midpoints — a contour vertex
                 // sits exactly on the silhouette edge, PointInPolygon
                 // there is luck.
-                bool Owns(Vector2[] top) =>
-                    Poly.PointInPolygon(Poly.Centroid(top), base_)
-                    || Poly.PointInPolygon((top[0] + top[top.Length / 3]) / 2, base_);
+                bool Owns(Vector2[] top)
+                {
+                    // Boundary vertices sit exactly on the dilated rim, so
+                    // a bare PointInPolygon is luck. Probe a dozen points
+                    // nudged slightly toward the centroid; one solid hit is
+                    // enough to tie this base piece back to its source top.
+                    var cen = Poly.Centroid(top);
+                    if (Poly.PointInPolygon(cen, base_))
+                        return true;
+                    var stride = System.Math.Max(1, top.Length / 12);
+                    for (var i = 0; i < top.Length; i += stride)
+                    {
+                        var q = top[i] + (cen - top[i]) * 0.03f;
+                        if (Poly.PointInPolygon(q, base_))
+                            return true;
+                    }
+                    return false;
+                }
                 var inside = tops
                     .Select((top, i) => (top, i))
                     .Where(t => Owns(t.top))
@@ -178,9 +193,23 @@ public static class TerrainGeometry
         return area / 2;
     }
 
-    /// <summary>Dilate a polygon outward by `delta` px (round joins).</summary>
-    public static List<Vector2[]> Offset(Vector2[] poly, double delta) =>
-        [.. Geometry2D.OffsetPolygon(poly, (float)delta, Geometry2D.PolyJoinType.Round)];
+    /// <summary>Dilate a polygon outward by `delta` px (round joins).
+    /// Clipper's sign convention is winding-dependent: positive deltas
+    /// expand visually clockwise contours (negative shoelace area in
+    /// Godot's y-down coordinates) and shrink counter-clockwise ones.
+    /// Terrain inputs arrive in both windings, so normalize first —
+    /// otherwise every other canyon ribbon inflates inward and loses
+    /// its walkable top.</summary>
+    public static List<Vector2[]> Offset(Vector2[] poly, double delta)
+    {
+        var p = poly;
+        if (SignedArea(p) > 0)
+        {
+            p = [.. p];
+            System.Array.Reverse(p);
+        }
+        return [.. Geometry2D.OffsetPolygon(p, (float)delta, Geometry2D.PolyJoinType.Round)];
+    }
 
     /// <summary>a ∖ b-set — plain polygon pieces, no holes.</summary>
     public static List<Vector2[]> Subtract(Vector2[] a, IEnumerable<Vector2[]> b) =>

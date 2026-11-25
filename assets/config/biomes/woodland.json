@@ -36,7 +36,7 @@
   "palette": {
     "ground": "#6fa346",
     "cliff": "#c2bda0",
-    "water": "#14646f",
+    "water": "#0d6f79",
     "foliage": "#4e7440",
     "stone": "#a4a68e",
     "roof": "#ac6948",
@@ -96,7 +96,7 @@
     "edge": null
   },
   "roads": {
-    "dirt": "#c3aa6d",
+    "dirt": "#b8b476",
     "stone": "#b3b39b",
     "verge": "#a7aa64",
     "halo": "#e6dda044"

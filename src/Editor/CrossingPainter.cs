@@ -81,53 +81,98 @@ public partial class CrossingPainter : Node2D
         // Which side is downhill — probe both ways for the point that
         // falls outside every top.
         var downhill = 1.0f;
-        foreach (var s in new[] { 1.0f, -1.0f })
+        foreach (var sgn in new[] { 1.0f, -1.0f })
         {
-            var probe = p + dir * s * 26;
+            var probe = p + dir * sgn * 26;
             var inside = _massifs.Any(m => m.Tops.Any(t => Poly.PointInPolygon(probe, t)));
             if (!inside)
             {
-                downhill = s;
+                downhill = sgn;
                 break;
             }
         }
-        var c0 = p + dir * downhill * 14; // sit on the band, not the rim line
-        var half = w * 0.5f;
-        var step = w * 0.34f;
-        var tread = Palette.Hex("#c2aa7c");
-        var treadDark = Palette.Hex("#a98c5e");
-        var rail = Palette.Hex("#51412c");
 
-        // Shadow under the staircase.
-        for (var i = -2; i <= 2; i++)
-            Fill(
-                Rung(c0 + dir * (i * step + 4), n, half, 4),
-                new Color(0.05f, 0.06f, 0.04f, 0.18f)
-            );
-        // Stringers — chunky ink rails a touch wider than the treads.
-        foreach (var s in new[] { -1.0f, 1.0f })
+        // Nimblehold stairs are a fan of shallow stone treads cut into
+        // the slope: narrow at the upper landing, splayed wider as they
+        // descend. The earlier five identical planks read as a ladder;
+        // these curved, widening treads keep the reference silhouette.
+        var up = -dir * downhill;
+        var length = Math.Max(54, w * 2.65f);
+        var c0 = p + dir * downhill * (length * 0.34f);
+        var stone = Palette.Hex("#d8d2ba");
+        var stoneDark = Palette.Hex("#c0b795");
+        var ink = Palette.Hex("#51412c");
+        var treadCount = 8;
+
+        // Soft mass shadow under the whole fan.
+        var shadowPts = new List<Vector2>();
+        for (var i = 0; i <= treadCount; i++)
         {
-            var a = c0 + n * s * (half + 1);
-            DrawLine(a - dir * step * 2.6f, a + dir * step * 2.6f, rail, 2.4f);
+            var t = i / (float)treadCount;
+            var c = c0 + up * ((t - 0.5f) * length) + new Vector2(4, 7);
+            var half = w * (0.42f + t * 0.52f);
+            shadowPts.Add(c + n * half);
         }
-        // Rungs — alternating plank tones like the bridge deck.
-        for (var i = -2; i <= 2; i++)
+        for (var i = treadCount; i >= 0; i--)
         {
-            var c = c0 + dir * (i * step);
-            var poly = Rung(c, n, half, 5);
-            Fill(poly, (i % 2 == 0) ? tread : treadDark);
-            DrawPolyline([.. poly, poly[0]], rail, 1.4f, true);
-            // End grain — a pale tick at each tread end.
-            foreach (var s in new[] { -1.0f, 1.0f })
-                DrawLine(
-                    c + n * s * (half - 2) - dir * 2,
-                    c + n * s * (half - 2) + dir * 2,
-                    Palette.Tint(tread, 18),
-                    1.4f
-                );
+            var t = i / (float)treadCount;
+            var c = c0 + up * ((t - 0.5f) * length) + new Vector2(4, 7);
+            var half = w * (0.42f + t * 0.52f);
+            shadowPts.Add(c - n * half);
+        }
+        Fill([.. shadowPts], new Color(0.05f, 0.06f, 0.04f, 0.09f));
+
+        Vector2 Bowed(Vector2 c, float half, float side, float bow)
+        {
+            // Slight downhill bow across each tread keeps the fan hand
+            // drawn instead of a ruled perspective grid.
+            return c + n * (half * side) + dir * downhill * bow * (1 - side * side);
+        }
+
+        for (var i = 0; i < treadCount; i++)
+        {
+            var t = (i + 0.5f) / treadCount;
+            var c = c0 + up * ((t - 0.5f) * length);
+            var half = w * (0.42f + t * 0.52f);
+            var bow = 2.2f + t * 2.2f;
+            var pts = new List<Vector2>();
+            for (var k = -4; k <= 4; k++)
+            {
+                var side = k / 4f;
+                pts.Add(Bowed(c, half, side, bow));
+            }
+            var back = pts.Select(q => q - dir * downhill * (length / treadCount * 0.72f)).Reverse().ToList();
+            var slab = pts.Concat(back).ToArray();
+            Fill(slab, i % 2 == 0 ? stone : stoneDark);
+            DrawPolyline([.. pts], ink with { A = 0.78f }, 1.25f, true);
+            // Sparse masonry ticks across a few treads.
+            if (i % 2 == 0)
+                for (var k = -1; k <= 1; k++)
+                {
+                    var side = k * 0.48f;
+                    var a = Bowed(c, half, side, bow);
+                    DrawLine(
+                        a - dir * downhill * 2,
+                        a + dir * downhill * 2,
+                        Palette.TintAlpha(ink, 12, 0.65f),
+                        1.0f
+                    );
+                }
+        }
+        // Edge stringers following the splayed outline.
+        foreach (var side in new[] { -1f, 1f })
+        {
+            var edge = new List<Vector2>();
+            for (var i = 0; i <= treadCount; i++)
+            {
+                var t = i / (float)treadCount;
+                var c = c0 + up * ((t - 0.5f) * length);
+                edge.Add(c + n * side * w * (0.42f + t * 0.52f));
+            }
+            DrawPolyline([.. edge], ink with { A = 0.82f }, 1.55f, true);
         }
         // Landing shadow at the downhill foot.
-        DrawCircle(c0 + dir * downhill * step * 3.1f, half * 0.5f, new Color(0.05f, 0.06f, 0.04f, 0.15f));
+        DrawCircle(c0 + dir * downhill * length * 0.55f, w * 0.45f, new Color(0.05f, 0.06f, 0.04f, 0.14f));
     }
 
     static Vector2[] Rung(Vector2 c, Vector2 n, float half, float thick)

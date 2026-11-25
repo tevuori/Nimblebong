@@ -42,11 +42,16 @@ void fragment() {
     vec4 albedo = texture(TEXTURE, UV);
     vec2 texel = TEXTURE_PIXEL_SIZE;
     float h = heightAt(UV, texel);
-    float hx = heightAt(UV + vec2(texel.x, 0.0), texel)
-             - heightAt(UV - vec2(texel.x, 0.0), texel);
-    float hy = heightAt(UV + vec2(0.0, texel.y), texel)
-             - heightAt(UV - vec2(0.0, texel.y), texel);
-    vec3 n = normalize(vec3(-hx * 0.9, -hy * 0.9, 1.0));
+    // Sample the height gradient over a small footprint. One-pixel
+    // central differences turn the raster's quantized elevation rings
+    // into alternating light/dark contour stripes; a 9 px footprint
+    // integrates the same ramp as a continuous slope instead.
+    vec2 hs = texel * 4.5;
+    float hx = heightAt(UV + vec2(hs.x, 0.0), texel)
+             - heightAt(UV - vec2(hs.x, 0.0), texel);
+    float hy = heightAt(UV + vec2(0.0, hs.y), texel)
+             - heightAt(UV - vec2(0.0, hs.y), texel);
+    vec3 n = normalize(vec3(-hx * 0.2, -hy * 0.2, 1.0));
     vec3 L = normalize(vec3(uSunDir * 2.0, 1.2));
     float diff = clamp(dot(n, L), 0.0, 1.0);
     float occ = 0.0;

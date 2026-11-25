@@ -95,8 +95,8 @@ public partial class BridgePainter : Node2D
                     {
                         Point = mid,
                         Angle = Math.Atan2(span.Y, span.X),
-                        Length = start.DistanceTo(end) + 14,
-                        Width = road.Width + 12,
+                        Length = start.DistanceTo(end) + 24,
+                        Width = road.Width + 24,
                         Model = ((road.Model % 3) + 3) % 3,
                     }
                 );
@@ -163,35 +163,31 @@ public partial class BridgePainter : Node2D
             Rect(-L / 2 - 3, -W / 2 + 8, L + 6, W),
             new Color(0.05f, 0.06f, 0.04f, 0.22f)
         );
-        Fill(Rect(-L / 2 - 3, -W / 2, L + 6, W), Palette.Hex("#765139"));
-        for (var x = -L / 2; x < L / 2; x += 7)
+        Fill(Rect(-L / 2 - 3, -W / 2, L + 6, W), Palette.Hex("#6b4327"));
+        // Broad, warm planks. Nimblehold bridges read as one simple
+        // caramel deck — heavy rails/post caps make the crossing look
+        // like a ladder at map scale.
+        for (var x = -L / 2; x < L / 2; x += 10)
         {
             Fill(
-                Rect(x, -W / 2 + 2, 6, W - 4),
-                Palette.Hex((int)x % 3 != 0 ? "#b49a68" : "#c2aa7c")
+                Rect(x, -W / 2 + 2, 8.5, W - 4),
+                Palette.Hex((int)(x * 0.37) % 2 != 0 ? "#ad762e" : "#bf8437")
             );
             Line(
-                new((float)x, (float)(-W / 2 + 3)),
-                new((float)(x + 1), (float)(W / 2 - 3)),
-                Palette.Hex("#684a33"),
-                1
+                new((float)x, (float)(-W / 2 + 2)),
+                new((float)(x + 1), (float)(W / 2 - 2)),
+                Palette.Hex("#5c3d22"),
+                1.5f
             );
         }
+        // A narrow ink lip is enough to anchor the deck; no railing.
         foreach (var side in new[] { -1.0, 1.0 })
-        {
             Line(
-                new((float)(-L / 2 - 5), (float)(side * W / 2)),
-                new((float)(L / 2 + 5), (float)(side * W / 2)),
-                Palette.Hex("#5f4a31"),
-                4
+                new((float)(-L / 2 - 2), (float)(side * W / 2)),
+                new((float)(L / 2 + 2), (float)(side * W / 2)),
+                Palette.Hex("#4b301c"),
+                2.2f
             );
-            foreach (var end in new[] { -1.0, 1.0 })
-            {
-                var p = new Vector2((float)(end * L / 2), (float)(side * W / 2));
-                DrawCircle(p, 3, Palette.Hex("#dbc394"));
-                DrawArc(p, 3, 0, Mathf.Tau, 12, Palette.Hex("#51412c"), 1f);
-            }
-        }
     }
 
     /// <summary>Model 1 — stone arch: masonry deck, raised parapets,

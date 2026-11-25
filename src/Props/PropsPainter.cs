@@ -320,8 +320,8 @@ public partial class PropsPainter : Node2D
         // a tighter contact core. Nimblehold objects sit firmly on the
         // sheet; rotating the shadow with the prop broke sun continuity.
         Fill(
-            XformU(p, Poly.Ellipse(rx * 0.3, ry * 0.42, rx * 1.16, ry * 0.9, 0, 12)),
-            new Color(0.055f, 0.075f, 0.04f, 0.11f)
+            XformU(p, Poly.Ellipse(rx * 0.44, ry * 0.55, rx * 1.2, ry * 0.92, 0, 12)),
+            new Color(0.04f, 0.06f, 0.028f, 0.17f)
         );
         Fill(
             XformU(p, Poly.Ellipse(rx * 0.2, ry * 0.3, rx * 0.82, ry * 0.62, 0, 12)),
@@ -348,12 +348,12 @@ public partial class PropsPainter : Node2D
         for (var k = 0; k < lobes; k++)
         {
             var a = rot + (k / (double)lobes) * Math.PI * 2 + (rand.Next() - 0.5) * 0.5;
-            var d = r * (clump ? 0.56 : 0.42) * rand.Range(0.8, 1.1);
+            var d = r * (clump ? 0.6 : 0.5) * rand.Range(0.82, 1.12);
             var lr = clump ? rand.Range(0.34, 0.46) : rand.Range(0.48, 0.62);
             parts.Add(Blob(Math.Cos(a) * d, Math.Sin(a) * d, r * lr, rand, 18, 0.09));
         }
         if (!clump)
-            parts.Add(Blob(0, 0, r * 0.62, rand, 18, 0.08));
+            parts.Add(Blob(0, 0, r * 0.52, rand, 18, 0.1));
 
         // Shared silhouette: thick edge stroke under every piece reads
         // as one ink outline around the whole canopy.
@@ -361,7 +361,7 @@ public partial class PropsPainter : Node2D
         {
             var w = XformSmooth(p, part);
             Fill(w, edge);
-            Stroke(w, edge, (float)(3.1 * p.Scale));
+            Stroke(w, edge, (float)(4.0 * p.Scale));
         }
         // Base shade, then lit lobes shrunk toward the NW sun.
         foreach (var part in parts)
@@ -397,11 +397,12 @@ public partial class PropsPainter : Node2D
                 var a = rand.Next() * Math.PI * 2;
                 var d = Math.Sqrt(rand.Next()) * r * 0.85;
                 var s = 1.4 + rand.Next() * 2.4;
+                var aa = rand.Next() * Math.PI * 2;
                 DrawArc(
                     Xform(p, new Vector2((float)(Math.Cos(a) * d), (float)(Math.Sin(a) * d))),
                     (float)(s * p.Scale),
-                    (float)(0.2 + p.Rotation),
-                    (float)(Math.PI * 1.15 + p.Rotation),
+                    (float)aa,
+                    (float)(aa + Math.PI * (0.75 + rand.Next() * 0.55)),
                     5,
                     tone,
                     (float)Math.Max(0.7, 1.0 * p.Scale)

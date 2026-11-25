@@ -91,125 +91,156 @@ public partial class PropsPainter
             true
         );
 
+    /// <summary>TS prop.model semantics: an explicit p.Model wins
+    /// (wrapped into range); Model&lt;0 falls back to the seeded roll.</summary>
+    static int PropModel(PropPlacement p, int count, double roll)
+    {
+        if (p.Model >= 0)
+            return ((p.Model % count) + count) % count;
+        return Math.Min(count - 1, (int)(roll * count));
+    }
+
     void DrawTent(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
+        // Models: 0 cream ridge tent, 1 striped ridge tent, 2 striped
+        // pavilion — the reference canvas is always cream/white based
+        // with ink outlines, never flat brown.
+        var model = PropModel(p, 3, rand.Next());
         var r = 14 * rand.Range(0.85, 1.15);
-        // TS woodland tent cloth; per-instance nudge toward sun-bleached
-        // canvas or weathered olive.
+        // Sun-bleached canvas with a per-instance nudge.
         var cloth = Palette.Mix(
-            Palette.Hex("#a28b61"),
-            rand.Next() < 0.5 ? Palette.Hex("#8f7a52") : Palette.Hex("#b8a67c"),
-            rand.Next() * 0.55
+            Palette.Hex("#e9dcbd"),
+            rand.Next() < 0.5 ? Palette.Hex("#f4e9cd") : Palette.Hex("#d9c69c"),
+            rand.Next() * 0.5
         );
-        var edge = Palette.Mix(cloth, Palette.Hex("#3c3626"), 0.62);
-        var pole = Palette.Hex("#5e5138");
-        var rope = Palette.Hex("#51472f");
+        var ink = Palette.Hex("#463b2a");
+        var seam = Palette.Mix(cloth, ink, 0.45);
+        var pole = Palette.Hex("#6a5636");
+        var rope = Palette.Hex("#7a6a48");
+        // Stripe dye: madder red or woad blue (seeded per tent).
+        var dye = rand.Next() < 0.55 ? Palette.Hex("#b3453a") : Palette.Hex("#3f6d9a");
 
-        ContactShadow(p, r * 1.1, r * 0.85);
+        ContactShadow(p, r * 1.15, r * 0.9);
 
-        if (rand.Next() < 0.32)
+        if (model == 2)
         {
-            // Open lean-to (TS model 2): shadowed ground triangle under a
-            // tarp diamond on two poles, guy-lines pegged out.
+            // Pavilion — a conical striped tent read obliquely as a tall
+            // triangle: stripes radiate from the apex, inked ribs between
+            // them, a pole tip sticking out of the peak.
+            var apex = new Vector2(0, (float)(-r * 1.05));
+            var bl = new Vector2((float)(-r * 0.95), (float)(r * 0.62));
+            var br = new Vector2((float)(r * 0.95), (float)(r * 0.62));
+            var body = Xform(p, new[] { apex, br, bl });
+            Fill(body, cloth);
+            // Six base segments — alternating dyed gores.
+            const int gores = 6;
+            for (var i = 0; i < gores; i++)
+            {
+                if (i % 2 == 0)
+                    continue;
+                var a0 = bl + (br - bl) * (i / (float)gores);
+                var a1 = bl + (br - bl) * ((i + 1) / (float)gores);
+                foreach (
+                    var piece in Geometry2D.IntersectPolygons(
+                        body,
+                        Xform(p, new[] { apex, a1, a0 })
+                    )
+                )
+                    Fill(piece, dye);
+            }
+            // Inked ribs along the gore boundaries.
+            for (var i = 0; i <= gores; i++)
+                NLine(
+                    p,
+                    new[] { apex, bl + (br - bl) * (i / (float)gores) },
+                    seam,
+                    1.1
+                );
+            Stroke(body, ink, (float)Math.Max(0.9, 1.5 * p.Scale));
+            // Center pole tip + pennant dot.
+            NLine(
+                p,
+                new[] { apex, new Vector2(0, (float)(-r * 1.3)) },
+                pole,
+                2
+            );
+            // Door slit at the base center.
             Fill(
                 Xform(
                     p,
                     new[]
                     {
-                        new Vector2((float)(-r * 0.8), (float)(r * 0.55)),
-                        new Vector2(0, (float)(-r * 0.25)),
-                        new Vector2((float)(r * 0.8), (float)(r * 0.55)),
+                        new Vector2((float)(-r * 0.16), (float)(r * 0.62)),
+                        new Vector2(0, (float)(r * 0.18)),
+                        new Vector2((float)(r * 0.16), (float)(r * 0.62)),
                     }
                 ),
-                Palette.Hex("#3c4439")
-            );
-            var tarp = Xform(
-                p,
-                new[]
-                {
-                    new Vector2((float)(-r * 0.95), (float)(-r * 0.05)),
-                    new Vector2(0, (float)(-r * 0.75)),
-                    new Vector2((float)(r * 0.95), (float)(-r * 0.05)),
-                    new Vector2(0, (float)(r * 0.35)),
-                }
-            );
-            Fill(tarp, cloth);
-            Stroke(tarp, edge, (float)Math.Max(0.8, 1.2 * p.Scale));
-            NLine(
-                p,
-                new[] { new Vector2(0, (float)(-r * 0.75)), new Vector2(0, (float)(r * 0.35)) },
-                pole,
-                2
+                Palette.Hex("#3a3226")
             );
             foreach (var side in new[] { -1, 1 })
             {
-                NLine(
-                    p,
-                    new[]
-                    {
-                        new Vector2((float)(side * r * 0.55), (float)(r * 0.2)),
-                        new Vector2((float)(side * r * 0.55), (float)(r * 0.6)),
-                    },
-                    pole,
-                    2.4
-                );
-                NLine(
-                    p,
-                    new[]
-                    {
-                        new Vector2((float)(side * r * 0.95), (float)(-r * 0.05)),
-                        new Vector2((float)(side * r * 1.15), (float)(r * 0.25)),
-                    },
-                    rope,
-                    1
+                // Guy ropes off the base corners, pegged out.
+                var corner = side < 0 ? bl : br;
+                var peg = new Vector2(corner.X * 1.25f, corner.Y + (float)(r * 0.3));
+                NLine(p, new[] { corner, peg }, rope, 1);
+                DrawCircle(
+                    Xform(p, peg),
+                    (float)Math.Max(0.9, 1.1 * p.Scale),
+                    ink
                 );
             }
+            return;
         }
-        else
+
         {
-            // Ridge tent (TS models 0/1 — model 1's quarter-turn is already
-            // covered by the prop's own rotation).
-            var body = Xform(
-                p,
-                new[]
-                {
-                    new Vector2((float)-r, (float)(-r * 0.6)),
-                    new Vector2(0, (float)-r),
-                    new Vector2((float)r, (float)(-r * 0.6)),
-                    new Vector2((float)r, (float)(r * 0.7)),
-                    new Vector2(0, (float)r),
-                    new Vector2((float)-r, (float)(r * 0.7)),
-                }
-            );
+            // Ridge tent — prism footprint: two triangular end faces
+            // (north/south apexes) joined by the ridge line.
+            var bodyPts = new[]
+            {
+                new Vector2((float)-r, (float)(-r * 0.6)),
+                new Vector2(0, (float)-r),
+                new Vector2((float)r, (float)(-r * 0.6)),
+                new Vector2((float)r, (float)(r * 0.7)),
+                new Vector2(0, (float)r),
+                new Vector2((float)-r, (float)(r * 0.7)),
+            };
+            var body = Xform(p, bodyPts);
             Fill(body, cloth);
-            // Canvas stripes — the banded circus-cloth look of the
-            // reference tents, clipped to the body.
-            var stripe = Palette.Mix(cloth, Palette.Hex("#7d4a36"), 0.55);
-            foreach (
-                var quad in new[]
+
+            if (model == 1)
+                // Striped canvas — dye bands running across the ridge,
+                // clipped to the body (same trick as the TS stripes).
+                for (var band = 0; band < 3; band++)
                 {
-                    new[]
+                    var y0 = -r * 0.95 + band * r * 0.62;
+                    var quad = new[]
                     {
-                        new Vector2((float)(-r * 0.55), (float)(-r * 0.82)),
-                        new Vector2((float)(-r * 0.28), (float)(-r * 0.94)),
-                        new Vector2((float)(-r * 0.28), (float)(r * 0.92)),
-                        new Vector2((float)(-r * 0.55), (float)(r * 0.8)),
-                    },
-                    new[]
-                    {
-                        new Vector2((float)(r * 0.28), (float)(-r * 0.94)),
-                        new Vector2((float)(r * 0.55), (float)(-r * 0.82)),
-                        new Vector2((float)(r * 0.55), (float)(r * 0.8)),
-                        new Vector2((float)(r * 0.28), (float)(r * 0.92)),
-                    },
+                        new Vector2((float)(-r * 1.15), (float)y0),
+                        new Vector2((float)(r * 1.15), (float)y0),
+                        new Vector2((float)(r * 1.15), (float)(y0 + r * 0.32)),
+                        new Vector2((float)(-r * 1.15), (float)(y0 + r * 0.32)),
+                    };
+                    foreach (
+                        var piece in Geometry2D.IntersectPolygons(body, Xform(p, quad))
+                    )
+                        Fill(piece, dye);
                 }
-            )
-                foreach (
-                    var piece in Geometry2D.IntersectPolygons(body, Xform(p, quad))
-                )
-                    Fill(piece, stripe);
-            // Lit east face — tentHighlight (#ffffff25).
+
+            // Shaded west slope + lit east slope — the cloth volume.
+            Fill(
+                Xform(
+                    p,
+                    new[]
+                    {
+                        new Vector2((float)-r, (float)(-r * 0.6)),
+                        new Vector2(0, (float)-r),
+                        new Vector2(0, (float)r),
+                        new Vector2((float)-r, (float)(r * 0.7)),
+                    }
+                ),
+                new Color(0f, 0f, 0f, 0.07f)
+            );
             Fill(
                 Xform(
                     p,
@@ -221,92 +252,165 @@ public partial class PropsPainter
                         new Vector2(0, (float)r),
                     }
                 ),
-                new Color(1f, 1f, 1f, 0.15f)
+                new Color(1f, 1f, 1f, 0.13f)
             );
-            Stroke(body, edge, (float)Math.Max(0.8, 1.2 * p.Scale));
+
+            // Panel seams across both slopes, perpendicular to the ridge.
+            foreach (var t in new[] { 0.3, 0.55, 0.8 })
+            {
+                var ry = -r + 2 * r * t;
+                foreach (var side in new[] { -1, 1 })
+                {
+                    var ey = -r * 0.6 + r * 1.3 * t;
+                    NLine(
+                        p,
+                        new[]
+                        {
+                            new Vector2(0, (float)ry),
+                            new Vector2((float)(side * r), (float)ey),
+                        },
+                        seam,
+                        1
+                    );
+                }
+            }
+            // Ridge seam.
             NLine(
                 p,
                 new[] { new Vector2(0, (float)-r), new Vector2(0, (float)r) },
-                pole,
-                2
+                seam,
+                1.6
             );
-            // Door flap.
+            Stroke(body, ink, (float)Math.Max(0.9, 1.5 * p.Scale));
+
+            // Door — a dark triangular opening in the south end face
+            // with one flap tied back.
             Fill(
                 Xform(
                     p,
                     new[]
                     {
-                        new Vector2((float)(-r * 0.36), (float)(r * 0.75)),
-                        new Vector2(0, 0),
-                        new Vector2((float)(r * 0.36), (float)(r * 0.75)),
+                        new Vector2((float)(-r * 0.3), (float)(r * 0.72)),
+                        new Vector2(0, (float)(r * 0.1)),
+                        new Vector2((float)(r * 0.3), (float)(r * 0.72)),
                     }
                 ),
-                Palette.Hex("#3c4439")
+                Palette.Hex("#3a3226")
             );
+            NLine(
+                p,
+                new[]
+                {
+                    new Vector2(0, (float)(r * 0.1)),
+                    new Vector2((float)(r * 0.3), (float)(r * 0.72)),
+                },
+                ink,
+                1.2
+            );
+
+            // Ridge poles poking past both apexes.
             foreach (var side in new[] { -1, 1 })
                 NLine(
                     p,
                     new[]
                     {
-                        new Vector2((float)(side * r), (float)(-r * 0.5)),
-                        new Vector2((float)(side * r * 1.15), (float)(-r * 0.8)),
+                        new Vector2(0, (float)(side * r)),
+                        new Vector2(0, (float)(side * r * 1.16)),
                     },
-                    rope,
-                    1
+                    pole,
+                    2.2
                 );
+            // Guy ropes off the eave corners, pegged into the ground.
+            foreach (var side in new[] { -1, 1 })
+                foreach (var (ey, py) in new[] { (-0.55, -0.85), (0.65, 0.95) })
+                {
+                    var from = new Vector2((float)(side * r), (float)(r * ey));
+                    var peg = new Vector2((float)(side * r * 1.3), (float)(r * py));
+                    NLine(p, new[] { from, peg }, rope, 1);
+                    DrawCircle(
+                        Xform(p, peg),
+                        (float)Math.Max(0.9, 1.0 * p.Scale),
+                        ink
+                    );
+                }
         }
     }
 
     void DrawCampfire(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
+        // Models: 0 burning star-laid fire, 1 cooking tripod, 2 cold ash.
+        var model = PropModel(p, 3, rand.Next());
         var r = 10 * rand.Range(0.85, 1.2);
         var stone = Palette.Mix(Stone, Palette.Hex("#5a5c48"), rand.Next() * 0.3);
-        var cold = rand.Next() < 0.22;
-        var tripod = !cold && rand.Next() < 0.45;
+        var cold = model == 2;
+        var tripod = model == 1;
 
         ContactShadow(p, r * 1.1, r * 0.95);
 
-        // Stone ring.
+        // Warm glow bed first — the stones and logs sit inside the light.
+        if (!cold)
+        {
+            Fill(
+                Xform(p, Poly.Ellipse(0, 0, r * 1.45, r * 1.35, 0, 14)),
+                new Color(0.95f, 0.62f, 0.22f, 0.12f)
+            );
+            Fill(
+                Xform(p, Poly.Ellipse(0, 0, r * 0.9, r * 0.82, 0, 12)),
+                new Color(0.98f, 0.68f, 0.25f, 0.16f)
+            );
+        }
+
+        // Stone ring — small chunky rocks with ink outlines, kept low-key
+        // so the logs and embers carry the read.
         for (var i = 0; i < 9; i++)
         {
-            var a = i / 9.0 * Math.PI * 2;
+            var a = i / 9.0 * Math.PI * 2 + rand.Next() * 0.2;
+            var dist = r * (0.88 + rand.Next() * 0.1);
             var w = Xform(
                 p,
                 Poly.Ellipse(
-                    Math.Cos(a) * r * 0.8,
-                    Math.Sin(a) * r * 0.8,
-                    r * 0.18,
-                    r * 0.16,
+                    Math.Cos(a) * dist,
+                    Math.Sin(a) * dist,
+                    r * 0.14,
+                    r * 0.12,
                     a,
-                    8
+                    7
                 )
             );
-            Fill(w, Palette.Mix(stone, Colors.Black, rand.Next() * 0.12));
-            Stroke(w, Palette.Hex("#4a4e44"), (float)Math.Max(0.6, 1.0 * p.Scale));
+            var tone = Palette.Mix(stone, Colors.Black, 0.1 + rand.Next() * 0.2);
+            Fill(w, tone);
+            Stroke(w, Palette.Hex("#42463c"), (float)Math.Max(0.7, 1.1 * p.Scale));
         }
-        // Crossed logs.
-        var log = Palette.Hex("#66503c");
-        NLine(
-            p,
-            new[]
-            {
-                new Vector2((float)(-r * 0.45), (float)(-r * 0.35)),
-                new Vector2((float)(r * 0.45), (float)(r * 0.35)),
-            },
-            log,
-            5
-        );
-        NLine(
-            p,
-            new[]
-            {
-                new Vector2((float)(-r * 0.45), (float)(r * 0.35)),
-                new Vector2((float)(r * 0.45), (float)(-r * 0.35)),
-            },
-            log,
-            5
-        );
+
+        // Star-laid logs radiating from the ember bed — the reference
+        // campfire read: dark charred inner ends, warm wood outside.
+        var logEdge = Palette.Hex("#3b2c1c");
+        var logWood = Palette.Hex("#7d5a34");
+        var logCount = cold ? 4 : 5;
+        for (var i = 0; i < logCount; i++)
+        {
+            var a = i / (double)logCount * Math.PI * 2 + 0.5 + rand.Next() * 0.3;
+            var inner = new Vector2(
+                (float)(Math.Cos(a) * r * (cold ? 0.05 : 0.1)),
+                (float)(Math.Sin(a) * r * (cold ? 0.05 : 0.1))
+            );
+            var outer = new Vector2(
+                (float)(Math.Cos(a) * r * 0.74),
+                (float)(Math.Sin(a) * r * 0.74)
+            );
+            var pts = new[] { inner, outer };
+            NLine(p, pts, logEdge, 6.4);
+            NLine(p, pts, cold ? Palette.Hex("#4a3a28") : logWood, 4.2);
+            if (!cold)
+                // Charred dark tip toward the embers.
+                NLine(
+                    p,
+                    new[] { inner, (inner + (outer - inner) * 0.45f) },
+                    Palette.Hex("#2e2318"),
+                    3.4
+                );
+        }
 
         if (cold)
         {
@@ -332,36 +436,50 @@ public partial class PropsPainter
         }
         else
         {
-            // Warm glow bed (#ed9f3b19).
+            // Bright ember core — the clear hot spot the references read
+            // by: layered orange discs + a white-yellow heart, then a
+            // small flame lick on top.
             Fill(
-                Xform(p, Poly.Ellipse(0, 0, r * 1.3, r * 1.25, 0, 14)),
-                new Color(0.93f, 0.62f, 0.23f, 0.1f)
+                Xform(p, Poly.Ellipse(0, 0, r * 0.5, r * 0.45, 0, 12)),
+                Palette.Hex("#c95f26")
             );
+            Fill(
+                Xform(p, Poly.Ellipse(0, 0, r * 0.36, r * 0.32, 0, 11)),
+                Palette.Hex("#e99742")
+            );
+            Fill(
+                Xform(p, Poly.Ellipse(0, 0, r * 0.2, r * 0.18, 0, 10)),
+                Palette.Hex("#ffe4a0")
+            );
+            // Loose ember sparks around the core.
+            for (var i = 0; i < 5; i++)
+            {
+                var a = i * 1.35 + 0.6;
+                DrawCircle(
+                    Xform(
+                        p,
+                        new Vector2(
+                            (float)(Math.Cos(a) * r * rand.Range(0.3, 0.55)),
+                            (float)(Math.Sin(a) * r * rand.Range(0.3, 0.55))
+                        )
+                    ),
+                    (float)Math.Max(0.7, r * 0.045 * p.Scale),
+                    Palette.Hex("#ffcf6e")
+                );
+            }
             var flame = Xform(
                 p,
                 new[]
                 {
-                    new Vector2((float)(-r * 0.4), (float)(r * 0.3)),
-                    new Vector2((float)(-r * 0.2), (float)(-r * 0.25)),
-                    new Vector2(0, (float)(-r * 0.75)),
-                    new Vector2((float)(r * 0.18), (float)(-r * 0.1)),
-                    new Vector2((float)(r * 0.4), (float)(r * 0.3)),
+                    new Vector2((float)(-r * 0.22), (float)(r * 0.1)),
+                    new Vector2((float)(-r * 0.1), (float)(-r * 0.3)),
+                    new Vector2(0, (float)(-r * 0.6)),
+                    new Vector2((float)(r * 0.1), (float)(-r * 0.22)),
+                    new Vector2((float)(r * 0.22), (float)(r * 0.1)),
                 }
             );
-            Fill(flame, Palette.Hex("#e99742"));
+            Fill(flame, new Color(0.95f, 0.66f, 0.28f, 0.85f));
             Stroke(flame, Palette.Hex("#bc6b32"), (float)Math.Max(0.6, 1.0 * p.Scale));
-            Fill(
-                Xform(
-                    p,
-                    new[]
-                    {
-                        new Vector2((float)(-r * 0.14), (float)(r * 0.3)),
-                        new Vector2(0, (float)(-r * 0.3)),
-                        new Vector2((float)(r * 0.19), (float)(r * 0.3)),
-                    }
-                ),
-                Palette.Hex("#ffe4a0")
-            );
             if (tripod)
             {
                 // Cooking tripod (TS model 1): three legs to the apex, a
@@ -1066,28 +1184,54 @@ public partial class PropsPainter
     void DrawCrate(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
+        // Models: 0 X-braced lid, 1 slatted planks, 2 stenciled lid.
+        var model = PropModel(p, 3, rand.Next());
         var r = 9 * rand.Range(0.85, 1.25);
         var wood = Palette.Mix(
-            Palette.Hex("#ac8955"),
+            Palette.Hex("#b0824e"),
             rand.Next() < 0.5 ? Colors.White : Colors.Black,
             rand.Next() * 0.14
         );
-        var edge = Palette.Hex("#5c4931");
+        var woodD = Palette.Mix(wood, Colors.Black, 0.32);
+        var edge = Palette.Hex("#46351f");
+        var seamC = Palette.Mix(wood, edge, 0.55);
 
-        ContactShadow(p, r * 1.05, r * 0.95);
+        ContactShadow(p, r * 1.1, r * 1.0);
 
-        var box = Xform(
-            p,
-            new[]
-            {
-                new Vector2((float)-r, (float)-r),
-                new Vector2((float)r, (float)-r),
-                new Vector2((float)r, (float)r),
-                new Vector2((float)-r, (float)r),
-            }
+        // Oblique cube — lid + south wall drop, like the houses.
+        var top = RectPtsCrate(r);
+        var tw = Xform(p, top);
+        var faces = WallDrop(
+            tw,
+            r * 0.62 * p.Scale,
+            woodD,
+            edge,
+            Math.Max(0.7, 1.2 * p.Scale)
         );
-        Fill(box, wood);
-        Stroke(box, edge, (float)Math.Max(0.8, 1.6 * p.Scale));
+        // Vertical plank seams down the wall face.
+        foreach (var (fa, fb) in faces)
+        {
+            var dir = (fb - fa) / 3f;
+            for (var i = 1; i <= 2; i++)
+            {
+                var at = fa + dir * i;
+                DrawLine(
+                    at + new Vector2(0, (float)(r * 0.06 * p.Scale)),
+                    at + new Vector2(0, (float)(r * 0.56 * p.Scale)),
+                    Palette.Mix(woodD, edge, 0.5),
+                    (float)Math.Max(0.6, 0.8 * p.Scale)
+                );
+            }
+        }
+        Fill(tw, wood);
+        Stroke(tw, edge, (float)Math.Max(0.9, 1.7 * p.Scale));
+        // Inset lid frame.
+        var inset = RectPtsCrate(r * 0.72);
+        Stroke(
+            Xform(p, inset),
+            seamC,
+            (float)Math.Max(0.6, 1.0 * p.Scale)
+        );
         // NW sun edge on the lid.
         NLine(
             p,
@@ -1097,13 +1241,14 @@ public partial class PropsPainter
                 new Vector2((float)(-r + 1.5), (float)(-r + 1.5)),
                 new Vector2((float)(r - 1.5), (float)(-r + 1.5)),
             },
-            new Color(1f, 1f, 1f, 0.16f),
-            1
+            new Color(1f, 1f, 1f, 0.18f),
+            1.2
         );
-        if (rand.Next() < 0.35)
+        if (model == 1)
         {
-            // Slatted crate variant: plank seams across the lid.
+            // Slatted crate: plank seams across the lid both ways.
             for (var i = -1; i <= 1; i++)
+            {
                 NLine(
                     p,
                     new[]
@@ -1111,13 +1256,39 @@ public partial class PropsPainter
                         new Vector2((float)-r, (float)(i * r * 0.5)),
                         new Vector2((float)r, (float)(i * r * 0.5)),
                     },
-                    edge,
+                    seamC,
                     1.2
                 );
+                NLine(
+                    p,
+                    new[]
+                    {
+                        new Vector2((float)(i * r * 0.5), (float)-r),
+                        new Vector2((float)(i * r * 0.5), (float)r),
+                    },
+                    seamC,
+                    1.2
+                );
+            }
+        }
+        else if (model == 2)
+        {
+            // Stencil mark — a little inked diamond sigil mid-lid.
+            var mark = Xform(
+                p,
+                new[]
+                {
+                    new Vector2(0, (float)(-r * 0.3)),
+                    new Vector2((float)(r * 0.24), 0),
+                    new Vector2(0, (float)(r * 0.3)),
+                    new Vector2((float)(-r * 0.24), 0),
+                }
+            );
+            Stroke(mark, edge, (float)Math.Max(0.7, 1.2 * p.Scale));
         }
         else
         {
-            // Classic X brace (the TS drawing).
+            // Classic X brace across the lid.
             NLine(
                 p,
                 new[]
@@ -1139,58 +1310,104 @@ public partial class PropsPainter
                 2.4
             );
         }
+        // Corner nails.
+        foreach (var (nx, ny) in new[] { (-1, -1), (1, -1), (-1, 1), (1, 1) })
+            DrawCircle(
+                Xform(p, new Vector2((float)(nx * r * 0.82), (float)(ny * r * 0.82))),
+                (float)Math.Max(0.7, 0.9 * p.Scale),
+                edge
+            );
     }
+
+    /// <summary>Lid square for the crate — local helper so the inset
+    /// frame shares the geometry.</summary>
+    static Vector2[] RectPtsCrate(double h) =>
+        [
+            new Vector2((float)-h, (float)-h),
+            new Vector2((float)h, (float)-h),
+            new Vector2((float)h, (float)h),
+            new Vector2((float)-h, (float)h),
+        ];
 
     void DrawBarrel(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
         var r = 8 * rand.Range(0.85, 1.25);
-        var wood = Palette.Mix(WoodT, rand.Next() < 0.5 ? Colors.White : Colors.Black, rand.Next() * 0.14);
-        var edge = Palette.Hex("#514632");
-        var hoop = Palette.Hex("#4b4d3e");
+        var wood = Palette.Mix(
+            Palette.Hex("#a37d4c"),
+            rand.Next() < 0.5 ? Colors.White : Colors.Black,
+            rand.Next() * 0.14
+        );
+        var woodD = Palette.Mix(wood, Colors.Black, 0.3);
+        var edge = Palette.Hex("#43331f");
+        var hoop = Palette.Hex("#3f4237");
 
-        ContactShadow(p, r * 1.05, r * 0.95);
+        ContactShadow(p, r * 1.1, r * 1.0);
 
-        // Top-down barrel: stave disc, two iron hoops, center seam.
-        var body = Xform(p, Poly.Ellipse(0, 0, r, r, 0, 14));
-        Fill(body, wood);
-        Stroke(body, edge, (float)Math.Max(0.8, 1.4 * p.Scale));
-        foreach (var hy in new[] { -0.5, 0.5 })
+        // Oblique cylinder — lid disc + stave wall dropping south, so
+        // the barrel reads as a vessel instead of a flat disc.
+        var lid = Poly.Ellipse(0, 0, r, r * 0.92, 0, 14);
+        var lw = Xform(p, lid);
+        var drop = r * 0.72 * p.Scale;
+        var faces = WallDrop(
+            lw,
+            drop,
+            woodD,
+            edge,
+            Math.Max(0.7, 1.1 * p.Scale)
+        );
+        // Vertical stave seams + two iron hoops down the wall.
+        foreach (var (fa, fb) in faces)
+        {
+            for (var i = 1; i <= 3; i++)
+            {
+                var at = fa + (fb - fa) * (i / 4f);
+                DrawLine(
+                    at + new Vector2(0, (float)(drop * 0.08)),
+                    at + new Vector2(0, (float)(drop * 0.92)),
+                    Palette.Mix(woodD, edge, 0.5),
+                    (float)Math.Max(0.6, 0.7 * p.Scale)
+                );
+            }
+            foreach (var hy in new[] { 0.3, 0.72 })
+                DrawLine(
+                    fa + new Vector2(0, (float)(drop * hy)),
+                    fb + new Vector2(0, (float)(drop * hy)),
+                    hoop,
+                    (float)Math.Max(0.8, 1.6 * p.Scale)
+                );
+        }
+        Fill(lw, wood);
+        Stroke(lw, edge, (float)Math.Max(0.9, 1.5 * p.Scale));
+        // Lid inset + stave seams radiating from the center, bung hole.
+        var inset = Xform(p, Poly.Ellipse(0, 0, r * 0.78, r * 0.72, 0, 13));
+        Fill(inset, Palette.Mix(wood, Colors.Black, 0.1));
+        Stroke(inset, Palette.Mix(wood, edge, 0.55), (float)Math.Max(0.6, 0.9 * p.Scale));
+        for (var i = 0; i < 5; i++)
+        {
+            var a = i / 5.0 * Math.PI * 2 + 0.3;
             NLine(
                 p,
                 new[]
                 {
-                    new Vector2((float)(-r * 0.75), (float)(r * hy)),
-                    new Vector2((float)(r * 0.75), (float)(r * hy)),
+                    new Vector2((float)(Math.Cos(a) * r * 0.12), (float)(Math.Sin(a) * r * 0.11)),
+                    new Vector2((float)(Math.Cos(a) * r * 0.74), (float)(Math.Sin(a) * r * 0.68)),
                 },
-                hoop,
-                3
+                new Color(0.35f, 0.26f, 0.16f, 0.55f),
+                1
             );
-        NLine(
-            p,
-            new[] { new Vector2(0, (float)(-r + 2)), new Vector2(0, (float)(r - 2)) },
-            Palette.Hex("#6b5036"),
-            1
+        }
+        DrawCircle(
+            Xform(p, Vector2.Zero),
+            (float)Math.Max(0.9, r * 0.1 * p.Scale),
+            Palette.Mix(wood, edge, 0.6)
         );
-        if (rand.Next() < 0.45)
-            // Extra stave seams (seeded variant — the TS only draws one).
-            foreach (var sx in new[] { -0.45, 0.45 })
-                NLine(
-                    p,
-                    new[]
-                    {
-                        new Vector2((float)(r * sx), (float)(-r * 0.8)),
-                        new Vector2((float)(r * sx), (float)(r * 0.8)),
-                    },
-                    new Color(0.42f, 0.31f, 0.21f, 0.5f),
-                    1
-                );
         // NW rim light.
         NLine(
             p,
-            NArc(0, 0, r * 0.82, r * 0.82, Math.PI * 0.9, Math.PI * 1.6, 8),
-            new Color(1f, 1f, 1f, 0.18f),
-            1
+            NArc(0, 0, r * 0.85, r * 0.78, Math.PI * 0.9, Math.PI * 1.6, 8),
+            new Color(1f, 1f, 1f, 0.22f),
+            1.2
         );
     }
 
@@ -1558,7 +1775,7 @@ public partial class PropsPainter
         }
 
         // --- variant layout --------------------------------------------------
-        var model = (int)(rand.Next() * 4);
+        var model = PropModel(p, 4, rand.Next());
         if (model == 3)
         {
             // Bone pile crowned by skulls.

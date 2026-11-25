@@ -160,6 +160,8 @@ public partial class AlbedoPainter : Node2D
     {
         if (poly.Length >= 3 && Geometry2D.TriangulatePolygon(poly).Length > 0)
             DrawColoredPolygon(poly, color);
+        else if (System.Environment.GetEnvironmentVariable("DMMAP_DEBUG_GEO") != null)
+            GD.PrintErr($"Albedo fill reject pts={poly.Length} area={TerrainGeometry.SignedArea(poly):0.0}");
     }
 
     static bool InBand(Massif m, Vector2 p) =>
@@ -188,6 +190,11 @@ public partial class AlbedoPainter : Node2D
             );
         foreach (var m in _massifs)
         {
+            if (System.Environment.GetEnvironmentVariable("DMMAP_DEBUG_GEO") != null)
+            {
+                var areas = string.Join(",", m.Tops.ConvertAll(t => TerrainGeometry.SignedArea(t).ToString("0")));
+                GD.PrintErr($"massif model={m.Model} h={m.Height} tops={m.Tops.Count} area={areas} band={m.Band.Count} wall={m.Wall.Count}");
+            }
             var face = FaceColor(m);
             var faceDark = Palette.Tint(face, m.Model == 1 ? -38 : -34);
             var faceLight = Palette.Tint(face, 16);
@@ -219,8 +226,10 @@ public partial class AlbedoPainter : Node2D
                 // mesh carries the texture.
                 if (!dirt && Biome?.ArtPack != "ink")
                 {
-                    TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.38f, 0.55);
-                    TextureTiles.Stamp(this, poly, TextureTiles.Cliff, 0.3f, 0.5);
+                    TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.18f, 1.42);
+                    // The cliff-face masonry tile is deliberately not
+                    // stretched across broad slopes: at map scale it reads
+                    // as mechanical brick courses instead of natural rock.
                 }
             }
             // Crack mesh is the ink pack's 2mt slab signature. Classic
@@ -385,8 +394,8 @@ public partial class AlbedoPainter : Node2D
                     }
             foreach (var top in m.Tops)
             {
-                DrawPolyline(top, ink, (float)(dirt ? 2.0 : 2.6), true);
-                DrawPolyline(top, Palette.Tint(face, 26), 1.6f, true);
+                DrawPolyline(top, Palette.Hex("#2e261a") with { A = 0.9f }, (float)(dirt ? 2.2 : 3.1), true);
+                DrawPolyline(top, Palette.Tint(face, 22) with { A = 0.55f }, 1.1f, true);
             }
 
             // Tops — turf fill + mottle + speckle + scalloped lip.
@@ -420,7 +429,7 @@ public partial class AlbedoPainter : Node2D
                         )
                 );
                 if (barren)
-                    TextureTiles.Stamp(this, top, TextureTiles.Cliff, 0.22f);
+                    TextureTiles.Stamp(this, top, TextureTiles.Stone, 0.14f, 1.4);
                 else if (GrassTile > 0 && !Winter)
                     TextureTiles.Stamp(this, top, TextureTiles.Grass, 0.3f);
                 var (tx, ty) = BBox(top);
@@ -489,9 +498,9 @@ public partial class AlbedoPainter : Node2D
                 // ── Roughness décor on the plateau ──
                 // Eroded step rings — nested stone contours shrinking
                 // inward, the erosional terraces of the web version.
-                if (tR > 0.3)
+                if (tR > 0.55)
                 {
-                    var rings = tR > 0.7 ? 3 : 2;
+                    var rings = tR > 0.82 ? 2 : 1;
                     for (var r = 1; r <= rings; r++)
                     {
                         var depth = m.Size * (0.35 + r * 0.5) * tR;
@@ -500,8 +509,8 @@ public partial class AlbedoPainter : Node2D
                         )
                             DrawPolyline(
                                 eroded,
-                                Palette.TintAlpha(Cliff, -12, 0.4),
-                                1.6f,
+                                Palette.TintAlpha(Cliff, -12, 0.2),
+                                1.1f,
                                 true
                             );
                     }
@@ -558,6 +567,46 @@ public partial class AlbedoPainter : Node2D
                     if (dark.Length >= 3)
                         Fill(dark, Palette.TintAlpha(Cliff, -18, 0.5));
                     DrawPolyline(cpts, ink, 1.6f, true);
+                }
+            }
+
+            // Long ink fissures following the rim tangent — the hand-drawn
+            // contour cracks that make the pale cliff masses read as rock
+            // rather than paved paths. Sparse and seeded, never a regular
+            // contour mesh.
+            if (!dirt)
+            foreach (var top in m.Tops)
+            {
+                var samples = Poly.SampleLine(top, System.Math.Max(70, m.Size * 2.2)).ToArray();
+                foreach (var (cp, angle, index) in samples)
+                {
+                    var seed = cp.X * 0.19 + cp.Y * 0.43 + index * 5.7;
+                    if (Rng.Noise(seed) < 0.48)
+                        continue;
+                    var tangent = new Vector2((float)System.Math.Cos(angle), (float)System.Math.Sin(angle));
+                    var inward = new Vector2(-tangent.Y, tangent.X);
+                    var len = 34 + Rng.Noise(seed + 1) * 58;
+                    var pts = new System.Collections.Generic.List<Vector2>();
+                    for (var k = 0; k <= 5; k++)
+                    {
+                        var t = k / 5.0 - 0.5;
+                        var q = cp + tangent * (float)(t * len)
+                            + inward * (float)((Rng.Noise(seed + 2 + k) - 0.5) * 9 + 4);
+                        pts.Add(q);
+                    }
+                    DrawPolyline([.. pts], Palette.Hex("#3d3424") with { A = 0.62f }, 1.8f, true);
+                    // Occasional short branch, like a rootlet splitting off
+                    // the main fissure.
+                    if (Rng.Noise(seed + 9) > 0.45)
+                    {
+                        var bp = pts[2];
+                        DrawPolyline(
+                            [bp, bp + tangent * 10 + inward * (float)(8 + Rng.Noise(seed + 10) * 10)],
+                            Palette.Hex("#3d3424") with { A = 0.5f },
+                            1.2f,
+                            true
+                        );
+                    }
                 }
             }
 
