@@ -62,6 +62,8 @@ public partial class MapEditor : Node2D
         new("shelf", "Knihovny a regály", "Interiér", Mode.Prop, "shelf"),
         new("rug", "Koberce", "Interiér", Mode.Prop, "rug"),
         new("fireplace", "Krby", "Interiér", Mode.Prop, "fireplace"),
+        new("chair", "Židle a lavice", "Interiér", Mode.Prop, "chair"),
+        new("candle", "Svíčky", "Interiér", Mode.Prop, "candle"),
         new("tree", "Stromy", "Porost a příroda", Mode.Prop, Kinds.Tree),
         new("pine", "Borovice", "Porost a příroda", Mode.Prop, "pine"),
         new("bush", "Keře", "Porost a příroda", Mode.Prop, Kinds.Bush),
@@ -205,6 +207,7 @@ public partial class MapEditor : Node2D
     int _pModel;
     double _pRiverW = 30;
     double _pRoadW = 16;
+    double _pRoadWear;
     int _roadModel; // styl mostu: 0 dřevěný, 1 kamenný, 2 lanový
 
     // Active stroke recording.
@@ -255,6 +258,8 @@ public partial class MapEditor : Node2D
     OptionButton _bridgeOpt = null!;
     VBoxContainer _terrainSection = null!;
     VBoxContainer _fogSection = null!;
+    VBoxContainer _roomSection = null!;
+    bool _furnishOnDraw = true;
     VBoxContainer _brushSection = null!;
     VBoxContainer _variantSection = null!;
     VBoxContainer _fillSection = null!;
@@ -365,11 +370,224 @@ public partial class MapEditor : Node2D
             CallDeferred(nameof(CommitProbe));
         if (System.Environment.GetEnvironmentVariable("DMMAP_ROTATE_PROBE") == "1")
             CallDeferred(nameof(RotateProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_ROT195_PROBE") == "1")
+            CallDeferred(nameof(Rot195Probe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_ROTSCAN_PROBE") == "1")
+            CallDeferred(nameof(RotScanProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_ROTGARBAGE_PROBE") == "1")
+            CallDeferred(nameof(RotGarbageProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_ROOM_PROBE") == "1")
+            CallDeferred(nameof(RoomProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_WEAR_PROBE") == "1")
+            CallDeferred(nameof(WearProbe));
     }
 
     /// <summary>Probe: rotation must keep the shape's centroid fixed —
     /// a full 360° in R-key steps returns the outline where it started —
     /// and the selection ghost shows the orientation tick.</summary>
+
+    // DMMAP_ROT195_PROBE=1 — reproduce the reported crash: rotate a
+    // selected object by 195° (13 × 15°) on the real user map.
+
+    // DMMAP_ROTSCAN_PROBE=1 — rotate EVERY object on the real map by
+    // 195° one at a time. The last line printed before a crash names
+    // the culprit.
+
+    // DMMAP_ROTGARBAGE_PROBE=1 — rotate rapidly while forcing GC after
+    // every commit. The reported crash happens on the .NET finalizer
+    // thread, so forcing finalization right after the churn should make
+    // it deterministic.
+
+    // DMMAP_ROOM_PROBE=1 — draw a room through the real editor pipeline
+    // exactly like the user does, then dump the final viewport and
+    // measure interior brightness.
+
+    // DMMAP_WEAR_PROBE=1 — wear ladder: four roads at 0/35/70/100%.
+    async void WearProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        for (var i = 0; i < 40; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene =>
+        {
+            foreach (var (wear, y) in new[] { (0.0, 300.0), (0.35, 450.0), (0.7, 600.0), (1.0, 750.0) })
+            {
+                var st = new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Width = 18,
+                    Wear = wear,
+                    Points =
+                    [
+                        new(250, (float)y),
+                        new(500, (float)(y - 60)),
+                        new(800, (float)(y + 30)),
+                        new(1100, (float)(y - 40)),
+                        new(1400, (float)(y + 10)),
+                    ],
+                };
+                Interactions.AddStroke(scene, st);
+            }
+        });
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var img = GetViewport().GetTexture().GetImage();
+        img.SavePng("/tmp/godot-wear-probe.png");
+        GD.Print("WEAR done");
+        GetTree().Quit();
+    }
+
+    async void RoomProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        for (var i = 0; i < 40; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene =>
+        {
+            var big = new Shape
+            {
+                Id = scene.AllocId(),
+                Kind = Kinds.Room,
+                Height = 18,
+                Size = 20,
+                Points = [new(450, 200), new(950, 200), new(950, 620), new(450, 620)],
+            };
+            scene.Shapes.Add(big);
+            RoomFurnish.Furnish(scene, big);
+            var small = new Shape
+            {
+                Id = scene.AllocId(),
+                Kind = Kinds.Room,
+                Height = 0,
+                Size = 20,
+                Points = [new(1000, 250), new(1300, 250), new(1300, 480), new(1000, 480)],
+            };
+            scene.Shapes.Add(small);
+            RoomFurnish.Furnish(scene, small);
+        });
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var img = GetViewport().GetTexture().GetImage();
+        img.SavePng("/tmp/godot-room-probe.png");
+        // Brightness inside the room vs outside grass, in viewport
+        // pixel coords — the view is zoomed/panned, so sample a grid
+        // and report the darkest region stats instead.
+        GD.Print("ROOM shot /tmp/godot-room-probe.png");
+        GD.Print("ROOM done");
+        GetTree().Quit();
+    }
+
+    async void RotGarbageProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Load();
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        SetTool("select");
+        var house = _view.Scene.Shapes.FirstOrDefault(s => s.Kind == Kinds.House);
+        var at = house != null
+            ? new Vector2((float)house.Points.Average(p => p.X), (float)house.Points.Average(p => p.Y))
+            : new Vector2((float)_view.Scene.Props.First().X, (float)_view.Scene.Props.First().Y);
+        ClearSelection();
+        BeginSelect(at, false);
+        var rounds = System.Environment.GetEnvironmentVariable("DMMAP_ROTG_FAST") == "1" ? 200 : 30;
+        for (var round = 0; round < rounds; round++)
+        {
+            RotateSelection(Math.PI / 12);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            System.GC.Collect();
+            System.GC.WaitForPendingFinalizers();
+            if (round % 20 == 0)
+                GD.Print($"ROTG round{round} finalized ok");
+        }
+        GD.Print("ROTG done — no crash");
+        GetTree().Quit();
+    }
+
+    async void RotScanProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Load();
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        SetTool("select");
+
+        async System.Threading.Tasks.Task Rot13(string label)
+        {
+            GD.Print($"ROTSCAN {label} start");
+            for (var i = 0; i < 13; i++)
+                RotateSelection(Math.PI / 12);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GD.Print($"ROTSCAN {label} ok");
+        }
+
+        foreach (var pr in _view.Scene.Props.Take(0).ToList())
+        {
+            ClearSelection();
+            BeginSelect(new Vector2((float)pr.X, (float)pr.Y), false);
+            if (_selProps.Count + _selShapes.Count + _selStrokes.Count == 0)
+                continue;
+            await Rot13($"prop#{pr.Id}({pr.Kind})");
+            Undo();
+        }
+        foreach (var sh in _view.Scene.Shapes.ToList())
+        {
+            ClearSelection();
+            BeginSelect(new Vector2((float)sh.Points.Average(p => p.X), (float)sh.Points.Average(p => p.Y)), false);
+            if (_selShapes.Count == 0)
+                continue;
+            await Rot13($"shape#{sh.Id}({sh.Kind})");
+            Undo();
+        }
+        foreach (var st in _view.Scene.Strokes.ToList())
+        {
+            ClearSelection();
+            var mid = st.Points[st.Points.Count / 2];
+            BeginSelect(mid, false);
+            if (_selStrokes.Count == 0)
+                continue;
+            await Rot13($"stroke#{st.Id}({st.Kind})");
+            Undo();
+        }
+        // Multi-select everything at once.
+        ClearSelection();
+        BeginSelect(new Vector2(-9999, -9999), false);
+        GD.Print("ROTSCAN done — no crash");
+        GetTree().Quit();
+    }
+
+    async void Rot195Probe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Load();
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        SetTool("select");
+        var house = _view.Scene.Shapes.FirstOrDefault(s => s.Kind == Kinds.House);
+        Vector2 at;
+        if (house != null)
+            at = new Vector2((float)house.Points.Average(p => p.X), (float)house.Points.Average(p => p.Y));
+        else
+        {
+            var pr = _view.Scene.Props.FirstOrDefault();
+            at = new Vector2((float)pr.X, (float)pr.Y);
+        }
+        ClearSelection();
+        BeginSelect(at, false);
+        GD.Print($"ROT195 selected shapes={_selShapes.Count} props={_selProps.Count} strokes={_selStrokes.Count}");
+        for (var i = 0; i < 13; i++)
+        {
+            RotateSelection(Math.PI / 12);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GD.Print($"ROT195 step{i + 1} ok");
+        }
+        GD.Print("ROT195 done — no crash");
+        GetTree().Quit();
+    }
+
     async void RotateProbe()
     {
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -2014,6 +2232,7 @@ public partial class MapEditor : Node2D
                         Points = pts,
                         Width = StrokeWidth(),
                         Model = _tool.Kind == Kinds.Road ? _roadModel : 0,
+                        Wear = _tool.Kind == Kinds.Road ? _pRoadWear / 100.0 : 0,
                     };
                     Interactions.AddStroke(scene, stroke);
                 });
@@ -2103,17 +2322,22 @@ public partial class MapEditor : Node2D
                 // plain add, no terrain merge.
                 if (pts.Count >= 4)
                     Commit(scene =>
-                        scene.Shapes.Add(
-                            new Shape
-                            {
-                                Id = scene.AllocId(),
-                                Kind = _tool.Kind,
-                                Points = pts,
-                                Size = 20,
-                                Height = _tool.Kind is Kinds.House or Kinds.Room ? 18 : 0,
-                            }
-                        )
-                    );
+                    {
+                        var shape = new Shape
+                        {
+                            Id = scene.AllocId(),
+                            Kind = _tool.Kind,
+                            Points = pts,
+                            Size = 20,
+                            Height = _tool.Kind is Kinds.House or Kinds.Room ? 18 : 0,
+                        };
+                        scene.Shapes.Add(shape);
+                        // Auto-furnish rooms with procedural props —
+                        // real movable objects, part of the same undo
+                        // step. The baked decor skips furnished rooms.
+                        if (_tool.Kind == Kinds.Room && _furnishOnDraw)
+                            RoomFurnish.Furnish(scene, shape);
+                    });
                 break;
         }
         _stroke.Clear();
@@ -2881,6 +3105,9 @@ public partial class MapEditor : Node2D
             {
                 _tool = t;
                 ClearSelection();
+                // Fog veil at full strength only while editing fog —
+                // otherwise a faint dim so shrouded rooms stay usable.
+                _view.SetFogStrength(t.Mode == Mode.Fog ? 0.92 : 0.22);
                 _playLayer.Visible = t.Mode == Mode.Play;
                 if (_playLayer.Visible)
                     RefreshPlayTokens();
@@ -2912,6 +3139,8 @@ public partial class MapEditor : Node2D
             _formOpt.Visible = _tool.Mode == Mode.Shape;
         if (_fogSection != null)
             _fogSection.Visible = _tool.Mode == Mode.Fog;
+        if (_roomSection != null)
+            _roomSection.Visible = _tool.Kind == Kinds.Room;
         if (_brushSection != null)
             _brushSection.Visible = _tool.Mode == Mode.Brush;
         if (_vegSection != null)
@@ -3237,6 +3466,7 @@ public partial class MapEditor : Node2D
         _roadSection = new VBoxContainer();
         box.AddChild(_roadSection);
         Slider(_roadSection, "Šířka cesty", 8, 40, _pRoadW, v => _pRoadW = v);
+        Slider(_roadSection, "Zarostlost cesty (nové tahy)", 0, 100, 0, v => _pRoadWear = v);
         _bridgeOpt = new OptionButton();
         foreach (var name in new[] { "Most: dřevěný", "Most: kamenný", "Most: lanový" })
             _bridgeOpt.AddItem(name);
@@ -3256,6 +3486,17 @@ public partial class MapEditor : Node2D
                 scene.Fog.RemoveAll(t => t.Kind == "shroud");
             });
         _fogSection.AddChild(revealAll);
+        _roomSection = new VBoxContainer();
+        box.AddChild(_roomSection);
+        var furnishCb = new CheckBox
+        {
+            Text = "Automaticky zařídit",
+            ButtonPressed = true,
+            TooltipText = "Nové místnosti se hned procedurálně zařídí nábytkem — všechno jsou normální objekty, které můžeš přesouvat nebo smazat.",
+        };
+        furnishCb.Toggled += on => _furnishOnDraw = on;
+        _roomSection.AddChild(furnishCb);
+
         var fogRooms = new CheckBox
         {
             Text = "Zahalit interiéry",

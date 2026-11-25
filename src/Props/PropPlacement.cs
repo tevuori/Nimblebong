@@ -56,6 +56,10 @@ public enum PropKind
     Shelf,
     Rug,
     Fireplace,
+    /// <summary>Chair / stool / bench — top-down seat with backrest.</summary>
+    Chair,
+    /// <summary>Candle / candlestick — tiny warm glow accent.</summary>
+    Candle,
     /// <summary>Text caption — paper tag with the label string.</summary>
     Label,
     /// <summary>Ambient insect — two bright wing ellipses (smart fill).</summary>

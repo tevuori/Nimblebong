@@ -3,6 +3,49 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (12) — Devin, interiéry + zarostlé cesty
+
+**Hotovo:**
+- **Černé místnosti opraveny** — nebyl to bug osvětlení, ale fog-of-war:
+  `FogRooms` je defaultně on a editor nad interiéry kreslil 92% černý
+  závoj. Teď je síla závoje kontextová: plná (0.92) jen při aktivním
+  nástroji mlhy, jinak jemné ztlumení (0.22) — DM vidí, co zařizuje.
+  (`uStrength` uniform v `shaders/fog.gdshader`, `SceneView.SetFogStrength`,
+  napojeno v `SetTool`.)
+- **Nové interiérové props: `chair` (židle/stolička/lavice, 3 modely) a
+  `candle` (svíčka s teplou glovou aurou v GlowPainteru)** — kresliče v
+  `PropsInterior.cs`, enum + mapping + paleta ("Židle a lavice", "Svíčky").
+- **Procedurální zařizování místností** (`src/Editor/RoomFurnish.cs`):
+  nově nakreslená místnost se automaticky zařídí skutečnými props
+  (koberec, stůl, židle čelem ke stolu, postele/skříně/krb u zdí,
+  truhly/bedny/sudy v rozích, svíčky). Deterministické ze shape id,
+  jeden undo krok za všechno, drzé předměty se nepřekrývají (rejection
+  sampling + per-kind poloměry), dodržuje swing zónu dveří. Checkbox
+  "Automaticky zařídit" v nástroji místností (default on). Baked decor
+  se v zařízených místnostech přeskočí (FurnitureKinds rozšířeny).
+- **Zarostlost cest** — nový slider v nástroji cesty (0–100, platí pro
+  nové tahy). `Stroke.Wear` (0..1) se serializuje do JSON (`wear`).
+  Vizuálně v `WaterPainter`: verge/halo slábnou, povrch se v
+  noise-skládaných skvrnách probíjí zemí/trávou v barvě biomu
+  (`RoadGround`), při vysokém wear povrch skoro mizí — pěšina splývá
+  s podkladem jako v Nimblehold referencích. Probe `DMMAP_WEAR_PROBE=1`.
+- Probes: `DMMAP_ROOM_PROBE=1` (místnost + furnish), regrese: main probe,
+  probe-interiors, probe-water — všechny pass. Build 0 errors.
+
+**Problémy / pozor:**
+- Crash z předchozí zprávy (rotace o 195°) je **nedeterministický engine
+  race**: coredump ukazuje SIGSEGV v .NET finalizer vlákně při teardownu
+  nativních objektů — známá třída Godot mono bugů (godotengine/godot#104263,
+  #106494, #109711). Rotace samotná je bezpečná (probe rotuje všechny
+  objekty na mapě o 195° bez pádu, i s vynuceným GC). Spouští ji GC timing
+  při churnu objektů; nelze spolehlivě reprodukovat ani opravit z userlandu
+  — riziko klesá s menším churnem (fingerprint skip už pomáhá).
+- Furnish: wall items se uchycují hlavně na nejdelší zdi; občas bed
+  nevyjde (inset test) — v1 akceptovatelné, props jsou reálné a uživatel
+  je má přesouvat.
+- Zarostlost platí jen pro nové tahy (per-stroke). Apply na existující =
+  budoucí rozšíření (slider v select tool?).
+
 ## 2026-11-25 (11) — Devin, fingerprint skip painterů
 
 **Hotovo:**

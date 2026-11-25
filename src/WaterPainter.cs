@@ -8,6 +8,7 @@
 // through the Fill gate (clipper slivers rejected by triangulation).
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace DmMap;
@@ -23,7 +24,10 @@ public partial class WaterPainter : Node2D
     public Color RoadHalo = Palette.Hex("#e6dda0") with { A = 0.35f };
 
     readonly List<(Vector2[] Run, double Width)> _rivers = [];
-    readonly List<(Vector2[] Run, double Width)> _roads = [];
+    readonly List<(Vector2[] Run, double Width, double Wear)> _roads = [];
+    /// <summary>Ground color of the biome — worn roads fade back into
+    /// it. Set by the scene painter alongside the road palette.</summary>
+    public Color RoadGround = Palette.Hex("#7a9a4e");
     readonly List<(Vector2 Pos, double Scale)> _rocks = [];
 
     /// <summary>Drop all queued runs — the ghost preview rebuilds the
@@ -55,9 +59,9 @@ public partial class WaterPainter : Node2D
         QueueRedraw();
     }
 
-    public void AddRoad(IReadOnlyList<Vector2> control, double width)
+    public void AddRoad(IReadOnlyList<Vector2> control, double width, double wear = 0)
     {
-        _roads.Add((Spline.Ink(Spline.Resample(control)), width));
+        _roads.Add((Spline.Ink(Spline.Resample(control)), width, wear));
         QueueRedraw();
     }
 
@@ -557,25 +561,80 @@ public partial class WaterPainter : Node2D
     {
         // Worn halo + verge + inked verge outline per stroke; the surface
         // fills once over the union so junctions read as crossroads.
-        foreach (var (run, w) in _roads)
+        // Wear thins the verge and halo back toward the ground color —
+        // a forest trail does not keep a groomed edge.
+        foreach (var (run, w, wear) in _roads)
         {
-            FillRibbon(Spline.StrokePolygon(run, w + 34), RoadHalo);
-            FillRibbon(Spline.StrokePolygon(run, w + 13), RoadVerge);
+            var edgeFade = 1.0 - wear * 0.9;
+            FillRibbon(Spline.StrokePolygon(run, w + 34), RoadHalo with { A = RoadHalo.A * (float)edgeFade });
+            FillRibbon(Spline.StrokePolygon(run, w + 13), RoadVerge with { A = RoadVerge.A * (float)edgeFade });
             InkOutline(
                 Spline.StrokePolygon(run, w + 13),
-                Palette.Hex("#4a3a1c") with { A = 0.35f },
+                Palette.Hex("#4a3a1c") with { A = 0.35f * (float)edgeFade },
                 1.2f
             );
         }
         // Surface: fat polyline underlay per run (can't fail like ribbon
         // triangulation on T-junction spurs — same trick the river stack
         // uses), unioned fill on top for a clean shared silhouette.
-        foreach (var (run, w) in _roads)
-            DrawPolyline(run, RoadDirt, (float)w, true);
-        foreach (var piece in UnionAll(_roads, 0))
+        // Worn roads skip the unioned silhouette — the continuous fill
+        // is exactly what makes a ribbon read as freshly groomed.
+        foreach (var (run, w, wear) in _roads)
+            DrawPolyline(run, RoadDirt with { A = (float)(1.0 - wear * wear * 0.8) }, (float)w, true);
+        var unioned = _roads.Where(r => r.Wear < 0.05).Select(r => (r.Run, r.Width)).ToList();
+        foreach (var piece in UnionAll(unioned, 0))
             Fill(piece, RoadDirt);
-        foreach (var (run, w) in _roads)
+        foreach (var (run, w, wear) in _roads)
+        {
+            if (wear > 0.02)
+                DrawRoadWear(run, w, wear);
             DrawRoadDetails(run, w);
+        }
+    }
+
+    /// <summary>Weathering pass — the trail breaks up into the ground:
+    /// grass discs poke through the dirt surface in noise-decided
+    /// patches and whole chunks of the surface fade out. Density and
+    /// gap size scale with wear; everything is seeded off the stroke
+    /// start so it is stable across repaints.</summary>
+    void DrawRoadWear(Vector2[] run, double w, double wear)
+    {
+        var ground = Palette.Mix(RoadGround, RoadDirt, 0.25);
+        foreach (var (p, angle, index) in Poly.SampleLine(run, 7, closed: false))
+        {
+            var seed = index * 3.17 + run[0].X * 0.11 + run[0].Y * 0.07;
+            // Low-frequency patchiness — noise of the along-track index
+            // decides where the surface survives; inside dead patches
+            // ground-colored discs eat the dirt.
+            var patch = Rng.Noise(Math.Floor(index / 13.0) * 5.3 + run[0].X * 0.01);
+            if (patch < wear * 0.9)
+            {
+                var offset = (Rng.Noise(seed) - 0.5) * w * 0.7;
+                var dot = new Vector2(
+                    (float)(p.X - Math.Sin(angle) * offset),
+                    (float)(p.Y + Math.Cos(angle) * offset)
+                );
+                var r = 3.5 + Rng.Noise(seed + 1) * (w * 0.45);
+                DrawCircle(dot, (float)r, ground with { A = (float)Math.Min(1, 0.4 + wear * 0.55) });
+                // Grass blades poking through at the patch cores.
+                if (wear > 0.35 && Rng.Noise(seed + 2) < wear * 0.6)
+                {
+                    var blades = 2 + (int)(Rng.Noise(seed + 3) * 3);
+                    for (var b = 0; b < blades; b++)
+                    {
+                        var bx = (float)(dot.X + (Rng.Noise(seed + 10 + b) - 0.5) * r);
+                        var by = (float)(dot.Y + (Rng.Noise(seed + 20 + b) - 0.5) * r);
+                        var lean = (float)(Rng.Noise(seed + 30 + b) - 0.5) * 3;
+                        DrawLine(
+                            new Vector2(bx, by),
+                            new Vector2(bx + lean, by - (float)(2.5 + Rng.Noise(seed + 40 + b) * 3)),
+                            Palette.Tint(RoadGround, -18),
+                            0.9f
+                        );
+                    }
+                }
+            }
+        }
     }
 
     void DrawRoadDetails(Vector2[] run, double w)

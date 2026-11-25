@@ -78,6 +78,8 @@ public static class SceneJson
                 w.WriteNumber("width", s.Width);
                 if (s.Model != 0)
                     w.WriteNumber("model", s.Model);
+                if (s.Wear != 0)
+                    w.WriteNumber("wear", s.Wear);
                 w.WriteEndObject();
             }
             w.WriteEndArray();
@@ -529,6 +531,7 @@ public static class SceneJson
             Points = points,
             Width = Clamped(el, "width", MinSize, MaxSize, 24),
             Model = (int)Clamped(el, "model", 0, 4, 0),
+            Wear = Clamped(el, "wear", 0, 1, 0),
         };
     }
 

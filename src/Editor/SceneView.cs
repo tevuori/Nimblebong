@@ -28,6 +28,16 @@ public partial class SceneView : Node2D
     readonly List<Node> _propLayers = [];
     int _geoFp = -1;
     int _propFp = -1;
+    /// <summary>Fog veil material — strength is context-dependent:
+    /// full while editing fog, faint otherwise so shrouded rooms stay
+    /// editable.</summary>
+    public ShaderMaterial? FogMaterial;
+
+    public void SetFogStrength(double strength)
+    {
+        FogMaterial?.SetShaderParameter("uStrength", (float)strength);
+    }
+
     // Massif cache — props/strokes rebuilds skip the expensive clipper
     // when the terrain shapes didn't change.
     List<TerrainShape> _lastShapes = [];
@@ -41,6 +51,8 @@ public partial class SceneView : Node2D
         // drawn above the lit map but below the editor's ghost layer.
         var fogMat = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/fog.gdshader") };
         fogMat.SetShaderParameter("uMask", view.Stage.FogVp.GetTexture());
+        fogMat.SetShaderParameter("uStrength", 0.22f);
+        view.FogMaterial = fogMat;
         view.AddChild(
             new TextureRect
             {
@@ -174,6 +186,7 @@ public partial class SceneView : Node2D
                 RoadDirt = Biome.At("road.dirt"),
                 RoadVerge = Biome.At("road.verge"),
                 RoadHalo = Biome.At("road.halo"),
+                RoadGround = Biome.Ground,
                 ZIndex = 30,
             };
             // Natural bank treatment (TS sceneConfig.banks). The art/season
@@ -204,7 +217,7 @@ public partial class SceneView : Node2D
                 }
                 else if (st.Kind == Kinds.Road)
                 {
-                    water.AddRoad(st.Points, st.Width);
+                    water.AddRoad(st.Points, st.Width, st.Wear);
                     crossings.AddStroke(st.Kind, st.Points, st.Width);
                 }
                 else if (st.Kind is Kinds.Wall or Kinds.Fence)
@@ -459,6 +472,8 @@ public partial class SceneView : Node2D
         ["shelf"] = PropKind.Shelf,
         ["rug"] = PropKind.Rug,
         ["fireplace"] = PropKind.Fireplace,
+        ["chair"] = PropKind.Chair,
+        ["candle"] = PropKind.Candle,
         ["label"] = PropKind.Label,
         ["butterfly"] = PropKind.Butterfly,
         ["bird"] = PropKind.Bird,

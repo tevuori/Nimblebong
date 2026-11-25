@@ -262,6 +262,12 @@ public partial class PropsPainter : Node2D
                 case PropKind.Bed:
                     DrawBed(p);
                     break;
+                case PropKind.Chair:
+                    DrawChair(p);
+                    break;
+                case PropKind.Candle:
+                    DrawCandle(p);
+                    break;
                 case PropKind.Shelf:
                     DrawShelf(p);
                     break;

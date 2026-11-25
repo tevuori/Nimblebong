@@ -116,6 +116,11 @@ public partial class PropsProbeInterior : Node2D
             At(PropKind.Shelf, 930, 830, 1.8, -0.4),
             At(PropKind.Rug, 1090, 815, 1.7, 0.25),
             At(PropKind.Fireplace, 1260, 815, 1.8, Math.PI),
+            At(PropKind.Chair, 1390, 810, 1.0),
+            At(PropKind.Chair, 1455, 830, 1.0, 1.2),
+            At(PropKind.Chair, 1520, 810, 1.0, -0.7),
+            At(PropKind.Candle, 210, 930, 1.0),
+            At(PropKind.Candle, 260, 940, 1.0),
         };
 
         var painter = new PropsPainter();

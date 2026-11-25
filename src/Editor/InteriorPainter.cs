@@ -28,7 +28,7 @@ public partial class InteriorPainter : Node2D
     public readonly HashSet<int> AnchoredPropIds = [];
 
     static readonly HashSet<string> FurnitureKinds =
-        ["table", "bed", "shelf", "rug", "fireplace"];
+        ["table", "bed", "shelf", "rug", "fireplace", "chair", "candle", "crate", "barrel", "chest"];
 
     readonly List<(Shape S, List<Prop> Props)> _items = [];
 

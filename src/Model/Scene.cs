@@ -191,8 +191,12 @@ public class Stroke
     /// <summary>Variant index — e.g. wall crenellation / double wall.</summary>
     public int Model;
 
+    /// <summary>Road wear 0..1 — 0 = fresh packed ribbon, 1 = barely
+    /// visible trail breaking into the ground. Only roads read it.</summary>
+    public double Wear;
+
     public Stroke DeepClone() =>
-        new() { Id = Id, Kind = Kind, Points = [.. Points], Width = Width, Model = Model };
+        new() { Id = Id, Kind = Kind, Points = [.. Points], Width = Width, Model = Model, Wear = Wear };
 }
 
 /// <summary>A single-anchor prop — every non-area non-line kind. Maps to a

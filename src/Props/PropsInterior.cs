@@ -951,6 +951,60 @@ public partial class PropsPainter
     // Stone hearth (wider mantel top, sloped shoulders) + dark firebox,
     // crossed logs and flames — or a cold hearth with a cauldron.
     // (TS `fireplace`.)
+    
+    // --- chair -----------------------------------------------------------------------
+    // Top-down seat: model 0 square chair with backrest shadow-line,
+    // model 1 round stool, model 2 long bench. (No TS counterpart —
+    // the web baked chairs into room decor; here they are real props.)
+    void DrawChair(PropPlacement p)
+    {
+        var rand = new Jitter(p.VarSeed);
+        var r = 7.5 * rand.Range(0.9, 1.1);
+        var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (rand.Next() < 0.6 ? 0 : 1);
+        var edge = Palette.Hex("#4d3a26");
+        ContactShadow(p, r, r * 0.8);
+        if (model == 1)
+        {
+            InDisc(p, 0, 0, r * 0.8, Timber, edge);
+            InDisc(p, 0, 0, r * 0.5, Palette.Tint(Timber, 18));
+        }
+        else if (model == 2)
+        {
+            InPoly(p, InRect(-r * 2.2, -r * 0.55, r * 2.2, r * 0.55), Timber, edge);
+            InLine(
+                p,
+                new[] { new Vector2((float)(-r * 2), 0), new Vector2((float)(r * 2), 0) },
+                Palette.Hex("#7a5a38"),
+                0.8
+            );
+        }
+        else
+        {
+            // Backrest bar along local -Y, seat below it.
+            InPoly(p, InRect(-r, -r * 0.75, r, r * 0.75), Timber, edge);
+            InPoly(p, InRect(-r, -r * 1.05, r, -r * 0.55), Palette.Hex("#6d4e2e"), edge);
+            InPoly(
+                p,
+                InRect(-r * 0.7, -r * 0.45, r * 0.7, r * 0.45),
+                Palette.Tint(Timber, 16)
+            );
+        }
+    }
+
+    // --- candle ----------------------------------------------------------------------
+    // Tiny warm light: glow halo + brass base disc + flame core. Sits on
+    // tables, shelves and wall nooks; the glow pass picks it up through
+    // the same emissive accent windows use.
+    void DrawCandle(PropPlacement p)
+    {
+        var rand = new Jitter(p.VarSeed);
+        var r = 3.2 * rand.Range(0.9, 1.2);
+        InDisc(p, 0, 0, r * 3.2, new Color(1f, 0.72f, 0.32f, 0.22f));
+        InDisc(p, 0, 0, r * 1.7, new Color(1f, 0.76f, 0.38f, 0.35f));
+        InDisc(p, 0, 0, r, Palette.Hex("#c8a35c"), Palette.Hex("#6b5324"));
+        InDisc(p, 0, (float)(-r * 0.3), r * 0.45, Palette.Hex("#ffe9b0"));
+    }
+
     void DrawFireplace(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);

@@ -37,7 +37,7 @@ public partial class GlowPainter : Node2D
         _emitters = scene
             .Props.Select(p => (P: p, Kind: PropDefs.BaseKind(p.Kind)))
             .Where(q =>
-                q.Kind is "campfire" or "lantern" or "fireplace" or "crystal" or "portal" or "stonecircle"
+                q.Kind is "campfire" or "lantern" or "fireplace" or "crystal" or "portal" or "stonecircle" or "candle"
             )
             .Select(q => new Emitter(
                 new Vector2((float)q.P.X, (float)q.P.Y),
@@ -105,6 +105,16 @@ public partial class GlowPainter : Node2D
                         + 0.03 * Math.Sin(time * 27 + phase * 3);
                     Halo(e.Pos, r * 1.05, _warm, flicker);
                     Halo(e.Pos, r * 0.4, Palette.Hex("#fff0c0"), flicker * 1.4);
+                    break;
+                }
+                case "candle":
+                {
+                    var flicker =
+                        0.09
+                        + 0.04 * Math.Sin(time * 13 + phase)
+                        + 0.03 * Math.Sin(time * 29 + phase * 5);
+                    Halo(e.Pos, r * 2.2, _warm, flicker);
+                    Halo(e.Pos, r * 0.9, Palette.Hex("#fff0c0"), flicker * 1.3);
                     break;
                 }
                 case "crystal":
