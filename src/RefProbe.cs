@@ -49,6 +49,37 @@ public partial class RefProbe : Node2D
         view.Rebuild();
         AddChild(view);
 
+        if (System.Environment.GetEnvironmentVariable("DMMAP_DEBUG_MASSIF") != null)
+        {
+            static string Bb(System.Collections.Generic.IEnumerable<Vector2> pts)
+            {
+                var (x0, y0, x1, y1) = (float.MaxValue, float.MaxValue, float.MinValue, float.MinValue);
+                foreach (var p in pts)
+                {
+                    x0 = Mathf.Min(x0, p.X); y0 = Mathf.Min(y0, p.Y);
+                    x1 = Mathf.Max(x1, p.X); y1 = Mathf.Max(y1, p.Y);
+                }
+                return $"[{x0:F0},{y0:F0}]-[{x1:F0},{y1:F0}]";
+            }
+            var mi = 0;
+            foreach (var m in view.Massifs)
+            {
+                GD.Print(
+                    $"massif{mi} h={m.Height} sz={m.Size} tops={m.Tops.Count} "
+                        + $"band={m.Band.Count} wall={m.Wall.Count}"
+                );
+                foreach (var t in m.Tops)
+                    GD.Print(
+                        $"  top {Bb(t)} pts={t.Length} tri={Geometry2D.TriangulatePolygon(t).Length}"
+                    );
+                foreach (var b in m.Band)
+                    GD.Print($"  band {Bb(b)}");
+                foreach (var w in m.Wall)
+                    GD.Print($"  wall {Bb(w)}");
+                mi++;
+            }
+        }
+
         CallDeferred(nameof(DumpAndQuit));
     }
 

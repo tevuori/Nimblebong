@@ -92,9 +92,15 @@ public static class TerrainGeometry
                     Wobble(rawBase, size, wseed)
                 ))
             {
+                // Centroid plus two edge midpoints — a contour vertex
+                // sits exactly on the silhouette edge, PointInPolygon
+                // there is luck.
+                bool Owns(Vector2[] top) =>
+                    Poly.PointInPolygon(Poly.Centroid(top), base_)
+                    || Poly.PointInPolygon((top[0] + top[top.Length / 3]) / 2, base_);
                 var inside = tops
                     .Select((top, i) => (top, i))
-                    .Where(t => Poly.PointInPolygon(t.top[0], base_))
+                    .Where(t => Owns(t.top))
                     .ToList();
                 var massif = new Massif
                 {
@@ -104,16 +110,27 @@ public static class TerrainGeometry
                     Roughness = inside.Count > 0
                         ? inside.Max(t => topRough[t.i])
                         : topRough[0],
-                    Tops = inside.Count > 0 ? inside.Select(t => t.top).ToList() : [tops[0]],
-                    TopRoughness = inside.Count > 0
-                        ? inside.Select(t => topRough[t.i]).ToList()
-                        : [topRough[0]],
+                    // A band-only base piece borrows no foreign top —
+                    // painting another massif's contour would double
+                    // its ink outline.
+                    Tops = inside.Select(t => t.top).ToList(),
+                    TopRoughness = inside.Select(t => topRough[t.i]).ToList(),
                     Base = base_,
                     Silhouettes = silhouettes,
                     Face = face,
                 };
-                massif.Band = Subtract(base_, massif.Tops);
-                massif.Wall = Subtract(silhouettes, massif.Tops);
+                // Subtract the group's whole top set — same-height
+                // neighbours share silhouettes, and keeping a foreign
+                // top in Wall/Band paints cliff over its grass.
+                massif.Band = Subtract(base_, tops);
+                // Wall belongs to this massif's own tops only — the
+                // group union would paint neighbours' faces twice.
+                var ownSil = Union(
+                    massif
+                        .Tops.SelectMany(t => new[] { t, t.Select(p => p + face).ToArray() })
+                        .ToArray()
+                );
+                massif.Wall = Subtract(ownSil, tops);
                 massifs.Add(massif);
             }
         }

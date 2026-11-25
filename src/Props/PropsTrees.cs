@@ -435,8 +435,8 @@ public partial class PropsPainter
         for (var k = 0; k < fronds; k++)
         {
             var a = (k / (double)fronds) * Math.PI * 2 + (rand.Next() - 0.5) * 0.4;
-            var len = r * rand.Range(0.8, 1.05);
-            var bend = (rand.Next() - 0.5) * 0.5;
+            var len = r * rand.Range(0.95, 1.3);
+            var bend = (rand.Next() - 0.5) * 0.85;
             var cos = Math.Cos(a);
             var sin = Math.Sin(a);
             Vector2 Pt(double t, double sgn)

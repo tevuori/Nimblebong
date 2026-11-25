@@ -30,8 +30,10 @@ public partial class WaterMask : Node2D
     public override void _Draw()
     {
         var white = Colors.White;
-        foreach (var piece in WaterPainter.UnionAll(_rivers, 0))
-            Fill(this, piece, white);
+        // Polylines — same anti-triangulation reasoning as the albedo
+        // water: a unioned ribbon polygon can defeat the triangulator.
+        foreach (var (run, w) in _rivers)
+            DrawPolyline(run, white, (float)w, true);
         foreach (var pond in _ponds)
             Fill(this, pond, white);
     }

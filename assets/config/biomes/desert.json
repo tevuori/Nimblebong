@@ -12,7 +12,7 @@
   },
   "palette": {
     "ground": "#e0aa62",
-    "cliff": "#bb7953",
+    "cliff": "#b06a3e",
     "water": "#15707d",
     "foliage": "#648a44",
     "stone": "#ba8963",
@@ -27,7 +27,11 @@
   },
   "trees": {
     "style": "palm",
-    "species": ["palm", "acacia", "cactus"],
+    "species": [
+      "palm",
+      "acacia",
+      "cactus"
+    ],
     "summerTint": []
   },
   "ground": {
@@ -36,7 +40,11 @@
     "grass": 0.18,
     "stones": 1.2,
     "flowers": 0.12,
-    "flowerColors": ["#e8615a", "#f2c94c", "#f7f3e3"],
+    "flowerColors": [
+      "#e8615a",
+      "#f2c94c",
+      "#f7f3e3"
+    ],
     "patches": 0.7,
     "leaves": 0.2,
     "snow": 0.3,

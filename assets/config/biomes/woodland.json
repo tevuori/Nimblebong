@@ -70,7 +70,7 @@
     "dirt": "#7d5f3c",
     "grass": 1,
     "stones": 0.8,
-    "flowers": 1,
+    "flowers": 1.6,
     "flowerColors": [
       "#f6f3ea",
       "#f2d14b",
@@ -78,7 +78,7 @@
       "#9b7fd1",
       "#f29ac0"
     ],
-    "patches": 1,
+    "patches": 2,
     "leaves": 1,
     "snow": 1,
     "extra": "twigs",

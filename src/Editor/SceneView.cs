@@ -185,6 +185,12 @@ public partial class SceneView : Node2D
                 fortify.Add(st.Kind, st.Points, st.Width, st.Model);
             }
         }
+        water.SetRocks(
+            Scene.Props.Where(p => p.Kind == Kinds.Rock).Select(p => new Vector2(
+                (float)p.X,
+                (float)p.Y
+            ))
+        );
         var bridges = new BridgePainter { Stone = Biome.Stone };
         bridges.SetStrokes(Scene.Strokes);
         AddLayer(Stage.AlbedoVp, water);
