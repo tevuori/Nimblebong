@@ -66,6 +66,17 @@ public partial class FloraProbe : Node2D
             p.Id = scene.AllocId();
             scene.Props.Add(p);
         }
+        // Vegetation brush — a mushroom strip and a mix stroke along a
+        // small pond in the gallery's free lower-left corner.
+        var pond2 = new List<Vector2>();
+        for (var k = 0; k < 16; k++)
+        {
+            var a = k / 16f * Mathf.Tau;
+            pond2.Add(new Vector2(260 + Mathf.Cos(a) * 70, 660 + Mathf.Sin(a) * 45));
+        }
+        scene.Shapes.Add(new Shape { Id = scene.AllocId(), Kind = Kinds.Pond, Points = pond2 });
+        MapEditor.PlantAlong(scene, [new(60, 520), new(110, 530), new(160, 545)], 26, 0.8, "mushrooms", biome);
+        MapEditor.PlantAlong(scene, [new(180, 610), new(260, 600), new(340, 615), new(350, 690), new(260, 715)], 40, 0.7, null, biome);
         var byKind = fill.Props.GroupBy(p => p.Kind).OrderByDescending(g => g.Count())
             .Select(g => $"{g.Key}={g.Count()}");
         GD.Print($"FLORA biome={biome} defs={defs.Count} fill={fill.Props.Count}: {string.Join(" ", byKind)}");

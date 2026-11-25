@@ -290,6 +290,7 @@ v každé **vrstvě** vybere objekt z vážené tabulky pro ten kontext.
 | aby se kolem studny nesázely stromy dál | `placement.json` → `kinds.well` vyšší faktor |
 | zrušit ochranné zóny | `placement.json` → `"enabled": false` |
 | novou rostlinu | `props/<id>.json` s `"base": "flora"` + blok `flora` |
+| aby byla v paletě editoru | nic, objeví se sama v sekci podle `category` |
 | aby ji smart fill sázel | přidám id do `fill.json` → `layers.flora.contexts.<kontext>.kinds` |
 | hustší / řidší podrost | `fill.json` → vrstva `flora`: `spacing`, `chance`, `biomeChance` |
 

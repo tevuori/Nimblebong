@@ -1,7 +1,7 @@
 {
   "label": "Pouštní keřík",
   "base": "flora",
-  "category": "flora",
+  "category": "Flora",
   "biomes": ["desert"],
   "scale": 0.7,
   "flora": { "form": "groundcover", "count": [3, 5], "radius": 9, "length": [4, 7], "leaf": "#8d8a55", "leafDark": "#5e5a36", "accents": ["#e6c35a"], "accentSize": 0.9, "accentChance": 0.25, "ink": 0.2 }

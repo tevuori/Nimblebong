@@ -1,5 +1,9 @@
 # Prop definice (`assets/config/props/*.json`)
 
+Každá definice platná v aktuálním biomu se **sama objeví v paletě nástrojů
+editoru** v sekci podle `category`, i s živým náhledem. Kliknutím se pak
+pokládá jako kterýkoli jiný objekt.
+
 Každý soubor = jeden druh objektu na mapě. **Id = název souboru** (bez
 `.json`) a scéna ho ukládá do `prop.kind`. Definice znovu použije
 vestavěný C# kreslič (`base`) a přebarví/přeškáluje ho, takže na novou
@@ -14,7 +18,8 @@ variantu stačí nový JSON bez C#.
                                     //   cart, flag, barricade, lantern, fountain, pillar, marker,
                                     //   dock, boat, chest, portal, door, window, table, bed,
                                     //   shelf, rug, fireplace, butterfly, bird, flora
-  "category": "nature",             // volitelné, skupina pro paletu nástrojů
+  "category": "Porost a příroda",   // sekce palety nástrojů v editoru (název sekce;
+                                    //   existující sekce se sloučí, nová se vytvoří; chybí = „Další“)
   "biomes": ["woodland", "swamp"],  // volitelné, prázdné/chybí = všechny biomy
   "scale": 1.25,                    // násobič velikosti (default 1)
   "footprint": 1.0,                 // násobič poloměru výškového hrbolu (default 1)
@@ -94,6 +99,13 @@ s blokem `flora`, který je pro `base: "flora"` povinný:
 | `groundcover` | nízké překrývající se skvrny (jetel, vřes) | drobné kvítky |
 
 Barvy `@foliage`/`@ground` se mění se sezónou a art packem biomu.
+
+**V editoru:** rostliny jsou v sekci palety „Flora“ (klik = jeden trs).
+Nástroj **Štětec vegetace** sází vybranou rostlinu v trsech podél tahu
+myší. Volba „Směs (podle okolí)“ vybírá z vrstvy `flora` ve `fill.json`
+podle místa: ve vodě `shallows`, u vody `shore`, jinde `land`. Velikost
+štětce a hustota se nastavují v panelu. Štětec respektuje existující
+objekty, vodu i ochranné zóny (včetně checkboxu „Ignorovat ochranné zóny“).
 Zobrazit všechny definice biomu jako galerii + test smart fillu:
 `DMMAP_BIOME=<biom> <godot> --path . scenes/probe-flora.tscn` →
 `/tmp/godot-flora-<biom>.png`.

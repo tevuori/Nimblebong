@@ -70,6 +70,7 @@ public partial class MapEditor : Node2D
         new("stonecircle", "Kamenné kruhy", "Porost a příroda", Mode.Prop, "stonecircle"),
         new("crystal", "Krystaly", "Porost a příroda", Mode.Prop, "crystal"),
         new("bale", "Balíky", "Porost a příroda", Mode.Prop, "bale"),
+        new("veg-brush", "Štětec vegetace", "Flora", Mode.Brush, VegKind),
         new("camp", "Tábory a skupiny", "Osídlení a dekorace", Mode.Prop, Kinds.Camp),
         new("campfire", "Ohniště", "Osídlení a dekorace", Mode.Prop, "campfire"),
         new("cart", "Vozy", "Osídlení a dekorace", Mode.Prop, "cart"),
@@ -100,7 +101,7 @@ public partial class MapEditor : Node2D
     static readonly Dictionary<string, string> ToolColor = new()
     {
         ["select"] = "#8a8a8a", ["erase"] = "#8a8a8a",
-        ["terrain"] = "#a4a68e", ["brush"] = "#a4a68e",
+        ["terrain"] = "#a4a68e", ["brush"] = "#a4a68e", ["veg-brush"] = "#6d8f46",
         ["river"] = "#298f99", ["pond"] = "#298f99", ["field"] = "#a8935a",
         ["road"] = "#d1b87c", ["wall"] = "#b7b69a", ["fence"] = "#8a6f4c",
         ["dock"] = "#a37d4c", ["house"] = "#ac6948", ["room"] = "#b8ad86",
@@ -129,6 +130,7 @@ public partial class MapEditor : Node2D
         ["select"] = "Klikni pro výběr prvku, táhni pro přesun. Delete smaže, Esc zruší výběr. U terénu upravíš parametry posuvníky.",
         ["erase"] = "Guma — táhni přes prvky, které chceš smazat.",
         ["terrain"] = "Vymez horní hranu návrší — skalní svah se vykreslí v pásmu ven z obrysu. Kopečky ve stejné výšce se slévají v jeden masiv, různé výšky se skládají do teras. Cesta přes hranu dostane schody, řeka vodopád.",
+        ["veg-brush"] = "Táhni přes mapu a štětec nasází vybranou rostlinu v trsech. Směs vybírá podle okolí — u vody rákos, ve vodě lekníny, jinde tráva a květiny (fill.json).",
         ["brush"] = "Razítkuj kopce štětcem — každá bublina přidá terén v nastavené výšce; když maluješ přes existující kopec, výška se navyšuje.",
         ["river"] = "Maluj vodní tok. Břehy, mělčina a rostliny se vytvoří automaticky; toky se při setkání slévají.",
         ["pond"] = "Klidná vodní plocha vyrytá do terénu.",
@@ -351,6 +353,9 @@ public partial class MapEditor : Node2D
         var smartShot = System.Environment.GetEnvironmentVariable("DMMAP_SMART_SHOT");
         if (smartShot != null)
             CallDeferred(nameof(SmartShot), smartShot);
+        var vegShot = System.Environment.GetEnvironmentVariable("DMMAP_VEG_SHOT");
+        if (vegShot != null)
+            CallDeferred(nameof(VegShot), vegShot);
     }
 
     /// <summary>Probe: bake a road + river + crossing wall/fence + a
@@ -1399,6 +1404,9 @@ public partial class MapEditor : Node2D
             pts = FormPoints(_form);
         switch (_tool.Mode)
         {
+            case Mode.Brush when _tool.Kind == VegKind:
+                CommitVegBrush();
+                break;
             case Mode.Brush:
                 Commit(scene =>
                 {
@@ -1981,7 +1989,9 @@ public partial class MapEditor : Node2D
     {
         var existing = _view
             .Scene.Props.OrderByDescending(pr => pr.Id)
-            .FirstOrDefault(pr => new Vector2((float)pr.X, (float)pr.Y).DistanceTo(p) < 20);
+            .FirstOrDefault(pr =>
+                new Vector2((float)pr.X, (float)pr.Y).DistanceTo(p) < CycleRadius(_tool.Kind)
+            );
         if (existing != null)
         {
             var id = existing.Id;
@@ -2002,7 +2012,7 @@ public partial class MapEditor : Node2D
                     Kind = kind,
                     X = p.X,
                     Y = p.Y,
-                    Scale = _tool.Kind is Kinds.House or "tower" or "stall" ? 26 : 24,
+                    Scale = PropToolScale(kind),
                     Rotation = 0,
                     Seed = (int)(p.X * 0.37 + p.Y * 0.53),
                     Model = _propVariant,
@@ -2298,7 +2308,7 @@ public partial class MapEditor : Node2D
 
     void SetTool(string id)
     {
-        foreach (var t in Tools)
+        foreach (var t in PaletteTools())
             if (t.Id == id)
             {
                 _tool = t;
@@ -2336,6 +2346,8 @@ public partial class MapEditor : Node2D
             _fogSection.Visible = _tool.Mode == Mode.Fog;
         if (_brushSection != null)
             _brushSection.Visible = _tool.Mode == Mode.Brush;
+        if (_vegSection != null)
+            _vegSection.Visible = _tool.Kind == VegKind;
         if (_fillSection != null)
             _fillSection.Visible = _tool.Mode == Mode.Fill;
         if (_tool.Mode != Mode.Fill)
@@ -2355,13 +2367,15 @@ public partial class MapEditor : Node2D
     /// by category, filtered by the search box (diacritics-folded).</summary>
     void PopulateToolCards(string needle)
     {
+        _toolNeedle = needle;
         needle = Fold(needle.Trim());
         foreach (var c in _toolLib.GetChildren())
             c.QueueFree();
         _toolCards.Clear();
-        foreach (var cat in Tools.Select(t => t.Category).Distinct())
+        var palette = PaletteTools().ToList();
+        foreach (var cat in palette.Select(t => t.Category).Distinct())
         {
-            var items = Tools
+            var items = palette
                 .Where(t => t.Category == cat)
                 .Where(t => needle == "" || Fold(t.Label + " " + t.Id).Contains(needle))
                 .ToList();
@@ -2584,6 +2598,7 @@ public partial class MapEditor : Node2D
         _brushSection = new VBoxContainer { Visible = false };
         box.AddChild(_brushSection);
         Slider(_brushSection, "Velikost štětce", 16, 90, _brushSize, v => _brushSize = v);
+        BuildVegSection(box);
 
         _variantSection = new VBoxContainer();
         box.AddChild(_variantSection);
@@ -2733,6 +2748,7 @@ public partial class MapEditor : Node2D
         {
             _lookBiome = biome.GetItemText((int)i);
             _view.SetBiome(_lookBiome);
+            OnPaletteBiomeChanged();
             RebuildSeasonOptions();
             _lookSeason = null;
             SyncThumbLook();
@@ -3126,8 +3142,9 @@ public partial class GhostLayer : Node2D
         }
         if (_mode == MapEditor.Mode.Brush)
         {
-            var fill = new Color(0.71f, 0.69f, 0.54f, 0.4f);
-            var rim = new Color(0.2f, 0.18f, 0.1f, 0.7f);
+            var veg = _kind == MapEditor.VegKind;
+            var fill = veg ? new Color(0.45f, 0.66f, 0.36f, 0.35f) : new Color(0.71f, 0.69f, 0.54f, 0.4f);
+            var rim = veg ? new Color(0.12f, 0.24f, 0.1f, 0.7f) : new Color(0.2f, 0.18f, 0.1f, 0.7f);
             foreach (var c in _pts)
             {
                 DrawCircle(c, (float)_width, fill);

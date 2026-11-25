@@ -1,7 +1,7 @@
 {
   "label": "Lekníny",
   "base": "flora",
-  "category": "flora",
+  "category": "Flora",
   "biomes": [
     "woodland",
     "swamp"

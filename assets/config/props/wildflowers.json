@@ -1,7 +1,7 @@
 {
   "label": "Luční květiny",
   "base": "flora",
-  "category": "flora",
+  "category": "Flora",
   "biomes": ["woodland", "alpine"],
   "scale": 0.65,
   "flora": {

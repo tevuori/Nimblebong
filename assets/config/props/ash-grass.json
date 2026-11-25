@@ -1,7 +1,7 @@
 {
   "label": "Spálená tráva",
   "base": "flora",
-  "category": "flora",
+  "category": "Flora",
   "biomes": [
     "volcanic"
   ],

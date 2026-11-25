@@ -34,6 +34,7 @@ public partial class ToolThumbs : Node2D
     bool _again;
     int _run;
     string _look = "";
+    string _biomeForDefs = "woodland";
 
     /// <summary>True while any registered tool still lacks a cached icon
     /// — the UI probe waits for this before dumping the screen.</summary>
@@ -73,6 +74,7 @@ public partial class ToolThumbs : Node2D
         if (look == _look)
             return;
         _look = look;
+        _biomeForDefs = biome;
         _view.SetBiome(biome);
         _view.SetMood(mood);
         _view.SetArtPack(art);
@@ -154,7 +156,8 @@ public partial class ToolThumbs : Node2D
             tile.BlendRect(g, new Rect2I(Vector2I.Zero, g.GetSize()), Vector2I.Zero);
             return tile;
         }
-        var tool = MapEditor.Tools.FirstOrDefault(t => t.Id == id);
+        if (MapEditor.FindTool(id) is not { } tool)
+            return null;
         var scene = PreviewScene(tool);
         if (scene == null)
             return null;
@@ -315,6 +318,21 @@ public partial class ToolThumbs : Node2D
                 s.Props.Add(PropAt("tree", P(96, 50), 26));
                 s.Props.Add(PropAt("campfire", P(80, 62), 18));
                 return s;
+            case "veg-brush":
+            {
+                // A painted swath of the biome's plants.
+                var plants = PropDefs.ForBiome(_biomeForDefs)
+                    .Where(d => d.Base == PropKind.Flora).Select(d => d.Id).ToList();
+                if (plants.Count == 0)
+                    plants = ["flora"];
+                for (var i = 0; i < 14; i++)
+                {
+                    var x = 14 + i * 7 + Rng.Noise(i * 3.1) * 6;
+                    var y = 46 - i * 1.6 + (Rng.Noise(i * 5.7) - 0.5) * 18;
+                    s.Props.Add(PropAt(plants[i % plants.Count], P(x, y), 30));
+                }
+                return s;
+            }
             case "brush":
                 // Two overlapping stamps — stacked terrace like real use.
                 s.Shapes.Add(
@@ -444,6 +462,20 @@ public partial class ToolThumbs : Node2D
                 lbl.Text = "Město";
                 s.Props.Add(lbl);
                 return s;
+            case MapEditor.Mode.Prop when PropDefs.TryGet(t.Kind, out var def):
+            {
+                // Prop definition card: a plant as a small clump of
+                // three, anything else at its base kind's card scale.
+                if (def.Base == PropKind.Flora)
+                {
+                    s.Props.Add(PropAt(t.Kind, P(46, 32), 52));
+                    s.Props.Add(PropAt(t.Kind, P(74, 40), 46));
+                    s.Props.Add(PropAt(t.Kind, P(56, 52), 40));
+                }
+                else
+                    s.Props.Add(PropAt(t.Kind, P(60, 38), PropScale.GetValueOrDefault(def.BaseName, 30)));
+                return s;
+            }
             case MapEditor.Mode.Prop:
             {
                 var scale = PropScale.GetValueOrDefault(t.Kind, 18);

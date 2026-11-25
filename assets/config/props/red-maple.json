@@ -1,7 +1,7 @@
 {
   "label": "Rudý javor",
   "base": "tree",
-  "category": "nature",
+  "category": "Porost a příroda",
   "biomes": ["woodland"],
   "species": "oak",
   "tint": { "color": "#c8612e", "amount": 0.42 }

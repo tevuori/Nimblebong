@@ -1,7 +1,7 @@
 {
   "label": "Muchomůrky",
   "base": "flora",
-  "category": "flora",
+  "category": "Flora",
   "biomes": [
     "woodland",
     "swamp"

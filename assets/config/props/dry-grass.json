@@ -1,7 +1,7 @@
 {
   "label": "Suchá tráva",
   "base": "flora",
-  "category": "flora",
+  "category": "Flora",
   "biomes": [
     "desert",
     "volcanic"

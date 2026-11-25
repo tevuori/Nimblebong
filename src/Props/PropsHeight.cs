@@ -123,6 +123,10 @@ public partial class PropsHeight : Node2D
             var (r, h) = dim;
             if (p.Def != null)
                 (r, h) = (r * p.Def.Footprint, h * p.Def.Height);
+            // Flat props (lily pads, rugs of moss) — no bump at all, or
+            // the baseline disc pokes out of carved water and casts shadow.
+            if (h <= 0)
+                continue;
             var base_ = TerrainAt(p.Pos);
             var top = Math.Min(0.97, base_ + h);
             // Houses are elongated; everything else is near-round. The

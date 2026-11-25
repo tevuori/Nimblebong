@@ -1,7 +1,7 @@
 {
   "label": "Mechový balvan",
   "base": "rock",
-  "category": "nature",
+  "category": "Porost a příroda",
   "biomes": ["woodland", "swamp"],
   "scale": 1.25,
   "height": 1.2,

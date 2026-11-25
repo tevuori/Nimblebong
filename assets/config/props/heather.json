@@ -1,7 +1,7 @@
 {
   "label": "Vřes",
   "base": "flora",
-  "category": "flora",
+  "category": "Flora",
   "biomes": ["alpine"],
   "scale": 0.75,
   "flora": { "form": "groundcover", "count": [4, 7], "radius": 10, "length": [5, 9], "leaf": "#6f7a4f", "accents": ["#9b6fb0", "#b886c4", "#7d5a96"], "accentSize": 1.2, "accentChance": 0.8, "ink": 0 }
