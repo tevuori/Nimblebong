@@ -53,6 +53,7 @@ public static class Kinds
     public static readonly string[] Props =
     [
         Tree,
+        "pine",
         Rock,
         "crate",
         "barrel",
