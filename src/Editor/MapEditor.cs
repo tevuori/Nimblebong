@@ -284,11 +284,29 @@ public partial class MapEditor : Node2D
     int _uiBucket;
     CanvasLayer? _uiLayer;
 
-    int ComputeUiBucket() =>
-        (int)
-            Math.Round(
-                Math.Clamp(GetViewportRect().Size.Y / 720f, 1f, 2.6f) / 0.25f
+    int ComputeUiBucket()
+    {
+        // Physical window height — GetViewportRect lies at _Ready
+        // (default size) and reacts to camera zoom, Window.Size is
+        // the real framebuffer size (contentScale==1 on Linux).
+        var h = GetWindow().Size.Y;
+        var b = (int)Math.Round(Math.Clamp(h / 720f, 1f, 2.6f) / 0.25f);
+        if (OS.HasEnvironment("DMMAP_DEBUG_UI") && b != _dbgBucket)
+        {
+            _dbgBucket = b;
+            GD.Print(
+                $"ui-dbg: winSize={DisplayServer.WindowGetSize()} "
+                    + $"winDecor={DisplayServer.WindowGetSizeWithDecorations()} "
+                    + $"contentScale={GetWindow().ContentScaleFactor} "
+                    + $"screenScale={DisplayServer.ScreenGetScale()} "
+                    + $"screenDpi={DisplayServer.ScreenGetDpi()} "
+                    + $"h={h} bucket={b}"
             );
+        }
+        return b;
+    }
+
+    int _dbgBucket = -1;
 
     int Fs(float s) => (int)Math.Round(s * _ui);
     float Us(float v) => v * _ui;
@@ -331,18 +349,6 @@ public partial class MapEditor : Node2D
 
     /// <summary>Rebuild the dock + thumbnails when the window crosses a
     /// scale bucket — keeps the UI readable on big screens.</summary>
-    public override void _Notification(int what)
-    {
-        if (what != NotificationWMSizeChanged)
-            return;
-        var b = ComputeUiBucket();
-        if (b != _uiBucket)
-        {
-            _uiBucket = b;
-            CallDeferred(nameof(RebuildUi));
-        }
-    }
-
     void RebuildUi()
     {
         _ui = _uiBucket * 0.25f;
@@ -385,6 +391,14 @@ public partial class MapEditor : Node2D
             _pendingRebuild = false;
             _lastRebuild = now;
             _view.Rebuild();
+        }
+        // Poll the window size — WM_SIZE_CHANGED does not fire
+        // reliably (e.g. startup maximize lands silently).
+        var b = ComputeUiBucket();
+        if (b != _uiBucket)
+        {
+            _uiBucket = b;
+            RebuildUi();
         }
     }
 

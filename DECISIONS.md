@@ -30,8 +30,11 @@
   násobí všechny pixelové konstanty v `BuildUi`/`ToolCard`/`CardStyle`/
   sliderech; sdílený `Theme { DefaultFontSize = Fs(13) }` na docku
   a action baru pokryje OptionButton/LineEdit/CheckBox/tooltipy.
-- `NotificationWMSizeChanged` → `RebuildUi` (defer): zahodí CanvasLayer
-  + `ToolThumbs` a postaví je znovu s novým `_ui`.
+- `_Process` polluje `GetWindow().Size.Y` → `RebuildUi`: zahodí
+  CanvasLayer + `ToolThumbs` a postaví je znovu s novým `_ui`. Nelze
+  spoléhat na `NotificationWMSizeChanged` (startovní maximalizace
+  proběhne tiše) ani na `GetViewportRect` (v `_Ready` hlásí default
+  1152×648 a reaguje na zoom kamery). Debug: `DMMAP_DEBUG_UI=1`.
 - `ToolThumbs.Create(uiScale)` škáluje viewporty i preview souřadnice
   (`_m` × vše s pixelovou sémantikou — body, `Shape.Size`, `Stroke.Width`,
   `Prop.Scale`, glyph `Scale`) — ikony zůstávají ostré v nativním
