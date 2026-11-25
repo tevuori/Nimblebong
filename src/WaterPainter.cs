@@ -15,7 +15,7 @@ namespace DmMap;
 public partial class WaterPainter : Node2D
 {
     // Woodland palette (biome defaults from src/config).
-    public Color Water = Palette.Hex("#298f99");
+    public Color Water = Palette.Hex("#14646f");
     public Color BankVerge = Palette.Hex("#647750");
     public Color BankEdge = Palette.Hex("#b4c985");
     public Color RoadDirt = Palette.Hex("#d1b87c");
@@ -24,7 +24,7 @@ public partial class WaterPainter : Node2D
 
     readonly List<(Vector2[] Run, double Width)> _rivers = [];
     readonly List<(Vector2[] Run, double Width)> _roads = [];
-    readonly List<Vector2> _rocks = [];
+    readonly List<(Vector2 Pos, double Scale)> _rocks = [];
 
     /// <summary>Drop all queued runs — the ghost preview rebuilds the
     /// painter every pointer move.</summary>
@@ -36,11 +36,12 @@ public partial class WaterPainter : Node2D
         QueueRedraw();
     }
 
-    /// <summary>Rock prop positions — those sitting in water get ripple
-    /// rings + foam specks (the web's rock-in-water pass).</summary>
-    public void SetRocks(IEnumerable<Vector2> pts)
+    /// <summary>Rock prop positions + footprint scale — those sitting in
+    /// water get ripple rings + foam specks proportional to the stone.
+    /// Passing only positions used to collapse boulders to pebble ripples.</summary>
+    public void SetRocks(IEnumerable<(Vector2 Pos, double Scale)> rocks)
     {
-        _rocks.AddRange(pts);
+        _rocks.AddRange(rocks);
         QueueRedraw();
     }
 
@@ -158,8 +159,9 @@ public partial class WaterPainter : Node2D
 
     void DrawRiverGroup()
     {
-        var deep = Palette.Tint(Water, -22);
-        var shallow = Palette.Tint(Water, 34);
+        var deep = Palette.Tint(Water, -20);
+        var mid = Palette.Tint(Water, 18);
+        var shallow = Palette.Tint(Water, 68);
         // Bank stack per stroke — wide grassy verge, pale trodden edge,
         // deep rim, inked shoreline. Drawn before the unioned fill so the
         // merged water covers the seams inside a confluence (TS order).
@@ -169,18 +171,18 @@ public partial class WaterPainter : Node2D
         // branch channels.
         foreach (var (run, w) in _rivers)
         {
-            DrawPolyline(run, BankVerge, (float)(w + 22), true);
-            DrawPolyline(run, BankEdge, (float)(w + 18), true);
+            DrawPolyline(run, BankVerge, (float)(w + 14), true);
+            DrawPolyline(run, BankEdge, (float)(w + 10), true);
             DrawPolyline(run, deep, (float)(w + 3), true);
         }
         // One inked shoreline around the merged water — per-stroke
         // outlines drew spikes where ribbons meet at a confluence.
         foreach (var piece in UnionAll(_rivers, 5))
-            InkOutline(piece, Palette.Hex("#1d2b1c") with { A = 0.65f }, 1.6f);
+            InkOutline(piece, Palette.Hex("#10251d") with { A = 0.82f }, 2.2f);
         foreach (var (run, w) in _rivers)
             DrawPolyline(run, shallow, (float)w, true);
         foreach (var (run, w) in _rivers)
-            DrawPolyline(run, Water, (float)Math.Max(3, w - 10), true);
+            DrawPolyline(run, mid, (float)Math.Max(3, w - 13), true);
         // Hand-painted water tile — caustic ripples over the painted
         // depth bands, wherever the union surface triangulates.
         foreach (var piece in UnionAll(_rivers, -10))
@@ -190,13 +192,13 @@ public partial class WaterPainter : Node2D
                 this,
                 piece,
                 TextureTiles.Water,
-                0.45f,
-                0.4,
+                0.46f,
+                0.55,
                 new Vector2((float)(Rng.Noise(seed) * 120), (float)(Rng.Noise(seed * 1.7) * 120))
             );
         }
         foreach (var (run, w) in _rivers)
-            DrawPolyline(run, Palette.Tint(Water, -20), (float)Math.Max(3, w - 18), true);
+            DrawPolyline(run, Palette.Tint(Water, -26), (float)Math.Max(3, w - 27), true);
         foreach (var (run, w) in _rivers)
             DrawRiverDetails(run, w);
         RiverPebbles();
@@ -292,7 +294,7 @@ public partial class WaterPainter : Node2D
         if (_rocks.Count == 0)
             return;
         var pieces = UnionAll(_rivers, 0);
-        foreach (var rock in _rocks)
+        foreach (var (rock, rockScale) in _rocks)
         {
             var wet = false;
             foreach (var piece in pieces)
@@ -304,20 +306,24 @@ public partial class WaterPainter : Node2D
             if (!wet)
                 continue;
             var seed = rock.X * 0.31 + rock.Y * 0.47;
-            // Foam crown hugging the stone.
+            // Foam crown hugging the stone. Scale is the scene footprint;
+            // keep small rapids stones readable while letting boulders
+            // throw the broad rings the reference sheets use.
+            var sr = (float)Math.Max(8, rockScale * 0.54);
             DrawArc(
                 rock,
-                9f,
+                sr + 2f,
                 (float)(Rng.Noise(seed) * 6.28),
                 (float)(Rng.Noise(seed) * 6.28 + 3.4),
                 8,
                 new Color(0.92f, 0.97f, 0.95f, 0.7f),
                 2.4f
             );
-            // Two broken ripple rings downstream-ish.
-            for (var ring = 0; ring < 2; ring++)
+            // Two or three broken ripple rings downstream-ish.
+            var ringCount = rockScale >= 26 ? 3 : 2;
+            for (var ring = 0; ring < ringCount; ring++)
             {
-                var r = 15f + ring * 8f;
+                var r = sr + 6f + ring * (float)Math.Max(7, sr * 0.38);
                 for (var arc = 0; arc < 3; arc++)
                 {
                     var a0 = (float)(Rng.Noise(seed + ring * 7 + arc * 3) * 6.28);
@@ -367,6 +373,11 @@ public partial class WaterPainter : Node2D
         var normals = Spline.Normals(run);
         BankShading(left, normals, +1);
         BankShading(right, normals, -1);
+        // Continuous broken-white waterline: the refs carry a pale foam
+        // rim along nearly the whole shore, not only on north-facing runs.
+        var foamline = Palette.Hex("#e8f7ee") with { A = 0.3f };
+        if (left.Length > 1) DrawPolyline(left, foamline, 1.7f, true);
+        if (right.Length > 1) DrawPolyline(right, foamline, 1.7f, true);
         FoamSpecks(left, normals, +1, waterSeed);
         FoamSpecks(right, normals, -1, waterSeed);
         BankDetails(run, w, left, normals, +1, waterSeed);
@@ -403,13 +414,13 @@ public partial class WaterPainter : Node2D
     void BankShading(Vector2[] side, Vector2[] normals, int sign)
     {
         var shadow = Palette.TintAlpha(Water, -46, 0.4);
-        var rim = Palette.Hex("#eaf8f2") with { A = 0.3f };
+        var rim = Palette.Hex("#eaf8f2") with { A = 0.52f };
         var runPts = new List<Vector2>();
         var dark = false;
         void Flush()
         {
             if (runPts.Count > 1)
-                DrawPolyline([.. runPts], dark ? shadow : rim, dark ? 3.2f : 1.8f, true);
+                DrawPolyline([.. runPts], dark ? shadow : rim, dark ? 3.2f : 2.4f, true);
             runPts.Clear();
         }
         for (var i = 0; i < side.Length; i++)

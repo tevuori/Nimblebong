@@ -23,10 +23,13 @@ public partial class HeightmapPainter : Node2D
         {
             var h01 = Baseline + Mathf.Clamp((float)m.Height / 100f, 0f, 1f) * 0.72f;
             var steps = new List<(Vector2[], float)>();
-            // Nested filled offsets — each step covers a smaller ring at a
-            // brighter level, stacking a smooth stepped pyramid.
-            foreach (var f in new[] { 0.9, 0.72, 0.54, 0.36, 0.18 })
+            // Nested filled offsets — many fine rings approximate a
+            // continuous toe→rim ramp. Five coarse steps made every slope
+            // read as contour-map terraces once the lighting shader took
+            // the height gradient.
+            for (var i = 0; i < 14; i++)
             {
+                var f = 0.94 * (1 - i / 14.0);
                 var level = Baseline + (h01 - Baseline) * (float)(1 - f);
                 foreach (var top in m.Tops)
                 foreach (var poly in TerrainGeometry.Offset(top, f * m.Size))

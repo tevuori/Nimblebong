@@ -61,8 +61,28 @@ public partial class CrossingPainter : Node2D
 
     public override void _Draw()
     {
+        var rivers = _strokes.Where(s => s.Kind == Kinds.River).ToList();
         foreach (var (kind, pts, width) in _strokes)
-            foreach (var (p, dir) in RimCrossings(pts, _massifs))
+        {
+            // Low burial/garden terraces are walked over without a
+            // carved fan; stairs are reserved for real cliff massifs.
+            var hits = RimCrossings(
+                pts,
+                kind == Kinds.Road
+                    ? _massifs.Where(m => m.Height >= 30).ToList()
+                    : _massifs
+            );
+            if (kind == Kinds.Road)
+                // A road entering the gorge exactly at a river crossing is
+                // carried by the bridge deck; drawing a second staircase
+                // there crowds the bridge with duplicate fans. Keep stair
+                // crossings away from the water, where they read as the
+                // reference's deliberate cliff access.
+                hits = hits.Where(h =>
+                        !rivers.Any(r => r.Pts.Any(q => q.DistanceSquaredTo(h.P) < 145 * 145))
+                    )
+                    .ToList();
+            foreach (var (p, dir) in hits)
             {
                 var n = new Vector2(-dir.Y, dir.X);
                 if (kind == Kinds.River)
@@ -70,6 +90,7 @@ public partial class CrossingPainter : Node2D
                 else
                     DrawStairs(p, dir, n, (float)width);
             }
+        }
     }
 
     /// <summary>Treaded staircase climbing the rim — filled plank rungs
@@ -81,53 +102,85 @@ public partial class CrossingPainter : Node2D
         // Which side is downhill — probe both ways for the point that
         // falls outside every top.
         var downhill = 1.0f;
-        foreach (var s in new[] { 1.0f, -1.0f })
+        foreach (var sgn in new[] { 1.0f, -1.0f })
         {
-            var probe = p + dir * s * 26;
+            var probe = p + dir * sgn * 26;
             var inside = _massifs.Any(m => m.Tops.Any(t => Poly.PointInPolygon(probe, t)));
             if (!inside)
             {
-                downhill = s;
+                downhill = sgn;
                 break;
             }
         }
-        var c0 = p + dir * downhill * 14; // sit on the band, not the rim line
-        var half = w * 0.5f;
-        var step = w * 0.34f;
-        var tread = Palette.Hex("#c2aa7c");
-        var treadDark = Palette.Hex("#a98c5e");
-        var rail = Palette.Hex("#51412c");
 
-        // Shadow under the staircase.
-        for (var i = -2; i <= 2; i++)
-            Fill(
-                Rung(c0 + dir * (i * step + 4), n, half, 4),
-                new Color(0.05f, 0.06f, 0.04f, 0.18f)
+        // Fan staircase: concentric shallow stone sectors opening uphill
+        // from a downhill pivot. This is the signature Nimblehold stair —
+        // radial joints make it read as carved fan steps, not a ladder.
+        var up = -dir * downhill;
+        var center = p + dir * downhill * w * 1.15f;
+        var baseAngle = Mathf.Atan2(up.Y, up.X);
+        var stone = Palette.Hex("#d8d2ba");
+        var stoneDark = Palette.Hex("#c0b795");
+        var ink = Palette.Hex("#4b422f");
+        const int rings = 7;
+        var rInner = w * 0.48f;
+        var rStep = w * 0.23f;
+        var halfSpan = 1.02f;
+
+        Vector2 Polar(float r, float a) => center + new Vector2((float)System.Math.Cos(a), (float)System.Math.Sin(a)) * r;
+
+        // Soft fan shadow, offset downhill.
+        var shadowPts = new System.Collections.Generic.List<Vector2>();
+        var rOut = rInner + rStep * rings;
+        for (var k = 0; k <= 12; k++)
+        {
+            var a = baseAngle - halfSpan + halfSpan * 2 * k / 12f;
+            shadowPts.Add(Polar(rOut + 4, a) + new Vector2(4, 7));
+        }
+        shadowPts.Add(center + new Vector2(4, 7));
+        Fill([.. shadowPts], new Color(0.05f, 0.06f, 0.04f, 0.1f));
+
+        for (var ring = 0; ring < rings; ring++)
+        {
+            var r0 = rInner + rStep * ring;
+            var r1 = r0 + rStep * 0.9f;
+            var pts = new System.Collections.Generic.List<Vector2>();
+            const int seg = 8;
+            for (var k = 0; k <= seg; k++)
+            {
+                var a = baseAngle - halfSpan + halfSpan * 2 * k / (float)seg;
+                pts.Add(Polar(r1, a));
+            }
+            for (var k = seg; k >= 0; k--)
+            {
+                var a = baseAngle - halfSpan + halfSpan * 2 * k / (float)seg;
+                pts.Add(Polar(r0, a));
+            }
+            Fill([.. pts], ring % 2 == 0 ? stone : stoneDark);
+            // Inked outer nose of every tread.
+            var nose = new System.Collections.Generic.List<Vector2>();
+            for (var k = 0; k <= seg; k++)
+            {
+                var a = baseAngle - halfSpan + halfSpan * 2 * k / (float)seg;
+                nose.Add(Polar(r1, a));
+            }
+            DrawPolyline([.. nose], ink with { A = 0.84f }, 1.35f, true);
+        }
+        // Radial joints dividing the fan into wedge treads.
+        for (var j = -2; j <= 2; j++)
+        {
+            var a = baseAngle + j * halfSpan / 2.35f;
+            DrawLine(
+                Polar(rInner * 0.8f, a),
+                Polar(rOut, a),
+                ink with { A = 0.72f },
+                1.1f,
+                true
             );
-        // Stringers — chunky ink rails a touch wider than the treads.
-        foreach (var s in new[] { -1.0f, 1.0f })
-        {
-            var a = c0 + n * s * (half + 1);
-            DrawLine(a - dir * step * 2.6f, a + dir * step * 2.6f, rail, 2.4f);
         }
-        // Rungs — alternating plank tones like the bridge deck.
-        for (var i = -2; i <= 2; i++)
-        {
-            var c = c0 + dir * (i * step);
-            var poly = Rung(c, n, half, 5);
-            Fill(poly, (i % 2 == 0) ? tread : treadDark);
-            DrawPolyline([.. poly, poly[0]], rail, 1.4f, true);
-            // End grain — a pale tick at each tread end.
-            foreach (var s in new[] { -1.0f, 1.0f })
-                DrawLine(
-                    c + n * s * (half - 2) - dir * 2,
-                    c + n * s * (half - 2) + dir * 2,
-                    Palette.Tint(tread, 18),
-                    1.4f
-                );
-        }
-        // Landing shadow at the downhill foot.
-        DrawCircle(c0 + dir * downhill * step * 3.1f, half * 0.5f, new Color(0.05f, 0.06f, 0.04f, 0.15f));
+        // Outer lip and downhill landing shade.
+        DrawArc(center, rOut, baseAngle - halfSpan, baseAngle + halfSpan, 16, ink with { A = 0.86f }, 1.8f);
+        DrawCircle(center + dir * downhill * w * 0.2f, w * 0.34f, new Color(0.05f, 0.06f, 0.04f, 0.1f));
     }
 
     static Vector2[] Rung(Vector2 c, Vector2 n, float half, float thick)
@@ -148,19 +201,19 @@ public partial class CrossingPainter : Node2D
     {
         var half = w * 0.55f;
         var lip = p + dir * w * 0.18f;
-        DrawLine(lip + n * half, lip - n * half, WaterLight, w * 0.34f);
-        DrawLine(lip + n * half, lip - n * half, Foam, w * 0.12f);
+        DrawLine(lip + n * half, lip - n * half, WaterLight, w * 0.13f);
+        DrawLine(lip + n * half, lip - n * half, Foam, w * 0.055f);
         // Falling streaks — long white runnels streaming off the lip,
         // the signature top-down waterfall read.
         for (var k = -1; k <= 1; k++)
         {
             var off = lip + n * k * half * 0.55f;
-            var len = w * (1.15f - Math.Abs(k) * 0.3f);
+            var len = w * (0.82f - Math.Abs(k) * 0.18f);
             DrawLine(
                 off,
                 off + dir * len,
                 Foam with { A = 0.55f },
-                w * (0.14f - Math.Abs(k) * 0.04f)
+                w * (0.065f - Math.Abs(k) * 0.015f)
             );
         }
         // foam: two broken arcs on the downstream side of the lip
@@ -168,7 +221,7 @@ public partial class CrossingPainter : Node2D
         for (var i = 0; i < 3; i++)
         {
             var c = p + dir * (w * (0.5f + i * 0.3f));
-            var r = w * (0.42f - i * 0.1f);
+            var r = w * (0.3f - i * 0.07f);
             var a0 = (float)(rng.NextDouble() * Math.PI * 2);
             DrawArc(c, r, a0, a0 + 1.6f, 6, Foam, 2.2f);
         }

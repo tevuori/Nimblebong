@@ -31,7 +31,11 @@ public partial class PropsPainter
         var meta = TreeCfg.For(species);
         var look = BiomeCfg?.SeasonLook ?? "summer";
         var winterBare = look == "winter" && meta.Deciduous;
-        var color = JitterGreen(Foliage, rand);
+        var baseFoliage = Foliage;
+        if (look == "summer" && BiomeCfg != null)
+            foreach (var tint in BiomeCfg.SummerTints)
+                baseFoliage = Palette.Mix(baseFoliage, tint.To, tint.Amount);
+        var color = JitterGreen(baseFoliage, rand);
 
         if (look == "autumn" && meta.Deciduous && TreeCfg.AutumnColors.Count > 0)
         {
@@ -53,7 +57,7 @@ public partial class PropsPainter
         switch (species)
         {
             case "oak":
-                DrawTree(p);
+                DrawTree(p, color);
                 Blossoms(p, rand, r, look);
                 break;
             case "birch":
@@ -154,7 +158,7 @@ public partial class PropsPainter
                 break;
             }
             default:
-                DrawTree(p);
+                DrawTree(p, color);
                 break;
         }
     }
@@ -267,7 +271,7 @@ public partial class PropsPainter
             clumps.Add(Blob(Math.Cos(a) * d, Math.Sin(a) * d, r * rand.Range(0.2, 0.32), rand, 10, 0.2));
         }
         foreach (var c in clumps)
-            Stroke(Xform(p, c), Palette.Mix(color, Palette.Hex("#0d140a"), 0.62), (float)(1.8 * p.Scale));
+            Stroke(Xform(p, c), Palette.Mix(color, Palette.Hex("#251b10"), 0.62), (float)(1.8 * p.Scale));
         foreach (var c in clumps)
             Fill(Xform(p, c), Palette.Mix(light, Colors.Black, 0.18));
         var off = new Vector2((float)(-r * 0.04), (float)(-r * 0.05));
@@ -280,7 +284,7 @@ public partial class PropsPainter
         var segs = Branches(rand, 5, r * 0.95, Math.Max(1.6, r * 0.09), 2);
         Strokes(p, segs, Palette.Mix(Palette.Hex("#6b5236"), color, 0.15), 0);
         var olive = Palette.Mix(color, Palette.Hex("#9aa04a"), 0.35);
-        var edge = Palette.Mix(olive, Palette.Hex("#0d140a"), 0.55);
+        var edge = Palette.Mix(olive, Palette.Hex("#251b10"), 0.55);
         var lobes = 5 + (int)(rand.Next() * 3);
         for (var k = 0; k < lobes; k++)
         {
@@ -329,7 +333,7 @@ public partial class PropsPainter
     {
         var light = Palette.Mix(color, Palette.Hex("#b5c96a"), 0.3);
         var body = Blob(0, 0, r * 0.9, rand, 18, 0.06);
-        Stroke(Xform(p, body), Palette.Mix(light, Palette.Hex("#0d140a"), 0.6), (float)(2 * p.Scale));
+        Stroke(Xform(p, body), Palette.Mix(light, Palette.Hex("#251b10"), 0.6), (float)(2 * p.Scale));
         Fill(Xform(p, body), Palette.Mix(light, Colors.Black, 0.3));
         var swirl = (rand.Next() - 0.5) * 0.8;
         foreach (var (tone, len, w) in new (Color, double, double)[]
@@ -371,7 +375,7 @@ public partial class PropsPainter
         var body = Poly.Ellipse(0, 0, r * 0.62, r * 0.62, 0, 14);
         for (var k = 0; k < body.Length; k++)
             body[k] *= (float)(1 + 0.08 * Math.Sin(k * 2.4));
-        Stroke(Xform(p, body), Palette.Mix(dark, Palette.Hex("#0d140a"), 0.6), (float)(2 * p.Scale));
+        Stroke(Xform(p, body), Palette.Mix(dark, Palette.Hex("#251b10"), 0.6), (float)(2 * p.Scale));
         Fill(Xform(p, body), dark);
         // Spiral hatch + a few twig nicks.
         for (var k = 0; k < 26; k++)
@@ -398,7 +402,7 @@ public partial class PropsPainter
         var segs = Branches(rand, 5, r * 1.1, Math.Max(1.4, r * 0.07), 1);
         Strokes(p, segs, Palette.Hex("#5e4630"), 0);
         var pine = Palette.Mix(color, Palette.Hex("#3b5a3a"), 0.2);
-        var edge = Palette.Mix(pine, Palette.Hex("#0d140a"), 0.62);
+        var edge = Palette.Mix(pine, Palette.Hex("#251b10"), 0.62);
         var centers = new List<Vector2> { Vector2.Zero };
         var tufts = 5 + (int)(rand.Next() * 4);
         for (var k = 0; k < tufts; k++)
@@ -430,20 +434,25 @@ public partial class PropsPainter
 
     void DrawPalm(PropPlacement p, Jitter rand, double r, Color color)
     {
-        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.6);
+        var edge = Palette.Mix(color, Palette.Hex("#251b10"), 0.6);
         var fronds = 6 + (int)(rand.Next() * 5);
         for (var k = 0; k < fronds; k++)
         {
             var a = (k / (double)fronds) * Math.PI * 2 + (rand.Next() - 0.5) * 0.4;
             var len = r * rand.Range(0.95, 1.3);
-            var bend = (rand.Next() - 0.5) * 0.85;
+            var bend = (rand.Next() - 0.5) * 0.45;
             var cos = Math.Cos(a);
             var sin = Math.Sin(a);
             Vector2 Pt(double t, double sgn)
             {
-                var w = len * 0.17 * Math.Pow(Math.Sin(Math.PI * t), 0.7);
+                // Broad lanceolate jungle frond — widest a third of the
+                // way out, then tapering smoothly to the tip. The older
+                // alternating half-width sampling made every palm read
+                // as a spiky holly star rather than the Nimblehold leaf.
+                var taper = Math.Pow(Math.Sin(Math.PI * (0.08 + t * 0.84)), 0.75);
+                var w = len * 0.21 * taper * (0.65 + 0.35 * (1 - t));
                 var along = t * len;
-                var side = Math.Sin(t * Math.PI) * bend * len * 0.3 + sgn * w;
+                var side = Math.Sin(t * Math.PI) * bend * len * 0.18 + sgn * w;
                 return new Vector2(
                     (float)(along * cos - side * sin),
                     (float)(along * sin + side * cos)
@@ -451,9 +460,9 @@ public partial class PropsPainter
             }
             var outline = new List<Vector2>();
             for (var s = 0; s <= 12; s++)
-                outline.Add(Pt(s / 12.0, s % 2 == 1 ? 0.55 : 1));
+                outline.Add(Pt(s / 12.0, 1));
             for (var s = 12; s >= 0; s--)
-                outline.Add(Pt(s / 12.0, s % 2 == 1 ? -0.55 : -1));
+                outline.Add(Pt(s / 12.0, -1));
             var w2 = Xform(p, outline);
             Stroke(w2, edge, (float)(1.6 * p.Scale));
             Fill(w2, Palette.Mix(color, k % 2 == 1 ? Colors.Black : Colors.White, rand.Next() * 0.14));
@@ -462,7 +471,7 @@ public partial class PropsPainter
             for (var s = 0; s <= 10; s++)
             {
                 var t = s / 10.0;
-                var side = Math.Sin(t * Math.PI) * bend * len * 0.3;
+                var side = Math.Sin(t * Math.PI) * bend * len * 0.18;
                 rib[s] = new Vector2(
                     (float)(t * len * cos - side * sin),
                     (float)(t * len * sin + side * cos)
@@ -476,7 +485,7 @@ public partial class PropsPainter
             );
         }
         // Coconuts.
-        DrawCircle(Xform(p, Vector2.Zero), (float)(r * 0.13 * p.Scale), Palette.Hex("#8e7250"));
+        DrawCircle(Xform(p, Vector2.Zero), (float)(r * 0.07 * p.Scale), Palette.Hex("#6d5738"));
         for (var k = (int)(rand.Next() * 4); k > 0; k--)
         {
             var a = rand.Next() * Math.PI * 2;
@@ -491,7 +500,7 @@ public partial class PropsPainter
     void DrawCactus(PropPlacement p, Jitter rand, double r, Color color, string look)
     {
         var green = Palette.Mix(color, Palette.Hex("#6f8f5a"), 0.4);
-        var edge = Palette.Mix(green, Palette.Hex("#0d140a"), 0.6);
+        var edge = Palette.Mix(green, Palette.Hex("#251b10"), 0.6);
         var bodies = new List<(double X, double Y, double R)> { (0, 0, r * 0.36) };
         for (var k = (int)(rand.Next() * 4); k > 0; k--)
         {

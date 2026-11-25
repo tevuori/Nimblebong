@@ -116,8 +116,8 @@ public static class GroundPass
         var pal = new Pal
         {
             Base = b.Ground,
-            Lush = Palette.Mix(b.Ground, b.Foliage, 0.55),
-            Dry = Palette.Mix(b.Ground, dirt, 0.55),
+            Lush = Palette.Mix(b.Ground, Palette.Mix(b.Foliage, Colors.Black, 0.18), 0.68),
+            Dry = Palette.Mix(b.Ground, dirt, 0.46),
             Dirt = dirt,
             DirtDark = Palette.Mix(dirt, Colors.Black, 0.25),
             GrassDark = Palette.Mix(grass, Colors.Black, 0.14),
@@ -147,7 +147,7 @@ public static class GroundPass
         Vector2 mapSize,
         Pal pal,
         int seed,
-        double wash = 0.85,
+        double wash = 0.5,
         int cell = 8
     )
     {
@@ -163,9 +163,9 @@ public static class GroundPass
         {
             var wx = x * cell;
             var wy = y * cell;
-            var wl = Clamp01((fields.Lush(wx, wy) - 0.4) * 3.2);
-            var wd = Clamp01((fields.Dry(wx, wy) - 0.46) * 3.0);
-            var lt = (fields.Light(wx, wy) - 0.5) * 46 * wash / 255.0;
+            var wl = Clamp01((fields.Lush(wx, wy) - 0.38) * 2.5);
+            var wd = Clamp01((fields.Dry(wx, wy) - 0.48) * 2.5);
+            var lt = (fields.Light(wx, wy) - 0.5) * 58 * wash / 255.0;
             img.SetPixel(
                 x,
                 y,

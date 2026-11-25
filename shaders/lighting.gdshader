@@ -11,7 +11,7 @@ uniform vec2 uSunDir = vec2(-0.5, -0.62); // toward the sun (canvas coords, y do
 uniform float uSunElev = 0.12;            // height units per px travelled
 uniform float uScale = 60.0;              // gray 0..1 -> world px of relief
 uniform float uShadows = 1.0;
-uniform float uAmbient = 0.66;
+uniform float uAmbient = 0.72;
 uniform vec3 uSunColor = vec3(0.42, 0.38, 0.30);
 uniform int uSteps = 40;
 uniform float uStepPx = 3.0;
@@ -42,11 +42,16 @@ void fragment() {
     vec4 albedo = texture(TEXTURE, UV);
     vec2 texel = TEXTURE_PIXEL_SIZE;
     float h = heightAt(UV, texel);
-    float hx = heightAt(UV + vec2(texel.x, 0.0), texel)
-             - heightAt(UV - vec2(texel.x, 0.0), texel);
-    float hy = heightAt(UV + vec2(0.0, texel.y), texel)
-             - heightAt(UV - vec2(0.0, texel.y), texel);
-    vec3 n = normalize(vec3(-hx * 0.9, -hy * 0.9, 1.0));
+    // Sample the height gradient over a small footprint. One-pixel
+    // central differences turn the raster's quantized elevation rings
+    // into alternating light/dark contour stripes; a 9 px footprint
+    // integrates the same ramp as a continuous slope instead.
+    vec2 hs = texel * 4.5;
+    float hx = heightAt(UV + vec2(hs.x, 0.0), texel)
+             - heightAt(UV - vec2(hs.x, 0.0), texel);
+    float hy = heightAt(UV + vec2(0.0, hs.y), texel)
+             - heightAt(UV - vec2(0.0, hs.y), texel);
+    vec3 n = normalize(vec3(-hx * 0.2, -hy * 0.2, 1.0));
     vec3 L = normalize(vec3(uSunDir * 2.0, 1.2));
     float diff = clamp(dot(n, L), 0.0, 1.0);
     float occ = 0.0;
@@ -65,7 +70,7 @@ void fragment() {
             if (occ > 0.985) break;
         }
     }
-    vec3 lit = albedo.rgb * (uAmbient * (1.0 - occ * 0.55) + uSunColor * diff * (1.0 - occ * 0.9));
+    vec3 lit = albedo.rgb * (uAmbient * (1.0 - occ * 0.5) + uSunColor * diff * (1.0 - occ * 0.78));
     // Animated water: slow wave tint drift + sparse moving glints,
     // confined to the water mask (uWater alpha = coverage).
     float w = texture(uWater, UV).a;

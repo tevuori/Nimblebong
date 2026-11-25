@@ -122,7 +122,7 @@ public partial class PropsPainter
     void DrawTower(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 13 * rand.Range(0.9, 1.15);
         var stone = Palette.Mix(
             Stone,
@@ -295,7 +295,7 @@ public partial class PropsPainter
     void DrawStall(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 20 * rand.Range(0.9, 1.1);
         var canopy = Palette.Mix(
             Roof,
@@ -390,89 +390,182 @@ public partial class PropsPainter
     }
 
     // --- cart -----------------------------------------------------------------
-    // Flatbed wagon: plank bed, spoked south wheel, shafts east.
-    // Models: open bed, canvas-covered, hay load (TS cart 0/1/2).
+    // Deep-bed wagon in the reference style: two large spoked wheels
+    // flanking a plank bed with a real south wall, shafts east, and a
+    // cargo load (open crates/sacks, canvas tilt, hay). Warm wood with
+    // dark brown ink — the flat glyph look came from small wheels and
+    // a shallow bed.
     void DrawCart(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
-        var r = 15 * rand.Range(0.9, 1.15);
-        // Bed in the lighter profile-wood register — raw Wood reads as
-        // a dark blob at this size.
+        var model = PropModel(p, 3, rand.Next());
+        var r = 16 * rand.Range(0.9, 1.15);
+        // Warm mid-brown wood, lightly jittered per wagon.
         var wood = Palette.Mix(
-            Palette.Mix(Wood, Colors.White, 0.3),
+            Palette.Hex("#b0824e"),
             rand.Next() < 0.5 ? Colors.White : Colors.Black,
-            rand.Next() * 0.15
+            rand.Next() * 0.12
         );
-        var edge = Palette.Mix(Wood, Colors.Black, 0.65);
-        var seam = Palette.Mix(wood, Colors.Black, 0.35);
+        var woodD = Palette.Mix(wood, Colors.Black, 0.35);
+        var edge = Palette.Hex("#41301d");
+        var seam = Palette.Mix(wood, edge, 0.55);
+        var rim = Palette.Hex("#33281a");
 
-        ContactShadow(p, r * 1.0, r * 0.9);
+        // Big spoked wheel in prop-local space: dark tire, wooden fellies,
+        // six spokes, hub, NW highlight.
+        void Wheel(double cx, double cy, double wrad)
+        {
+            var c = Xform(p, new Vector2((float)cx, (float)cy));
+            var wr = (float)Math.Max(1.2, wrad * p.Scale);
+            DrawCircle(c, wr, rim);
+            DrawArc(c, wr, 0, Mathf.Tau, 20, edge, (float)Math.Max(0.8, 1.4 * p.Scale), true);
+            DrawCircle(c, wr * 0.78f, woodD);
+            for (var i = 0; i < 6; i++)
+            {
+                var a = i / 6.0 * Math.PI * 2 + 0.3;
+                DrawLine(
+                    c,
+                    c + new Vector2((float)Math.Cos(a), (float)Math.Sin(a)) * (wr * 0.76f),
+                    Palette.Mix(wood, Colors.White, 0.12),
+                    (float)Math.Max(0.7, 1.6 * p.Scale)
+                );
+            }
+            DrawCircle(c, wr * 0.24f, edge);
+            DrawCircle(c, wr * 0.13f, Palette.Mix(wood, Colors.White, 0.25));
+            // NW rim light.
+            DrawArc(
+                c,
+                wr * 0.88f,
+                (float)(Math.PI * 0.95),
+                (float)(Math.PI * 1.55),
+                8,
+                new Color(1f, 1f, 1f, 0.28f),
+                (float)Math.Max(0.7, 1.1 * p.Scale),
+                true
+            );
+        }
 
-        // Far wheel peeking over the bed's north edge (drawn under).
-        Disc(p, 0, -r * 0.62, r * 0.3, Palette.Mix(wood, Colors.Black, 0.5), edge, 0.9);
-        // Shafts east, drawn under the bed.
+        ContactShadow(p, r * 1.2, r * 1.1);
+
+        // Shafts east, drawn under everything — two converging poles
+        // with ink edges and a crossbar at the tip.
         foreach (var side in new[] { -1, 1 })
-            Seg(p, r * 0.55, side * r * 0.34, r * 1.3, side * r * 0.3, wood, 3);
+        {
+            Seg(p, r * 0.5, side * r * 0.3, r * 1.5, side * r * 0.18, edge, 4.4);
+            Seg(p, r * 0.5, side * r * 0.3, r * 1.5, side * r * 0.18, wood, 2.8);
+        }
+        Seg(p, r * 1.46, -r * 0.2, r * 1.46, r * 0.2, edge, 2.2);
 
-        var bed = RectPts(-r * 0.75, -r * 0.55, r * 0.75, r * 0.55);
+        // Far (north) wheel — drawn before the bed so the bed overlaps
+        // its upper half, like the reference wagons.
+        Wheel(0, -r * 0.66, r * 0.44);
+
+        // Bed — deep box: south wall drop + plank seams + corner posts.
+        var bed = RectPts(-r * 0.78, -r * 0.52, r * 0.78, r * 0.52);
         var bw = Xform(p, bed);
-        WallDrop(bw, r * 0.18 * p.Scale, Palette.Mix(wood, Colors.Black, 0.35), edge, Math.Max(0.6, 1.0 * p.Scale));
+        var drop = r * 0.3 * p.Scale;
+        var bedFaces = WallDrop(
+            bw,
+            drop,
+            woodD,
+            edge,
+            Math.Max(0.7, 1.2 * p.Scale)
+        );
+        // Horizontal board seam down the wall face.
+        foreach (var (fa, fb) in bedFaces)
+            DrawLine(
+                fa + new Vector2(0, (float)(drop * 0.5)),
+                fb + new Vector2(0, (float)(drop * 0.5)),
+                Palette.Mix(woodD, edge, 0.55),
+                (float)Math.Max(0.6, 0.9 * p.Scale)
+            );
         Fill(bw, wood);
-        Stroke(bw, edge, (float)Math.Max(0.7, 1.2 * p.Scale));
+        Stroke(bw, edge, (float)Math.Max(0.8, 1.4 * p.Scale));
+        // Lengthwise plank seams — the bed reads as boards, not a slab.
+        for (var i = -2; i <= 2; i++)
+            Seg(p, i * r * 0.28, -r * 0.5, i * r * 0.28, r * 0.5, seam, 1.1);
+        // Corner posts — little inked caps riding the bed corners.
+        foreach (var (px, py) in new[] { (-0.78, -0.52), (0.78, -0.52), (-0.78, 0.52), (0.78, 0.52) })
+            DrawCircle(
+                Xform(p, new Vector2((float)(r * px), (float)(r * py))),
+                (float)Math.Max(1.0, r * 0.07 * p.Scale),
+                edge
+            );
+
+        // Axle — dark bar crossing under the bed between the wheels.
+        Seg(p, 0, -r * 0.66, 0, r * 0.72, Palette.Mix(edge, Colors.Black, 0.3), 2.6);
 
         if (model == 1)
         {
-            // Covered wagon — canvas bulge + hoop ribs (TS cart model 1).
-            var canvas = Xform(p, Poly.Ellipse(0, 0, r * 0.68, r * 0.46, 0, 14));
-            Fill(canvas, Palette.Hex("#e8dcc0"));
-            Stroke(canvas, Palette.Hex("#8a7a5a"), (float)Math.Max(0.6, 1.0 * p.Scale));
-            foreach (var px in new[] { -r * 0.34, 0.0, r * 0.34 })
-                Seg(p, px, -r * 0.4, px, r * 0.4, Palette.Hex("#8a7a5a"), 1.4);
+            // Canvas tilt — a cream bulge over the bed with hoop ribs
+            // curving across it and a rope tie at each end.
+            var canvas = Xform(p, Poly.Ellipse(0, 0, r * 0.66, r * 0.44, 0, 14));
+            Fill(canvas, Palette.Hex("#eadfc2"));
+            Stroke(canvas, Palette.Hex("#6a5a40"), (float)Math.Max(0.8, 1.3 * p.Scale));
+            // Domed shading: darker base ring, lit crown.
+            Fill(
+                Xform(p, Poly.Ellipse(0, -r * 0.05, r * 0.5, r * 0.3, 0, 12)),
+                new Color(1f, 1f, 1f, 0.14f)
+            );
+            foreach (var px in new[] { -r * 0.36, 0.0, r * 0.36 })
+                Seg(
+                    p,
+                    NArc(px, 0, r * 0.09, r * 0.44, -Math.PI / 2, Math.PI / 2, 8),
+                    Palette.Hex("#8a7a5a"),
+                    1.6
+                );
+            // End ties.
+            foreach (var sx in new[] { -1, 1 })
+                Seg(p, sx * r * 0.62, -r * 0.3, sx * r * 0.62, r * 0.3, Palette.Hex("#6a5a40"), 1.4);
+        }
+        else if (model == 2)
+        {
+            // Hay load — one big mounded blob overhanging the bed with
+            // straw ticks radiating over the top.
+            var mound = Xform(p, Blob(0, -r * 0.04, r * 0.58, rand, 12, 0.14));
+            Fill(mound, Palette.Hex("#dfc076"));
+            Stroke(mound, Palette.Hex("#8a6c34"), (float)Math.Max(0.8, 1.3 * p.Scale));
+            for (var i = 0; i < 9; i++)
+            {
+                var a = i * 0.72 + 0.4;
+                var sx = Math.Cos(a) * r * 0.32;
+                var sy = Math.Sin(a) * r * 0.26 - r * 0.04;
+                Seg(
+                    p,
+                    sx,
+                    sy,
+                    sx + Math.Cos(a + 0.9) * r * 0.14,
+                    sy + Math.Sin(a + 0.9) * r * 0.14,
+                    Palette.Hex("#a8873e"),
+                    1.1
+                );
+            }
         }
         else
         {
-            // Plank seams (open bed / hay cart).
-            for (var i = -2; i <= 2; i++)
-                Seg(p, i * r * 0.25, -r * 0.5, i * r * 0.25, r * 0.5, seam, 1);
-            if (model == 2)
-                // Hay load — mounded straw overhanging the bed (TS cart model 2).
-                for (var i = 0; i < 4; i++)
-                    Disc(
-                        p,
-                        -r * 0.45 + i * r * 0.3,
-                        (i % 2 == 1 ? -1 : 1) * r * 0.12,
-                        r * 0.34,
-                        Palette.Hex("#e3c58c"),
-                        Palette.Hex("#a8873e"),
-                        0.9
-                    );
-            else
-                // A couple of sacks on the open bed.
-                foreach (var (sx, sy) in new[] { (-r * 0.3, -r * 0.1), (r * 0.25, r * 0.15) })
-                    Fill(
-                        Xform(p, Blob(sx, sy, r * 0.2, rand, 8, 0.25)),
-                        Palette.Hex("#b8a888")
-                    );
+            // Open bed with cargo — a crate, a barrel and two sacks
+            // nested between the plank seams.
+            var crate = Xform(p, RectPts(-r * 0.62, -r * 0.34, -r * 0.22, r * 0.06));
+            Fill(crate, Palette.Mix(wood, Colors.White, 0.15));
+            Stroke(crate, edge, (float)Math.Max(0.7, 1.1 * p.Scale));
+            Seg(p, -r * 0.58, -r * 0.3, -r * 0.26, 0.02 * r, seam, 1);
+            Seg(p, -r * 0.26, -r * 0.3, -r * 0.58, 0.02 * r, seam, 1);
+            // Small barrel.
+            Disc(p, r * 0.34, -r * 0.12, r * 0.2, woodD, edge, 1.1);
+            Seg(p, r * 0.2, -r * 0.18, r * 0.48, -r * 0.18, Palette.Hex("#3f4237"), 1.4);
+            Seg(p, r * 0.2, -r * 0.05, r * 0.48, -r * 0.05, Palette.Hex("#3f4237"), 1.4);
+            // Sacks.
+            foreach (var (sx, sy) in new[] { (-r * 0.02, r * 0.24), (r * 0.42, r * 0.26) })
+            {
+                var sack = Xform(p, Blob(sx, sy, r * 0.17, rand, 8, 0.25));
+                Fill(sack, Palette.Hex("#c8b28a"));
+                Stroke(sack, Palette.Hex("#7a6a48"), (float)Math.Max(0.6, 1.0 * p.Scale));
+            }
         }
 
-        // Near wheel — dark rim, wooden hub, four spokes.
-        var wc = Xform(p, new Vector2(0, (float)(r * 0.72)));
-        var wr = (float)(r * 0.32 * p.Scale);
-        DrawCircle(wc, wr, Palette.Hex("#3a352a"));
-        DrawArc(wc, wr, 0, Mathf.Tau, 18, edge, (float)Math.Max(0.7, 1.2 * p.Scale), true);
-        DrawCircle(wc, wr * 0.62f, Palette.Mix(wood, Colors.Black, 0.2));
-        for (var i = 0; i < 4; i++)
-        {
-            var a = i / 4.0 * Math.PI * 2 + 0.4;
-            DrawLine(
-                wc,
-                wc + new Vector2((float)Math.Cos(a), (float)Math.Sin(a)) * (wr * 0.85f),
-                Palette.Mix(wood, Colors.Black, 0.55),
-                (float)Math.Max(0.6, 0.8 * p.Scale)
-            );
-        }
-        DrawCircle(wc, wr * 0.2f, edge);
+        // Near (south) wheel — drawn last, overlapping the bed wall:
+        // the biggest, most detailed shape of the whole prop.
+        Wheel(0, r * 0.74, r * 0.48);
     }
 
     // --- flag ------------------------------------------------------------------
@@ -481,7 +574,7 @@ public partial class PropsPainter
     void DrawFlag(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 16 * rand.Range(0.9, 1.1);
         var flag = Palette.Mix(
             Palette.Hex("#b3453a"),
@@ -539,7 +632,7 @@ public partial class PropsPainter
     void DrawBarricade(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 15 * rand.Range(0.9, 1.15);
         var wood = Palette.Mix(
             Palette.Mix(Wood, Colors.White, 0.25),
@@ -611,7 +704,7 @@ public partial class PropsPainter
     void DrawLantern(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 12 * rand.Range(0.9, 1.15);
         var body = Palette.Hex("#6d5f45");
         var iron = Palette.Hex("#4a4234");
@@ -681,7 +774,7 @@ public partial class PropsPainter
     void DrawFountain(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 16 * rand.Range(0.9, 1.1);
         var stone = Palette.Mix(
             Stone,
@@ -808,7 +901,7 @@ public partial class PropsPainter
     void DrawPillar(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 9 * rand.Range(0.95, 1.2);
         var stone = Palette.Mix(
             Stone,
@@ -936,7 +1029,7 @@ public partial class PropsPainter
     void DrawMarker(PropPlacement p)
     {
         var rand = new Jitter(p.VarSeed);
-        var model = (int)(rand.Next() * 3);
+        var model = PropModel(p, 3, rand.Next());
         var r = 10 * rand.Range(0.95, 1.15);
         var color = Palette.Hex("#d34f3d");
         var paper = Palette.Hex("#fff3d6");

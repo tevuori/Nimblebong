@@ -87,6 +87,39 @@ public partial class PropsPainter : Node2D
     static Vector2[] XformU(PropPlacement p, IEnumerable<Vector2> pts) =>
         pts.Select(q => XformU(p, q)).ToArray();
 
+    /// <summary>Closed quadratic-midpoint smoothing — the canvas `trace()`
+    /// curve used by the web renderer. Sampling it densely keeps Godot's
+    /// polygonal fill API while removing the angular low-poly crown edges.</summary>
+    static Vector2[] SmoothClosed(IReadOnlyList<Vector2> pts, int subdiv = 4)
+    {
+        if (pts.Count < 3)
+            return [.. pts];
+        static Vector2 Mid(Vector2 a, Vector2 b) => (a + b) * 0.5f;
+        var outp = new List<Vector2>();
+        var start = Mid(pts[^1], pts[0]);
+        for (var k = 0; k < pts.Count; k++)
+        {
+            var control = pts[k];
+            var end = Mid(control, pts[(k + 1) % pts.Count]);
+            for (var j = 1; j <= subdiv; j++)
+            {
+                var t = j / (float)subdiv;
+                var u = 1 - t;
+                outp.Add(
+                    new Vector2(
+                        u * u * start.X + 2 * u * t * control.X + t * t * end.X,
+                        u * u * start.Y + 2 * u * t * control.Y + t * t * end.Y
+                    )
+                );
+            }
+            start = end;
+        }
+        return [.. outp];
+    }
+
+    static Vector2[] XformSmooth(PropPlacement p, IEnumerable<Vector2> pts) =>
+        Xform(p, SmoothClosed([.. pts]));
+
     /// <summary>Jittered blob polygon — the TS `blob()` helper.</summary>
     static Vector2[] Blob(
         double cx,
@@ -283,65 +316,72 @@ public partial class PropsPainter : Node2D
     // the directional shadow, this anchors the prop to the ground.
     void ContactShadow(PropPlacement p, double rx, double ry)
     {
+        // Screen-space SE anchoring (unrotated): a broad soft cast plus
+        // a tighter contact core. Nimblehold objects sit firmly on the
+        // sheet; rotating the shadow with the prop broke sun continuity.
         Fill(
-            Xform(p, Poly.Ellipse(rx * 0.22, ry * 0.3, rx, ry * 0.8, 0, 12)),
-            new Color(0.07f, 0.1f, 0.06f, 0.16f)
+            XformU(p, Poly.Ellipse(rx * 0.44, ry * 0.55, rx * 1.2, ry * 0.92, 0, 12)),
+            new Color(0.04f, 0.06f, 0.028f, 0.17f)
+        );
+        Fill(
+            XformU(p, Poly.Ellipse(rx * 0.2, ry * 0.3, rx * 0.82, ry * 0.62, 0, 12)),
+            new Color(0.045f, 0.06f, 0.032f, 0.18f)
         );
     }
 
     // --- deciduous tree ---------------------------------------------------
     // Two seeded variants: a round oak-like lobed canopy, and a clump
     // variant where the lobes sit apart so sky shows between them.
-    void DrawTree(PropPlacement p)
+    void DrawTree(PropPlacement p, Color? colorOverride = null)
     {
         var rand = new Jitter(p.VarSeed);
         var r = 26 * rand.Range(0.85, 1.2);
-        var color = JitterGreen(Foliage, rand);
-        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.55);
+        var color = colorOverride ?? JitterGreen(Foliage, rand);
+        var edge = Palette.Mix(color, Palette.Hex("#251b10"), 0.55);
         var clump = rand.Next() < 0.12;
 
         ContactShadow(p, r * 0.95, r * 0.8);
 
         var parts = new List<Vector2[]>();
-        var lobes = clump ? 4 + (int)(rand.Next() * 3) : 8 + (int)(rand.Next() * 4);
+        var lobes = clump ? 5 + (int)(rand.Next() * 3) : 10 + (int)(rand.Next() * 5);
         var rot = rand.Next() * Math.PI * 2;
         for (var k = 0; k < lobes; k++)
         {
             var a = rot + (k / (double)lobes) * Math.PI * 2 + (rand.Next() - 0.5) * 0.5;
-            var d = r * (clump ? 0.56 : 0.42) * rand.Range(0.8, 1.1);
-            var lr = clump ? rand.Range(0.34, 0.46) : rand.Range(0.48, 0.62);
-            parts.Add(Blob(Math.Cos(a) * d, Math.Sin(a) * d, r * lr, rand));
+            var d = r * (clump ? 0.6 : 0.5) * rand.Range(0.82, 1.12);
+            var lr = clump ? rand.Range(0.34, 0.46) : rand.Range(0.42, 0.55);
+            parts.Add(Blob(Math.Cos(a) * d, Math.Sin(a) * d, r * lr, rand, 18, 0.09));
         }
         if (!clump)
-            parts.Add(Blob(0, 0, r * 0.62, rand));
+            parts.Add(Blob(0, 0, r * 0.52, rand, 18, 0.1));
 
         // Shared silhouette: thick edge stroke under every piece reads
         // as one ink outline around the whole canopy.
         foreach (var part in parts)
         {
-            var w = Xform(p, part);
+            var w = XformSmooth(p, part);
             Fill(w, edge);
-            Stroke(w, edge, (float)(3.1 * p.Scale));
+            Stroke(w, edge, (float)(4.0 * p.Scale));
         }
         // Base shade, then lit lobes shrunk toward the NW sun.
         foreach (var part in parts)
-            Fill(Xform(p, part), Palette.Mix(color, Colors.Black, 0.2));
+            Fill(XformSmooth(p, part), Palette.Mix(color, Colors.Black, 0.2));
         var off = new Vector2((float)(-r * 0.06), (float)(-r * 0.08));
         foreach (var part in parts)
         {
             var lit = part.Select(q => q * 0.86f + off).ToArray();
             Fill(
-                Xform(p, lit),
-                Palette.Mix(color, rand.Next() < 0.5 ? Colors.Black : Colors.White, rand.Next() * 0.12)
+                XformSmooth(p, lit),
+                Palette.Mix(color, rand.Next() < 0.45 ? Colors.Black : Colors.White, rand.Next() * 0.2)
             );
         }
         // Highlight blob NW, shade blob SE — the watercolor sun side.
         Fill(
-            Xform(p, Blob(-r * 0.22, -r * 0.26, r * rand.Range(0.3, 0.42), rand, 10, 0.18)),
-            Palette.Mix(color, Palette.Hex("#fffbe0"), 0.18)
+            XformSmooth(p, Blob(-r * 0.22, -r * 0.26, r * rand.Range(0.3, 0.42), rand, 10, 0.18)),
+            Palette.Mix(color, Palette.Hex("#fffbe0"), 0.28)
         );
         Fill(
-            Xform(p, Blob(r * 0.24, r * 0.2, r * rand.Range(0.22, 0.32), rand, 10, 0.18)),
+            XformSmooth(p, Blob(r * 0.24, r * 0.2, r * rand.Range(0.22, 0.32), rand, 10, 0.18)),
             Palette.Mix(color, Colors.Black, 0.14)
         );
         // Trunk peeking out past the canopy's south edge — screen-south
@@ -349,19 +389,20 @@ public partial class PropsPainter : Node2D
         var trunk = XformU(p, Poly.Ellipse(r * 0.04, r * 0.72, r * 0.05, r * 0.1, 0.1, 8));
         Fill(trunk, Palette.Mix(Wood, Colors.Black, 0.12));
         // Leaf-arc texture in two tones.
-        foreach (var tone in new[] { Palette.Mix(color, Colors.Black, 0.2), Palette.Mix(color, Colors.White, 0.18) })
+        foreach (var tone in new[] { Palette.Mix(color, Colors.Black, 0.2), Palette.Mix(color, Colors.White, 0.08) })
         {
-            var n = (int)(r * 0.78);
+            var n = (int)(r * 1.05);
             for (var k = 0; k < n; k++)
             {
                 var a = rand.Next() * Math.PI * 2;
                 var d = Math.Sqrt(rand.Next()) * r * 0.85;
-                var s = 1.4 + rand.Next() * 2.4;
+                var s = 1.0 + rand.Next() * 1.65;
+                var aa = rand.Next() * Math.PI * 2;
                 DrawArc(
                     Xform(p, new Vector2((float)(Math.Cos(a) * d), (float)(Math.Sin(a) * d))),
                     (float)(s * p.Scale),
-                    (float)(0.2 + p.Rotation),
-                    (float)(Math.PI * 1.15 + p.Rotation),
+                    (float)aa,
+                    (float)(aa + Math.PI * (0.75 + rand.Next() * 0.55)),
                     5,
                     tone,
                     (float)Math.Max(0.7, 1.0 * p.Scale)
@@ -377,7 +418,7 @@ public partial class PropsPainter : Node2D
         var rand = new Jitter(p.VarSeed);
         var r = 22 * rand.Range(0.85, 1.15);
         var color = colorOverride ?? JitterGreen(PineGreen, rand);
-        var edge = Palette.Mix(color, Palette.Hex("#0d140a"), 0.5);
+        var edge = Palette.Mix(color, Palette.Hex("#251b10"), 0.5);
 
         ContactShadow(p, r * 0.9, r * 0.8);
 
@@ -438,7 +479,7 @@ public partial class PropsPainter : Node2D
             rand.Next() < 0.5 ? Colors.White : Palette.Hex("#5a5c48"),
             rand.Next() * 0.18
         );
-        var edge = Palette.Mix(color, Palette.Hex("#3d4137"), 0.7);
+        var edge = Palette.Mix(color, Palette.Hex("#3b3226"), 0.7);
 
         ContactShadow(p, r * 0.9, r * 0.7);
 

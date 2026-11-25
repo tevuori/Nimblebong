@@ -323,7 +323,7 @@ public partial class PropsPainter
         var r = 13 * rand.Range(0.9, 1.15);
         var roll = rand.Next();
         var model = p.Model >= 0 ? ((p.Model % 3) + 3) % 3 : (roll < 0.55 ? 0 : roll < 0.8 ? 1 : 2);
-        var edge = Palette.Hex("#3d4137");
+        var edge = Palette.Hex("#3b3226");
 
         ContactShadow(p, r * 1.1, r * 0.55);
 

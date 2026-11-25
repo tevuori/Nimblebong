@@ -164,6 +164,16 @@ public partial class SceneView : Node2D
             RoadVerge = Biome.At("road.verge"),
             RoadHalo = Biome.At("road.halo"),
         };
+        // Natural bank treatment (TS sceneConfig.banks). The art/season
+        // override picks grass/sand/stone; the ink sheets read their
+        // canyon channels as rocky cuts, not lime lawn edging.
+        var bank = Biome.WaterBank ?? (Biome.ArtPack == "ink" ? "stone" : "grass");
+        (water.BankVerge, water.BankEdge) = bank switch
+        {
+            "stone" => (Palette.Hex("#57594d"), Palette.Hex("#8d8b76")),
+            "sand" => (Palette.Hex("#8f7c54"), Palette.Hex("#e6cf9a")),
+            _ => (Palette.Hex("#647750"), Palette.Hex("#b4c985")),
+        };
         var waterH = new WaterHeight();
         var crossings = new CrossingPainter { WaterLight = Biome.Water };
         crossings.SetMassifs(massifs);
@@ -191,12 +201,12 @@ public partial class SceneView : Node2D
             }
         }
         water.SetRocks(
-            Scene.Props.Where(p => p.Kind == Kinds.Rock).Select(p => new Vector2(
-                (float)p.X,
-                (float)p.Y
+            Scene.Props.Where(p => p.Kind == Kinds.Rock).Select(p => (
+                new Vector2((float)p.X, (float)p.Y),
+                p.Scale
             ))
         );
-        var bridges = new BridgePainter { Stone = Biome.Stone };
+        var bridges = new BridgePainter { Stone = Biome.Stone, ArtPack = Biome.ArtPack };
         bridges.SetStrokes(Scene.Strokes);
         AddLayer(Stage.AlbedoVp, water);
         Stage.Water.SetWater(Scene);

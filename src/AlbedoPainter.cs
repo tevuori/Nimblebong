@@ -62,12 +62,9 @@ public partial class AlbedoPainter : Node2D
         var rings = new List<(Vector2[], Color)>();
         var contours = new List<Vector2[]>();
         var face = FaceColor(m);
-        (double f, double tone)[] steps =
-        [
-            (0.88, -6),
-            (0.58, 5),
-            (0.3, -7),
-        ];
+        // Nimblehold cliff faces are continuous painted stone, not
+        // contour terraces: keep the structure cache but no opaque rings.
+        (double f, double tone)[] steps = [];
         for (var s = 0; s < steps.Length; s++)
         {
             var (fOut, tone) = steps[s];
@@ -85,9 +82,7 @@ public partial class AlbedoPainter : Node2D
                 }
             }
         }
-        // One hairline contour echo floating in the face.
-        foreach (var top in m.Tops)
-            contours.AddRange(TerrainGeometry.Offset(top, 0.45 * m.Size));
+        // No mechanical contour echo — cracks/cobble carry the face.
         _strata[m] = rings;
         _contours[m] = contours;
     }
@@ -110,50 +105,60 @@ public partial class AlbedoPainter : Node2D
     void CrackMesh(Vector2[] poly, Color face, float alpha = 0.55f)
     {
         var (xs, ys) = BBox(poly);
-        var ink = Palette.TintAlpha(face, -40, alpha);
-        const double spacing = 26;
-        foreach (var deg in new[] { 10.0, 70.0, -50.0 })
+        var ink = Palette.TintAlpha(face, -48, alpha);
+        // Irregular hand-laid polygon slabs — the signature 2mt crack net.
+        // A jittered triangular lattice gives closed stone cells; clipping
+        // every cell to the face keeps the net organic at the rim. This
+        // replaces the earlier three-direction wireframe, which read as
+        // spiderweb scratches rather than stone joints.
+        const double spacing = 42;
+        var row = 0;
+        for (var y = ys.X - spacing; y <= ys.Y + spacing; y += spacing * 0.78, row++)
         {
-            var rad = Mathf.DegToRad(deg);
-            var dir = new Vector2(
-                (float)System.Math.Cos(rad),
-                (float)System.Math.Sin(rad)
-            );
-            var n = new Vector2(-dir.Y, dir.X);
-            // Walk lines across the bbox in the normal direction.
-            var corners = new[]
+            var stagger = row % 2 == 1 ? spacing * 0.5 : 0;
+            for (var x = xs.X - spacing; x <= xs.Y + spacing; x += spacing)
             {
-                new Vector2((float)xs.X, (float)ys.X),
-                new Vector2((float)xs.Y, (float)ys.X),
-                new Vector2((float)xs.X, (float)ys.Y),
-                new Vector2((float)xs.Y, (float)ys.Y),
-            };
-            double lo = double.MaxValue,
-                hi = double.MinValue,
-                alo = double.MaxValue,
-                ahi = double.MinValue;
-            foreach (var c in corners)
-            {
-                lo = System.Math.Min(lo, c.Dot(n));
-                hi = System.Math.Max(hi, c.Dot(n));
-                alo = System.Math.Min(alo, c.Dot(dir));
-                ahi = System.Math.Max(ahi, c.Dot(dir));
-            }
-            for (var d = lo; d <= hi; d += spacing)
-            {
-                var pts = new List<Vector2>();
-                for (var a = alo - 8; a <= ahi + 8; a += 14)
+                var seed = x * 0.127 + y * 0.173 + row * 3.1;
+                var cx = x + stagger + (Rng.Noise(seed) - 0.5) * spacing * 0.42;
+                var cy = y + (Rng.Noise(seed + 1) - 0.5) * spacing * 0.34;
+                var center = new Vector2((float)cx, (float)cy);
+                if (!Poly.PointInPolygon(center, poly))
+                    continue;
+                var sides = 6 + (int)(Rng.Noise(seed + 2) * 3);
+                var rot = Rng.Noise(seed + 3) * System.Math.PI;
+                var rx = spacing * (0.54 + Rng.Noise(seed + 4) * 0.18);
+                var ry = spacing * (0.42 + Rng.Noise(seed + 5) * 0.15);
+                var cell = new Vector2[sides];
+                for (var k = 0; k < sides; k++)
                 {
-                    var wob =
-                        (Rng.Noise(a * 0.23 + d * 0.41 + deg) - 0.5) * spacing * 0.5;
-                    pts.Add(dir * (float)a + n * (float)(d + wob));
+                    var a = rot + k / (double)sides * System.Math.PI * 2;
+                    var rr = 0.82 + Rng.Noise(seed + 10 + k) * 0.42;
+                    var lx = System.Math.Cos(a) * rx * rr;
+                    var ly = System.Math.Sin(a) * ry * rr;
+                    cell[k] = new Vector2(
+                        (float)(cx + lx * System.Math.Cos(rot * 0.13) - ly * System.Math.Sin(rot * 0.13)),
+                        (float)(cy + lx * System.Math.Sin(rot * 0.13) + ly * System.Math.Cos(rot * 0.13))
+                    );
                 }
-                Vector2[] line = [.. pts];
-                foreach (
-                    var seg in Geometry2D.ClipPolylineWithPolygon(line, (Vector2[])poly)
-                )
-                    if (seg.Length > 1)
-                        DrawPolyline(seg, ink, 1.2f, true);
+                foreach (var piece in Geometry2D.IntersectPolygons(cell, poly))
+                {
+                    if (piece.Length < 3)
+                        continue;
+                    // Occasional faint slab tint breaks the uniform face.
+                    if (Rng.Noise(seed + 20) > 0.68)
+                        Fill(
+                            piece,
+                            Palette.TintAlpha(
+                                face,
+                                Rng.Noise(seed + 21) > 0.5 ? 9 : -8,
+                                0.16f
+                            )
+                        );
+                    var closed = new Vector2[piece.Length + 1];
+                    piece.CopyTo(closed, 0);
+                    closed[^1] = piece[0];
+                    DrawPolyline(closed, ink, 1.35f, true);
+                }
             }
         }
     }
@@ -165,6 +170,8 @@ public partial class AlbedoPainter : Node2D
     {
         if (poly.Length >= 3 && Geometry2D.TriangulatePolygon(poly).Length > 0)
             DrawColoredPolygon(poly, color);
+        else if (System.Environment.GetEnvironmentVariable("DMMAP_DEBUG_GEO") != null)
+            GD.PrintErr($"Albedo fill reject pts={poly.Length} area={TerrainGeometry.SignedArea(poly):0.0}");
     }
 
     static bool InBand(Massif m, Vector2 p) =>
@@ -193,10 +200,15 @@ public partial class AlbedoPainter : Node2D
             );
         foreach (var m in _massifs)
         {
+            if (System.Environment.GetEnvironmentVariable("DMMAP_DEBUG_GEO") != null)
+            {
+                var areas = string.Join(",", m.Tops.ConvertAll(t => TerrainGeometry.SignedArea(t).ToString("0")));
+                GD.PrintErr($"massif model={m.Model} h={m.Height} tops={m.Tops.Count} area={areas} band={m.Band.Count} wall={m.Wall.Count}");
+            }
             var face = FaceColor(m);
             var faceDark = Palette.Tint(face, m.Model == 1 ? -38 : -34);
             var faceLight = Palette.Tint(face, 16);
-            var ink = m.Model == 1 ? Palette.Hex("#7a6749") : Palette.Hex("#555a45");
+            var ink = m.Model == 1 ? Palette.Hex("#7a6749") : Palette.Hex("#514734");
             var dirt = m.Model == 1;
             var higher = _massifs
                 .FindAll(h => h.Height > m.Height)
@@ -224,18 +236,18 @@ public partial class AlbedoPainter : Node2D
                 // mesh carries the texture.
                 if (!dirt && Biome?.ArtPack != "ink")
                 {
-                    TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.38f, 0.55);
-                    TextureTiles.Stamp(this, poly, TextureTiles.Cliff, 0.3f, 0.5);
+                    TextureTiles.Stamp(this, poly, TextureTiles.Stone, 0.32f, 0.9);
+                    // The cliff-face masonry tile is deliberately not
+                    // stretched across broad slopes: at map scale it reads
+                    // as mechanical brick courses instead of natural rock.
                 }
             }
-            // Crack mesh on the stone face — dominant in the ink pack
-            // (the 2mt slab signature), a faint fracture hint elsewhere.
-            if (!dirt)
-            {
-                var crackInk = Biome?.ArtPack == "ink" ? 0.7f : 0.22f;
-                foreach (var poly in bandPieces)
-                    CrackMesh(poly, face, crackInk);
-            }
+            // Crack mesh is the ink pack's 2mt slab signature. Classic
+            // faces stay painterly: cobble, strata arcs and rim scree
+            // carry the texture without a geometric wireframe overlay.
+            if (!dirt && Biome?.ArtPack == "ink")
+            foreach (var poly in bandPieces)
+                CrackMesh(poly, face, 0.78f);
 
             // Terrace rings — the sedimentary strata.
             foreach (var (ring, tone) in _strata[m])
@@ -243,7 +255,7 @@ public partial class AlbedoPainter : Node2D
                 Fill(poly, tone);
 
             // Toe contact + south shading — the foot of the face sinks.
-            DrawPolyline(m.Base, Palette.TintAlpha(face, -20, 0.55), (float)System.Math.Max(8, m.Size * 0.3), true);
+            DrawPolyline(m.Base, Palette.TintAlpha(face, -24, 0.68), (float)System.Math.Max(8, m.Size * 0.3), true);
             var cy = Poly.Centroid(m.Base).Y;
             foreach (var arc in Poly.Runs(m.Base, p => p.Y > cy))
                 if (arc.Count > 1)
@@ -253,9 +265,6 @@ public partial class AlbedoPainter : Node2D
                         (float)System.Math.Max(5, m.Size * 0.24)
                     );
 
-            // Hairline contour echo.
-            foreach (var c in _contours[m])
-                DrawPolyline(c, Palette.TintAlpha(face, -16, 0.5), 1.2f, true);
 
             // Material patches — soft ellipses in shifted tints.
             foreach (var (point, angle, index) in Poly.SampleLine(m.Base, System.Math.Max(30, m.Size * 1.4)))
@@ -289,11 +298,11 @@ public partial class AlbedoPainter : Node2D
             // Cobble mosaic — larger rounded stones with real gaps, the
             // hand-drawn packed-rock look of the reference.
             var (xs, ys) = BBox(m.Base);
-            for (var y = ys.X; y < ys.Y; y += 17)
-            for (var x = xs.X; x < xs.Y; x += 17)
+            for (var y = ys.X; y < ys.Y; y += 22)
+            for (var x = xs.X; x < xs.Y; x += 22)
             {
                 var seed = x * 0.37 + y * 0.53;
-                if (Rng.Noise(seed) < 0.24)
+                if (Rng.Noise(seed) < 0.78)
                     continue;
                 var p = new Vector2(
                     (float)(x + (Rng.Noise(seed + 1) - 0.5) * 9),
@@ -301,7 +310,7 @@ public partial class AlbedoPainter : Node2D
                 );
                 if (!InBand(m, p))
                     continue;
-                var r = 6.5 + Rng.Noise(seed + 3) * (dirt ? 3.4 : 6.5);
+                var r = 4.2 + Rng.Noise(seed + 3) * (dirt ? 2.8 : 4.6);
                 var pebble = Poly.Ellipse(
                     p.X,
                     p.Y,
@@ -313,7 +322,7 @@ public partial class AlbedoPainter : Node2D
                     pebble,
                     Palette.Tint(face, -3 + Rng.Noise(seed + 6) * (12 + m.Roughness / 100 * 12))
                 );
-                DrawPolyline(pebble, Palette.TintAlpha(face, -28, 0.7), 1.1f, true);
+                DrawPolyline(pebble, Palette.TintAlpha(face, -28, 0.48), 1f, true);
             }
 
             // Wall interior: AO under the rim + strata arcs + cracks.
@@ -395,8 +404,8 @@ public partial class AlbedoPainter : Node2D
                     }
             foreach (var top in m.Tops)
             {
-                DrawPolyline(top, ink, (float)(dirt ? 2.0 : 2.6), true);
-                DrawPolyline(top, Palette.Tint(face, 26), 1.6f, true);
+                DrawPolyline(top, Palette.Hex("#2e261a") with { A = 0.9f }, (float)(dirt ? 2.2 : 3.1), true);
+                DrawPolyline(top, Palette.Tint(face, 22) with { A = 0.55f }, 1.1f, true);
             }
 
             // Tops — turf fill + mottle + speckle + scalloped lip.
@@ -430,9 +439,17 @@ public partial class AlbedoPainter : Node2D
                         )
                 );
                 if (barren)
-                    TextureTiles.Stamp(this, top, TextureTiles.Cliff, 0.22f);
+                {
+                    // 2mt plateaus are cracked stone slabs, not the
+                    // cobble tile: the angular ink mesh must cover the
+                    // table top itself (classic art keeps pebble stone).
+                    if (Biome?.ArtPack == "ink")
+                        CrackMesh(top, Palette.Mix(Stone, Cliff, 0.55), 0.55f);
+                    else
+                        TextureTiles.Stamp(this, top, TextureTiles.Stone, 0.2f, 0.85);
+                }
                 else if (GrassTile > 0 && !Winter)
-                    TextureTiles.Stamp(this, top, TextureTiles.Grass, 0.3f);
+                    TextureTiles.Stamp(this, top, TextureTiles.Grass, 0.12f);
                 var (tx, ty) = BBox(top);
                 for (var i = 0; i < 12; i++)
                 {
@@ -499,9 +516,9 @@ public partial class AlbedoPainter : Node2D
                 // ── Roughness décor on the plateau ──
                 // Eroded step rings — nested stone contours shrinking
                 // inward, the erosional terraces of the web version.
-                if (tR > 0.3)
+                if (tR > 0.55)
                 {
-                    var rings = tR > 0.7 ? 3 : 2;
+                    var rings = tR > 0.82 ? 2 : 1;
                     for (var r = 1; r <= rings; r++)
                     {
                         var depth = m.Size * (0.35 + r * 0.5) * tR;
@@ -510,8 +527,8 @@ public partial class AlbedoPainter : Node2D
                         )
                             DrawPolyline(
                                 eroded,
-                                Palette.TintAlpha(Cliff, -12, 0.4),
-                                1.6f,
+                                Palette.TintAlpha(Cliff, -12, 0.2),
+                                1.1f,
                                 true
                             );
                     }
@@ -571,16 +588,56 @@ public partial class AlbedoPainter : Node2D
                 }
             }
 
+            // Long ink fissures following the rim tangent — the hand-drawn
+            // contour cracks that make the pale cliff masses read as rock
+            // rather than paved paths. Sparse and seeded, never a regular
+            // contour mesh.
+            if (!dirt)
+            foreach (var top in m.Tops)
+            {
+                var samples = Poly.SampleLine(top, System.Math.Max(70, m.Size * 2.2)).ToArray();
+                foreach (var (cp, angle, index) in samples)
+                {
+                    var seed = cp.X * 0.19 + cp.Y * 0.43 + index * 5.7;
+                    if (Rng.Noise(seed) < 0.86)
+                        continue;
+                    var tangent = new Vector2((float)System.Math.Cos(angle), (float)System.Math.Sin(angle));
+                    var inward = new Vector2(-tangent.Y, tangent.X);
+                    var len = 42 + Rng.Noise(seed + 1) * 52;
+                    var pts = new System.Collections.Generic.List<Vector2>();
+                    for (var k = 0; k <= 5; k++)
+                    {
+                        var t = k / 5.0 - 0.5;
+                        var q = cp + tangent * (float)(t * len)
+                            + inward * (float)((Rng.Noise(seed + 2 + k) - 0.5) * 9 + 4);
+                        pts.Add(q);
+                    }
+                    DrawPolyline([.. pts], Palette.Hex("#2f281b") with { A = 0.72f }, 1.8f, true);
+                    // Occasional short branch, like a rootlet splitting off
+                    // the main fissure.
+                    if (Rng.Noise(seed + 9) > 0.45)
+                    {
+                        var bp = pts[2];
+                        DrawPolyline(
+                            [bp, bp + tangent * 10 + inward * (float)(8 + Rng.Noise(seed + 10) * 10)],
+                            Palette.Hex("#3d3424") with { A = 0.5f },
+                            1.2f,
+                            true
+                        );
+                    }
+                }
+            }
+
             // Rim scree — jumbled pebbles straddling the lip break the
             // smooth contour into the reference's rocky crumble edge.
             if (!dirt)
             foreach (var top in m.Tops)
             {
                 var tcen2 = Poly.Centroid(top);
-                foreach (var (point, index) in Sample(top, 11))
+                foreach (var (point, index) in Sample(top, 24))
                 {
                     var seed = point.X * 0.29 + point.Y * 0.41 + index * 1.7;
-                    if (Rng.Noise(seed) < 0.38)
+                    if (Rng.Noise(seed) < 0.58)
                         continue;
                     var inAng = Mathf.Atan2(tcen2.Y - point.Y, tcen2.X - point.X);
                     var dir2 = new Vector2(

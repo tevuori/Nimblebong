@@ -145,6 +145,28 @@ public partial class InteriorPainter : Node2D
 
     void ClipFill(Vector2[] poly, Color c) => _clip.Add(new(poly, default, default, c, 0));
 
+    /// <summary>Hand-drawn line a→b: split into segments whose interior
+    /// joints wander perpendicular by a deterministic ±1.6px, so long
+    /// mortar lines wobble like ink instead of reading as a ruler grid.</summary>
+    void WobbleClipLine(Vector2 a, Vector2 b, Color c, float w, double seed)
+    {
+        var len = (b - a).Length();
+        if (len < 1e-3f)
+            return;
+        var segs = Math.Max(1, (int)(len / 30));
+        var nrm = new Vector2(-(b - a).Y, (b - a).X) / len;
+        var pts = new Vector2[segs + 1];
+        for (var i = 0; i <= segs; i++)
+        {
+            var p = a + (b - a) * (i / (float)segs);
+            if (i > 0 && i < segs)
+                p += nrm * (float)((Rng.Noise(seed + i * 3.31) - 0.5) * 3.2);
+            pts[i] = p;
+        }
+        for (var i = 0; i < segs; i++)
+            ClipLine(pts[i], pts[i + 1], c, w);
+    }
+
     void FlushClipped(Vector2[] poly)
     {
         foreach (var prim in _clip)
@@ -185,13 +207,20 @@ public partial class InteriorPainter : Node2D
         var color = s.Color != null
             ? Palette.Hex(s.Color)
             : Palette.Hex(room ? "#b8ad86" : "#ac6948");
+        // Cast shadow bleeding south-east of the whole mass — sells the
+        // building's weight before any wall is drawn.
+        Fill(
+            [.. pts.Select(p => p + new Vector2((float)(height * 0.3 + 3), (float)(height + 7)))],
+            new Color(0.09f, 0.07f, 0.04f, 0.22f)
+        );
         // South-extruded wall — the footprint dropped by `height`.
         Fill(
             [.. pts.Select(p => p + new Vector2(0, (float)height))],
-            Palette.Tint(Palette.Hex("#706549"), -Math.Round(Math.Min(16, height * 0.22)))
+            Palette.Tint(Palette.Hex("#706549"), -Math.Round(Math.Min(22, 6 + height * 0.3)))
         );
         Fill(pts, color);
-        Stroke(pts, Palette.Hex("#4c4935"), room ? 9 : 3);
+        var inkF = (float)Math.Max(1.0, Ink);
+        Stroke(pts, Palette.Hex("#4c4935"), room ? 9 : 3.4f * inkF);
         var (minX, maxX, minY, maxY) = Bounds(pts);
         if (!room)
         {
@@ -199,20 +228,57 @@ public partial class InteriorPainter : Node2D
         }
         else
         {
-            for (var y = minY; y < maxY; y += 18)
-                ClipLine(
-                    new Vector2((float)minX, (float)y),
-                    new Vector2((float)maxX, (float)y),
-                    Palette.Tint(color, -26),
-                    1
+            // Warm plank floor: a honeyed wash over the cold base, then
+            // wobbled plank gaps every ~11-14px with staggered butt
+            // joints inside each board and a few sparse grain strokes —
+            // reads as wood, fills the room without cluttering it.
+            ClipFill(pts, Palette.Mix(color, Palette.Hex("#9c7748"), 0.5) with { A = 0.5f });
+            var plankGap = Palette.Mix(color, Palette.Hex("#3f2d1c"), 0.55);
+            var jointC = Palette.Mix(color, Palette.Hex("#4a3624"), 0.45);
+            var floorSeed = minX * 0.23 + minY * 0.41;
+            var py = minY + 4 + Rng.Noise(floorSeed) * 5;
+            var plankRow = 0;
+            while (py < maxY + 6)
+            {
+                var plankH = 11 + Rng.Noise(plankRow * 4.3 + floorSeed + 0.7) * 3.5;
+                var pny = py + plankH;
+                WobbleClipLine(
+                    new Vector2((float)minX, (float)pny),
+                    new Vector2((float)maxX, (float)pny),
+                    plankGap,
+                    1.5f,
+                    plankRow * 5.9 + floorSeed
                 );
-            for (var x = minX; x < maxX; x += 32)
+                // Butt joints staggered per board, slightly tilted.
+                var jx = minX + 10 + Rng.Noise(plankRow * 8.3 + floorSeed + 3.1) * 46;
+                while (jx < maxX - 6)
+                {
+                    var tilt = (Rng.Noise(jx * 0.21 + plankRow * 2.7) - 0.5) * 3;
+                    ClipLine(
+                        new Vector2((float)(jx + tilt), (float)(py + 1.6)),
+                        new Vector2((float)(jx - tilt), (float)(pny - 1.6)),
+                        jointC,
+                        1.1f
+                    );
+                    jx += 42 + Rng.Noise(jx * 0.09 + plankRow * 6.1) * 40;
+                }
+                py = pny;
+                plankRow++;
+            }
+            // Sparse grain strokes along the boards.
+            for (var i = 0; i < (maxX - minX) * (maxY - minY) / 2400; i++)
+            {
+                var seed = i * 2.9 + floorSeed + 5.5;
+                var gx = minX + Rng.Noise(seed) * (maxX - minX - 14);
+                var gy = minY + Rng.Noise(seed + 1) * (maxY - minY);
+                var gl = 5 + Rng.Noise(seed + 2) * 9;
                 ClipLine(
-                    new Vector2((float)x, (float)minY),
-                    new Vector2((float)x, (float)maxY),
-                    Palette.Tint(color, -18),
-                    1
+                    new Vector2((float)gx, (float)gy),
+                    new Vector2((float)(gx + gl), (float)(gy + (Rng.Noise(seed + 3) - 0.5) * 2)),
+                    Palette.Mix(color, Palette.Hex("#5c4228"), 0.3),
+                    0.8f
                 );
+            }
             var furnished = props.Any(p =>
                 FurnitureKinds.Contains(p.Kind)
                 && Poly.PointInPolygon(new Vector2((float)p.X, (float)p.Y), pts)
@@ -548,19 +614,70 @@ public partial class InteriorPainter : Node2D
         ClipFill([.. pts], Palette.Tint(color, 8));
         if (tiles)
         {
-            var step = Math.Max(20, s.Size * 0.8);
-            for (var y = minY + step * 0.5; y < maxY; y += step)
-                ClipLine(new Vector2((float)minX, (float)y), new Vector2((float)maxX, (float)y), Palette.Tint(color, -30), 1.4f);
-            for (var x = minX + step * 0.5; x < maxX; x += step)
-                ClipLine(new Vector2((float)x, (float)minY), new Vector2((float)x, (float)maxY), Palette.Tint(color, -24), 1.2f);
-            for (var i = 0; i < (maxX - minX) * (maxY - minY) / 3000; i++)
+            // Hand-laid irregular slabs (nimblehold refs): rows of varying
+            // height, joints of varying spacing, every line slightly
+            // rotated and wobbled — no axis-aligned editor grid. A few
+            // slabs carry a faint individual tint so the surface reads
+            // as separate stones, not as one plastered sheet.
+            var mortar = Palette.Tint(color, -40);
+            var mortarSoft = Palette.Tint(color, -26);
+            var rowSeed = minX * 0.31 + minY * 0.17;
+            var y = minY + 3 + Rng.Noise(rowSeed) * 8;
+            var row = 0;
+            while (y < maxY + 4)
+            {
+                var rowH = 16 + Rng.Noise(row * 3.7 + rowSeed + 1.9) * 18;
+                var ny = y + rowH;
+                WobbleClipLine(
+                    new Vector2((float)minX, (float)ny),
+                    new Vector2((float)maxX, (float)ny),
+                    mortar,
+                    1.5f,
+                    row * 7.7 + rowSeed
+                );
+                var x = minX - 4 + Rng.Noise(row * 9.1 + rowSeed + 2.2) * 20;
+                while (x < maxX - 8)
+                {
+                    var jw = 20 + Rng.Noise(x * 0.13 + row * 5.5 + rowSeed) * 26;
+                    var xj = x + jw;
+                    var tilt = (Rng.Noise(xj * 0.29 + ny * 0.11) - 0.5) * 9;
+                    var insetT = 1.5 + Rng.Noise(xj * 0.17 + y) * 2;
+                    WobbleClipLine(
+                        new Vector2((float)(xj + tilt), (float)(y + insetT)),
+                        new Vector2((float)(xj - tilt), (float)(ny - insetT)),
+                        mortarSoft,
+                        1.2f,
+                        xj * 0.07 + row * 13.1
+                    );
+                    // An occasional slab tinted a hair lighter/darker.
+                    var tr = Rng.Noise(xj * 0.071 + y * 0.193 + rowSeed);
+                    if (tr < 0.3 && ny < maxY)
+                    {
+                        var amt = tr < 0.15 ? 11 : -13;
+                        ClipFill(
+                            [
+                                new Vector2((float)(x + 2.5), (float)(y + 2.5)),
+                                new Vector2((float)(xj - 2), (float)(y + 2)),
+                                new Vector2((float)(xj - 2.5), (float)(ny - 2)),
+                                new Vector2((float)(x + 2), (float)(ny - 2.5)),
+                            ],
+                            Palette.TintAlpha(color, amt, 0.4)
+                        );
+                    }
+                    x = xj;
+                }
+                y = ny;
+                row++;
+            }
+            // Sparse chips and short cracks in the stone.
+            for (var i = 0; i < (maxX - minX) * (maxY - minY) / 3400; i++)
             {
                 var seed = i * 7.3 + minX * 0.11;
-                var x = minX + Rng.Noise(seed) * (maxX - minX);
-                var y = minY + Rng.Noise(seed + 1) * (maxY - minY);
+                var cx = minX + Rng.Noise(seed) * (maxX - minX);
+                var cy = minY + Rng.Noise(seed + 1) * (maxY - minY);
                 var c = Palette.Tint(color, -36);
-                ClipLine(new Vector2((float)(x - 3), (float)y), new Vector2((float)(x + 2), (float)(y + 2)), c, 0.9f);
-                ClipLine(new Vector2((float)(x + 2), (float)(y + 2)), new Vector2((float)(x + 5), (float)(y - 1)), c, 0.9f);
+                ClipLine(new Vector2((float)(cx - 3), (float)cy), new Vector2((float)(cx + 2), (float)(cy + 2)), c, 0.9f);
+                ClipLine(new Vector2((float)(cx + 2), (float)(cy + 2)), new Vector2((float)(cx + 5), (float)(cy - 1)), c, 0.9f);
             }
         }
         else
@@ -747,6 +864,126 @@ public partial class InteriorPainter : Node2D
             DrawLine(a + (b - a) * (float)t0, a + (b - a) * (float)t1, c, w);
     }
 
+    /// <summary>Near-circular footprint detection: enough vertices, all
+    /// of them within ±18% of the mean radius and a roughly square bbox.
+    /// Such houses read as towers (nimblehold refs) and get a conical
+    /// roof over a stone rim instead of the rectangular ridge frame.</summary>
+    static bool Circularish(IReadOnlyList<Vector2> pts, out Vector2 c, out double r)
+    {
+        c = default;
+        r = 0;
+        if (pts.Count < 8)
+            return false;
+        c = Poly.Centroid(pts);
+        foreach (var p in pts)
+            r += (p - c).Length();
+        r /= pts.Count;
+        if (r < 14)
+            return false;
+        foreach (var p in pts)
+            if (Math.Abs((p - c).Length() - r) > r * 0.18)
+                return false;
+        var (x0, x1, y0, y1) = Bounds(pts);
+        var aspect = (x1 - x0) / Math.Max(1, y1 - y0);
+        return aspect is > 0.78 and < 1.28;
+    }
+
+    /// <summary>Tower top-down: a stone rim ring (two courses of radial
+    /// brick ticks between inked circles) under a conical roof — radial
+    /// seams, concentric course arcs, a lit apex cap slightly off-center
+    /// toward the sun. All jitter deterministic per-position.</summary>
+    void DrawConeRoof(Vector2[] pts, Vector2 c, double r, Color wall, float ink, bool snowy, RoofCfg cfg)
+    {
+        var rand = Seeded(c.X * 0.37 + c.Y * 0.91 + 11.3);
+        var look = cfg.Material is "shingle" or "slate" ? RoofLooks[cfg.Material] : RoofLooks["tile"];
+        var baseColor = look.TintTo != null
+            ? Palette.Mix(wall, Palette.Hex(look.TintTo), look.TintAmt)
+            : wall;
+        var coneR = r * 0.74;
+
+        // Soft shadow the cone throws onto the rim, biased south-east.
+        Fill(
+            Poly.Ellipse(c.X + 2.5, c.Y + 3.5, coneR, coneR, 0, 20),
+            new Color(0.08f, 0.06f, 0.03f, 0.18f)
+        );
+
+        // --- stone rim ring -------------------------------------------------
+        var stone = Palette.Mix(wall, Palette.Hex("#b9b4a0"), 0.55);
+        var rimMid = r * 0.86;
+        var rimW = (float)(r * 0.26);
+        DrawArc(c, (float)rimMid, 0, (float)(Math.PI * 2), 48, Palette.Mix(stone, Colors.Black, 0.25), rimW + 2 * ink);
+        DrawArc(c, (float)rimMid, 0, (float)(Math.PI * 2), 48, stone, rimW);
+        // Course split + radial brick ticks around the ring.
+        var tickC = Palette.Mix(stone, Colors.Black, 0.4);
+        DrawArc(c, (float)(rimMid), 0, (float)(Math.PI * 2), 48, tickC, 1f);
+        var step = 9.5 / rimMid;
+        for (var a = rand() * step; a < Math.PI * 2; a += step * (0.9 + rand() * 0.25))
+        {
+            var wob = (rand() - 0.5) * 0.06;
+            var ca = Math.Cos(a + wob);
+            var sa = Math.Sin(a + wob);
+            var r0 = rimMid - rimW * 0.42;
+            var r1 = rimMid + rimW * 0.42;
+            DrawLine(
+                new Vector2((float)(c.X + ca * r0), (float)(c.Y + sa * r0)),
+                new Vector2((float)(c.X + ca * r1), (float)(c.Y + sa * r1)),
+                tickC,
+                1.1f
+            );
+        }
+        // Inked inner + outer lip of the rim.
+        var inkC = Palette.Hex("#4c4935");
+        DrawArc(c, (float)(rimMid + rimW * 0.5), 0, (float)(Math.PI * 2), 48, inkC, 1.6f * ink);
+        DrawArc(c, (float)(rimMid - rimW * 0.5), 0, (float)(Math.PI * 2), 48, inkC, 1.4f * ink);
+
+        // --- conical roof ---------------------------------------------------
+        var coneDark = Palette.Mix(baseColor, Colors.Black, 0.3);
+        Fill(Poly.Ellipse(c.X, c.Y, coneR, coneR, 0, 22), coneDark);
+        Fill(Poly.Ellipse(c.X, c.Y, coneR - 1.5, coneR - 1.5, 0, 22), baseColor);
+        // Light pool north-west, shade pool south-east.
+        Fill(
+            Poly.Ellipse(c.X - coneR * 0.22, c.Y - coneR * 0.22, coneR * 0.62, coneR * 0.62, 0, 18),
+            Palette.Mix(baseColor, Palette.Hex("#fff2dc"), 0.16) with { A = 0.35f }
+        );
+        Fill(
+            Poly.Ellipse(c.X + coneR * 0.3, c.Y + coneR * 0.3, coneR * 0.6, coneR * 0.6, 0, 18),
+            new Color(0.05f, 0.03f, 0.02f, 0.14f)
+        );
+        // Radial seams apex → eave, irregularly spaced.
+        var seam = Palette.Mix(baseColor, Colors.Black, 0.5);
+        var n = Math.Max(9, (int)(coneR / 4.5));
+        for (var i = 0; i < n; i++)
+        {
+            var a = i * Math.PI * 2 / n + (rand() - 0.5) * 0.12;
+            var ca = Math.Cos(a);
+            var sa = Math.Sin(a);
+            var inner = coneR * (0.1 + rand() * 0.08);
+            var outer = coneR * (0.94 + rand() * 0.04);
+            DrawLine(
+                new Vector2((float)(c.X + ca * inner), (float)(c.Y + sa * inner)),
+                new Vector2((float)(c.X + ca * outer), (float)(c.Y + sa * outer)),
+                seam,
+                1f
+            );
+        }
+        // Concentric course arcs, denser toward the eave.
+        var course = Palette.Mix(baseColor, Colors.Black, 0.42);
+        for (var fr = 0.32; fr < 0.95; fr += 0.13 + rand() * 0.05)
+            DrawArc(c, (float)(coneR * fr), 0, (float)(Math.PI * 2), 40, course, 0.9f);
+        // Heavy rounded eave lip.
+        DrawArc(c, (float)(coneR - 1), 0, (float)(Math.PI * 2), 48, Palette.Mix(baseColor, Colors.Black, 0.45), 2.4f * ink);
+        // Apex cap: lit boss with a tiny finial dot.
+        DrawCircle(c, (float)(coneR * 0.1 + ink), Palette.Mix(baseColor, Colors.Black, 0.4));
+        DrawCircle(c, (float)(coneR * 0.085), Palette.Mix(baseColor, Palette.Hex("#fff2dc"), 0.28));
+        DrawCircle(c, 1.6f, Palette.Mix(baseColor, Colors.Black, 0.55));
+        if (snowy)
+        {
+            // Snowcap hugging the apex, melting off toward the eave.
+            DrawArc(c, (float)(coneR * 0.45), 0, (float)(Math.PI * 2), 36, Palette.Hex("#e9eff1") with { A = 0.85f }, (float)(coneR * 0.5));
+            DrawArc(c, (float)(coneR * 0.72), 0, (float)(Math.PI * 2), 36, Palette.Hex("#dbe4e8") with { A = 0.4f }, (float)(coneR * 0.16));
+        }
+    }
+
     static double RoofSeed(RoofFrame f) => f.C.X * 0.37 + f.C.Y * 0.91;
 
     /// <summary>Brightness of a face from its downslope direction vs.
@@ -907,6 +1144,13 @@ public partial class InteriorPainter : Node2D
                 if (rand() < 0.6)
                     Pot(x1 - p - s * 0.3, y0 + p + s * 0.12);
             }
+            return;
+        }
+
+        // --- round footprints read as towers: stone rim + conical roof -----
+        if (Circularish(pts, out var cc, out var cr))
+        {
+            DrawConeRoof(pts, cc, cr, wall, ink, snowy, cfg);
             return;
         }
 

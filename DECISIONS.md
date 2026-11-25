@@ -226,3 +226,45 @@ víc masivů stejné výšky.
 - `dotnet build` → 0 errors; `DMMAP_PROBE=1` celý self-test prošel.
 - Screenshoty: brány se sloupky u zdi i plotu, strom vysunutý na břeh,
   houštiny s mýtinami, cesta/řeka čisté.
+
+## Nimblehold iterace — kompozice + inkoustový renderer (2025-11-25, večer)
+
+- **Kompozice scén přepsaná podle referencí**: ref-06 z pozaďských
+  teras na hřbitovní svatyni (tři kamenná návrší, hrobové parcely,
+  socha), ref-09 na pevnost s nádvořím, integrovanými rohovými věžemi
+  a více interiérovými zónami, ref-10 na diagonální kaňon místo
+  horizontálního pásu. ref-03/04 zvolněny scatter lesa, aby cesty,
+  stavby a svahy zůstaly čitelné.
+- **Voda**: vrstvení mělčina/střed/hloubka je širší a světlejší,
+  caustic tile snížen z plastikového krytu na transparentní wash,
+  přidán souvislý pěnový waterline podél obou břehů. Paleta woodland
+  cest přebarvena z olivové na teplý písek.
+- **Koruny stromů**: oak používá biome summer tint (dříve se počítal,
+  ale neaplikoval), více menších laloků, hustší lístkové obloučky a
+  světlejší sluneční strana. Palmy mají hladké kopinaté listy místo
+  hvězdicového zoubkování; stany jsou obdélníkové hřebenové stany,
+  ne karnevalové cucky.
+- **Klify a ink artpack**: plateau stone tile zmenšen na přibližně
+  referenční velikost; 2mt/ink plateautop nepoužívá cobble tile, ale
+  angular crack mesh přímo na ploše. Crack buňky zvětšeny a znepravidelněny.
+- **Schody**: fan staircases se kreslí jen přes skutečné vysoké masivy
+  (>=30 px), ne přes nízké zahradní/hřbitovní terasy; potlačeny také
+  v bezprostřední blízkosti mostů.
+- **Osvětlení**: raymarchované stíny zjemněny, aby koruny a props
+  nečernaly; ambient zvýšen pro akvarelový papír.
+
+### Ověření této iterace
+
+- `dotnet build --no-incremental` → 0 errors.
+- Všech 10 scén deterministicky regenerováno `python3 tools/genscene.py`.
+- Probe render všech 10 referencí bez chyb; výstupy v
+  `docs/nimblehold/ours/` a montáže v `docs/nimblehold/compare/`.
+
+### Známé zbývající mezery
+
+- Přísný vizuální audit stále hodnotí shodu výrazně pod cílovými 98 %:
+  hlavně malovaná voda/pěna, organická struktura korun, rozložení props
+  a některé kompozice (zejména ref-02/03/04) nejsou ještě věrné.
+- ref-06/09 byly kompozičně přestavěny a vyžadují další vizuální iteraci
+  detailů; ref-10 má správný ink crack směr, ale rozloha skalisek je stále
+  širší než v referenci.
