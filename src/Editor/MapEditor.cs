@@ -130,6 +130,7 @@ public partial class MapEditor : Node2D
     HSlider _sRough = null!;
     OptionButton _modelOpt = null!;
     LineEdit _seedEdit = null!;
+    OptionButton _presetOpt = null!;
 
     public override void _Ready()
     {
@@ -335,6 +336,18 @@ public partial class MapEditor : Node2D
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _view.Stage.Snapshot().SavePng("/tmp/godot-generated.png");
         GD.Print("dumped /tmp/godot-generated.png");
+
+        // dungeon preset
+        _presetOpt.Selected = 1;
+        Generate();
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _view.Stage.Snapshot().SavePng("/tmp/godot-dungeon.png");
+        GD.Print("dumped /tmp/godot-dungeon.png");
+        _presetOpt.Selected = 0;
+        Generate();
+        for (var i = 0; i < 30; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
 
         // selection: grab the first house, move it, verify one commit
         var house = _view.Scene.Props.FirstOrDefault(p => p.Kind == Kinds.House);
@@ -956,7 +969,10 @@ public partial class MapEditor : Node2D
         var seed = int.TryParse(_seedEdit.Text, out var s)
             ? s
             : _seedEdit.Text.GetHashCode();
-        var gen = MapGenerator.Generate(seed, MapSize);
+        var gen =
+            _presetOpt.Selected == 1
+                ? MapGenerator.GenerateDungeon(seed, MapSize)
+                : MapGenerator.GenerateLandscape(seed, MapSize);
         ClearSelection();
         _history.Commit(gen);
         _view.Scene = _history.Current;
@@ -1113,6 +1129,10 @@ public partial class MapEditor : Node2D
         box.AddChild(mood);
 
         box.AddChild(new HSeparator());
+        _presetOpt = new OptionButton();
+        _presetOpt.AddItem("Krajina");
+        _presetOpt.AddItem("Dungeon");
+        box.AddChild(_presetOpt);
         var seedRow = new HBoxContainer();
         _seedEdit = new LineEdit
         {

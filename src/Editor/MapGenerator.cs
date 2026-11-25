@@ -14,7 +14,10 @@ public static class MapGenerator
     /// is hash-based so arbitrary seeds are fine.</summary>
     static double N(int seed, int i) => Rng.Noise(seed * 0.618033 + i * 7.13);
 
-    public static Scene Generate(int seed, Vector2 size)
+    public static Scene Generate(int seed, Vector2 size) =>
+        GenerateLandscape(seed, size);
+
+    public static Scene GenerateLandscape(int seed, Vector2 size)
     {
         var scene = new Scene { Width = size.X, Height = size.Y, Name = $"Mapa {seed}" };
         var cx = size.X / 2;
@@ -172,6 +175,189 @@ public static class MapGenerator
         }
         return scene;
     }
+
+    /// <summary>G1.3 port — BSP partition into rooms joined by L-shaped
+    /// floor corridors, doors where corridors pierce walls, archetyped
+    /// furniture (hall / bedroom / storage / crypt).</summary>
+    public static Scene GenerateDungeon(int seed, Vector2 size)
+    {
+        var scene = new Scene { Width = size.X, Height = size.Y, Name = $"Dungeon {seed}" };
+        var rand = (int i) => N(seed, i);
+        double density = 0.6;
+        var x0 = size.X * 0.06;
+        var y0 = size.Y * 0.06;
+        var x1 = size.X * 0.94;
+        var y1 = size.Y * 0.94;
+
+        // BSP — recursive split until cells are room-sized.
+        var maxDepth = 2 + (int)Math.Round(density * 2);
+        var rooms = new List<Rect2>();
+        var corridors = new List<(Vector2 A, Vector2 B)>();
+        Vector2 Walk((double X0, double Y0, double X1, double Y1) node, int depth, ref int seq)
+        {
+            var w = node.X1 - node.X0;
+            var h = node.Y1 - node.Y0;
+            if (depth >= maxDepth || (w < 150 && h < 150))
+            {
+                var m = 7 + rand(seq++) * 9;
+                var room = new Rect2(
+                    (float)(node.X0 + m),
+                    (float)(node.Y0 + m),
+                    (float)(w - 2 * m),
+                    (float)(h - 2 * m)
+                );
+                rooms.Add(room);
+                return room.GetCenter();
+            }
+            if (w > h)
+            {
+                var cut = node.X0 + w * (0.38 + rand(seq++) * 0.24);
+                var a = Walk((node.X0, node.Y0, cut, node.Y1), depth + 1, ref seq);
+                var b = Walk((cut, node.Y0, node.X1, node.Y1), depth + 1, ref seq);
+                corridors.Add((a, b));
+                return a;
+            }
+            var cut2 = node.Y0 + h * (0.38 + rand(seq++) * 0.24);
+            var la = Walk((node.X0, node.Y0, node.X1, cut2), depth + 1, ref seq);
+            var rb = Walk((node.X0, cut2, node.X1, node.Y1), depth + 1, ref seq);
+            corridors.Add((la, rb));
+            return la;
+        }
+        var seq = 0;
+        Walk((x0, y0, x1, y1), 0, ref seq);
+
+        // Corridor floor rects — horizontal leg then vertical leg.
+        const double cw = 26;
+        foreach (var (a, b) in corridors)
+        {
+            var r1 = new Rect2(
+                (float)(Math.Min(a.X, b.X) - cw / 2),
+                (float)(a.Y - cw / 2),
+                (float)(Math.Abs(b.X - a.X) + cw),
+                (float)cw
+            );
+            var r2 = new Rect2(
+                (float)(b.X - cw / 2),
+                (float)(Math.Min(a.Y, b.Y) - cw / 2),
+                (float)cw,
+                (float)(Math.Abs(b.Y - a.Y) + cw)
+            );
+            foreach (var r in new[] { r1, r2 })
+                scene.Shapes.Add(
+                    new Shape
+                    {
+                        Id = scene.AllocId(),
+                        Kind = Kinds.Floor,
+                        Points = Rect(r),
+                        Size = 22,
+                    }
+                );
+        }
+        foreach (var room in rooms)
+            scene.Shapes.Add(
+                new Shape
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Room,
+                    Points = Rect(room),
+                    Size = 20,
+                    Height = 18,
+                }
+            );
+
+        // Doors where a corridor pierces a room wall.
+        void DoorAt(Rect2 room, double tx, double ty)
+        {
+            var c = room.GetCenter();
+            var dx = tx - c.X;
+            var dy = ty - c.Y;
+            Vector2 pt =
+                Math.Abs(dx) > Math.Abs(dy)
+                    ? new Vector2(
+                        (float)(dx > 0 ? room.End.X : room.Position.X),
+                        (float)Math.Clamp(ty, room.Position.Y + 14, room.End.Y - 14)
+                    )
+                    : new Vector2(
+                        (float)Math.Clamp(tx, room.Position.X + 14, room.End.X - 14),
+                        (float)(dy > 0 ? room.End.Y : room.Position.Y)
+                    );
+            scene.Props.Add(
+                new Prop { Id = scene.AllocId(), Kind = "door", X = pt.X, Y = pt.Y, Scale = 24 }
+            );
+        }
+        bool Contains(Rect2 r, Vector2 p) =>
+            p.X > r.Position.X && p.X < r.End.X && p.Y > r.Position.Y && p.Y < r.End.Y;
+        foreach (var (a, b) in corridors)
+        {
+            var ra = rooms.Find(r => Contains(r, a));
+            var rb = rooms.Find(r => Contains(r, b));
+            if (ra.Size.X > 0)
+                DoorAt(ra, b.X, a.Y);
+            if (rb.Size.X > 0)
+                DoorAt(rb, b.X, a.Y);
+        }
+
+        // Furniture archetypes — hall / bedroom / storage / crypt.
+        for (var ri = 0; ri < rooms.Count; ri++)
+        {
+            var room = rooms[ri];
+            var c = room.GetCenter();
+            var w = room.Size.X;
+            var h = room.Size.Y;
+            if (w < 70 || h < 70)
+                continue;
+            var arche = (int)(N(seed + ri * 977, 0) * 4);
+            void Item(string kind, double px, double py, double sz, int m = 0) =>
+                scene.Props.Add(
+                    new Prop
+                    {
+                        Id = scene.AllocId(),
+                        Kind = kind,
+                        X = px,
+                        Y = py,
+                        Scale = sz,
+                        Seed = m,
+                    }
+                );
+            switch (arche)
+            {
+                case 0:
+                    Item("rug", c.X, c.Y, Math.Min(w, h) * 0.55);
+                    Item("table", c.X, c.Y, Math.Min(w * 0.5, 90), 1);
+                    Item("lantern", room.Position.X + 16, c.Y, 22, 2);
+                    Item("lantern", room.End.X - 16, c.Y, 22, 2);
+                    break;
+                case 1:
+                    Item("bed", room.Position.X + 34, room.Position.Y + 36, 56);
+                    Item("rug", c.X, c.Y + h * 0.15, Math.Min(w, h) * 0.4, 1);
+                    Item("chest", room.End.X - 24, room.End.Y - 24, 26);
+                    Item("lantern", room.End.X - 16, room.Position.Y + 16, 22);
+                    break;
+                case 2:
+                    Item("crate", room.Position.X + 20, room.Position.Y + 20, 26);
+                    Item("crate", room.Position.X + 40, room.Position.Y + 24, 22);
+                    Item("barrel", room.End.X - 22, room.Position.Y + 20, 22);
+                    Item("shelf", c.X, room.Position.Y + 14, Math.Min(w * 0.5, 70));
+                    Item("lantern", c.X, c.Y, 22, 2);
+                    break;
+                default:
+                    Item("grave", c.X, c.Y, 30, 2);
+                    Item("bones", room.Position.X + 26, room.End.Y - 22, 34);
+                    Item("bones", room.End.X - 26, room.Position.Y + 22, 30, 1);
+                    Item("lantern", room.Position.X + 16, room.Position.Y + 16, 22, 2);
+                    break;
+            }
+        }
+        return scene;
+    }
+
+    static List<Vector2> Rect(Rect2 r) =>
+        [
+            r.Position,
+            new Vector2(r.End.X, r.Position.Y),
+            r.End,
+            new Vector2(r.Position.X, r.End.Y),
+        ];
 
     static Prop FromPlacement(Scene scene, PropPlacement p) =>
         new()
