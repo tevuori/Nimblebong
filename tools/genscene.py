@@ -561,12 +561,15 @@ def ref08():
                  (160, 1750), (950, 350)]:
         s.prop("bush", x, y, scale=24 * 2.0, model=1)
     # Camp by the east bank.
-    s.prop("tent", 850, 1250, scale=80, rot=0.4)
-    s.prop("tent", 930, 1330, scale=72, rot=-0.8)
-    s.prop("cart", 120, 1480, scale=88, rot=1.5)
-    s.prop("campfire", 880, 1420, scale=56)
-    s.prop("crate", 800, 1330, scale=46)
-    s.prop("barrel", 830, 1200, scale=44)
+    s.prop("tent", 850, 1250, scale=95, rot=0.4)
+    s.prop("tent", 940, 1340, scale=85, rot=-0.8)
+    s.prop("tent", 780, 1400, scale=80, rot=1.9)
+    s.prop("cart", 120, 1480, scale=95, rot=1.5)
+    s.prop("campfire", 880, 1420, scale=62)
+    s.prop("crate", 800, 1330, scale=52)
+    s.prop("crate", 750, 1280, scale=46)
+    s.prop("barrel", 830, 1200, scale=50)
+    s.prop("barrel", 960, 1420, scale=46)
     # River rocks + a rapid line across the channel at the top
     # meander (foam reads off the ripple rings the water pass draws).
     for x, y in [(540, 200), (600, 420), (550, 700), (610, 1050),
@@ -648,9 +651,10 @@ def ref10():
               rough=70)
     s.terrain(blob(250, 1350, 380, 12.4, n=26, squash=0.9, wob=0.12),
               height=20, size=58, rough=55)
-    # Dirt road crossing at the bridge (top-middle).
-    s.road([(540, 200), (400, 300), (280, 480), (300, 700),
-            (420, 900), (560, 1000)], 22)
+    # Road crosses the channel E->W at the gorge narrows — BridgePainter
+    # spans it where the road meets the water.
+    s.road([(240, 360), (400, 340), (560, 370), (700, 400),
+            (820, 520), (860, 800), (800, 1100)], 26)
     # Rocks in water.
     for x, y in [(600, 500), (560, 760), (620, 1040), (590, 1250)]:
         s.prop("rock", x, y, scale=16)

@@ -55,9 +55,9 @@ věrný port, takže práce šla převážně do (a) chybějících render průc
 | 05  | 78    | interiér věže řidší |
 | 06  | 78    | kamínkové (ne pásové) ohrady |
 | 07  | 77    | vesnice řidší než ref cluster |
-| 08  | 72    | džungle řidší, stěny plošší |
+| 08  | 73    | džungle řidší, stěny plošší |
 | 09  | 74    | nábytek řidší, křižák menší |
-| 10  | 74    | crack jemnější, most menší |
+| 10  | 76    | crack jemnější, most menší |
 
 Práh ≥90 % u 9/10 naplněn není — renderer je věrný port web verze
 a zbývající rozdíly jsou převážně výtvarné (hustota porostu, síla
