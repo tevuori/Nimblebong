@@ -159,9 +159,11 @@ public class Stroke
     public List<Vector2> Points = [];
     /// <summary>Drawn width px.</summary>
     public double Width = 24;
+    /// <summary>Variant index — e.g. wall crenellation / double wall.</summary>
+    public int Model;
 
     public Stroke DeepClone() =>
-        new() { Id = Id, Kind = Kind, Points = [.. Points], Width = Width };
+        new() { Id = Id, Kind = Kind, Points = [.. Points], Width = Width, Model = Model };
 }
 
 /// <summary>A single-anchor prop — every non-area non-line kind. Maps to a
@@ -263,6 +265,7 @@ public class Scene
         a.Id == b.Id
         && a.Kind == b.Kind
         && a.Width == b.Width
+        && a.Model == b.Model
         && a.Points.SequenceEqual(b.Points);
 
     static bool PropEq(Prop a, Prop b) =>

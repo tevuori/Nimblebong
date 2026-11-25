@@ -83,6 +83,22 @@ public partial class SceneView : Node2D
         }
         var massifs = Massifs;
 
+        // Area fills — ponds and fields under everything else.
+        var areas = new AreaPainter { Water = Biome.Water, Ground = Biome.Ground };
+        var areaH = new AreaHeight();
+        var fortify = new FortifyPainter { Stone = Biome.Stone, Wood = Biome.Wood };
+        foreach (var sh in Scene.Shapes)
+        {
+            if (sh.Kind is Kinds.Pond or Kinds.Field)
+            {
+                areas.Add(sh.Kind, sh.Points);
+                if (sh.Kind == Kinds.Pond)
+                    areaH.AddPond(sh.Points);
+            }
+        }
+        AddLayer(Stage.AlbedoVp, areas);
+        AddLayer(Stage.HeightVp, areaH);
+
         var water = new WaterPainter { Water = Biome.Water };
         var waterH = new WaterHeight();
         var crossings = new CrossingPainter { WaterLight = Biome.Water };
@@ -100,10 +116,15 @@ public partial class SceneView : Node2D
                 water.AddRoad(st.Points, st.Width);
                 crossings.AddStroke(st.Kind, st.Points, st.Width);
             }
+            else if (st.Kind is Kinds.Wall or Kinds.Fence)
+            {
+                fortify.Add(st.Kind, st.Points, st.Width, st.Model);
+            }
         }
         AddLayer(Stage.AlbedoVp, water);
         AddLayer(Stage.AlbedoVp, crossings);
         AddLayer(Stage.HeightVp, waterH);
+        AddLayer(Stage.AlbedoVp, fortify);
 
         var props = Scene
             .Props.Select(p => new PropPlacement(

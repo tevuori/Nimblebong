@@ -477,4 +477,123 @@ public static class Interactions
         }
         return result;
     }
+
+    // -- protection zones (scene-interactions.ts port) ---------------------
+
+    /// <summary>A keep-out circle around a protected prop.</summary>
+    public readonly record struct ProtectionZone(Vector2 Center, double Radius);
+
+    /// <summary>Protection factors per kind — `protection.kinds` from
+    /// the web frontend.json. Radius = (scale/2)*factor + padding.</summary>
+    public static readonly Dictionary<string, double> ProtectedKinds = new()
+    {
+        ["campfire"] = 1,
+        ["well"] = 1,
+        ["tent"] = 0.9,
+        ["lantern"] = 1,
+        ["marker"] = 1,
+        ["portal"] = 1,
+        ["fountain"] = 1,
+        ["stall"] = 0.9,
+        ["statue"] = 0.8,
+        ["chest"] = 1,
+    };
+
+    const double ProtectionPadding = 6;
+
+    /// <summary>Kinds exempt from keep-out (keepOut.except).</summary>
+    static readonly HashSet<string> KeepOutExcept = ["label", "marker", "door", "window"];
+
+    /// <summary>Zones around every protected prop in the scene.</summary>
+    public static List<ProtectionZone> ProtectionZones(Scene scene)
+    {
+        var zones = new List<ProtectionZone>();
+        foreach (var p in scene.Props)
+            if (ProtectedKinds.TryGetValue(p.Kind, out var factor))
+                zones.Add(
+                    new ProtectionZone(
+                        new Vector2((float)p.X, (float)p.Y),
+                        p.Scale / 2 * factor + ProtectionPadding
+                    )
+                );
+        return zones;
+    }
+
+    /// <summary>Whether this kind must stand outside every zone —
+    /// keepOut.kinds = ["*"], minus protected kinds and exceptions.</summary>
+    public static bool KeptOut(string kind) =>
+        !ProtectedKinds.ContainsKey(kind) && !KeepOutExcept.Contains(kind);
+
+    /// <summary>The zone a circle of `reach` at `point` overlaps, if any.</summary>
+    public static ProtectionZone? ZoneHit(
+        Vector2 point,
+        double reach,
+        List<ProtectionZone> zones
+    )
+    {
+        foreach (var z in zones)
+            if (point.DistanceTo(z.Center) < z.Radius + reach)
+                return z;
+        return null;
+    }
+
+    /// <summary>Push a prop of `reach` out of every zone it overlaps —
+    /// straight away from the zone center, a few passes for neighbours.</summary>
+    public static Vector2 NudgeOut(Vector2 point, double reach, List<ProtectionZone> zones)
+    {
+        for (var pass = 0; pass < 4; pass++)
+        {
+            var z = ZoneHit(point, reach, zones);
+            if (z == null)
+                break;
+            var d = point - z.Value.Center;
+            if (d.LengthSquared() < 1e-6f)
+                d = new Vector2(0, 1);
+            var to = z.Value.Radius + reach + 0.5;
+            point = z.Value.Center + d.Normalized() * (float)to;
+        }
+        return point;
+    }
+
+    /// <summary>Place a prop under the protection rules:
+    /// kept-out kinds get nudged out of existing zones; a protected kind
+    /// clears kept-out props from its new zone (clearOnPlace). Returns
+    /// false when the placement is fully blocked (point lands inside a
+    /// zone it cannot leave — map edge clamp).</summary>
+    public static bool PlaceProtected(Scene scene, Prop prop)
+    {
+        var zones = ProtectionZones(scene);
+        var reach = prop.Scale / 2;
+        if (KeptOut(prop.Kind))
+        {
+            var p = new Vector2((float)prop.X, (float)prop.Y);
+            var nudged = NudgeOut(p, reach, zones);
+            if (
+                ZoneHit(nudged, reach, zones) != null
+                || nudged.X < 0
+                || nudged.Y < 0
+                || nudged.X > scene.Width
+                || nudged.Y > scene.Height
+            )
+                return false;
+            prop.X = nudged.X;
+            prop.Y = nudged.Y;
+        }
+        AddProp(scene, prop);
+        if (ProtectedKinds.ContainsKey(prop.Kind))
+        {
+            var zone = new ProtectionZone(
+                new Vector2((float)prop.X, (float)prop.Y),
+                prop.Scale / 2 * ProtectedKinds[prop.Kind] + ProtectionPadding
+            );
+            scene.Props.RemoveAll(
+                q =>
+                    q.Id != prop.Id
+                    && KeptOut(q.Kind)
+                    && zone.Center.DistanceTo(new Vector2((float)q.X, (float)q.Y))
+                        < zone.Radius + q.Scale / 2
+            );
+        }
+        return true;
+    }
 }

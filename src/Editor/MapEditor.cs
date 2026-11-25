@@ -16,6 +16,12 @@ public partial class MapEditor : Node2D
         Terrain,
         River,
         Road,
+        Pond,
+        Field,
+        Wall,
+        Fence,
+        Scatter,
+        Camp,
         Tree,
         Pine,
         Rock,
@@ -197,6 +203,72 @@ public partial class MapEditor : Node2D
         _tool = Tool.House;
         PlacePropAt(new Vector2(800, 600));
         Undo(); // house away — verify undo rebuilds cleanly
+
+        // Wave-A features: pond, field, wall, fence, scatter, camp.
+        var pond = new List<Vector2>();
+        for (var i = 0; i < 14; i++)
+        {
+            var a = i / 14.0 * Mathf.Tau;
+            pond.Add(new Vector2(1050 + (float)Math.Cos(a) * 90, 760 + (float)Math.Sin(a) * 60));
+        }
+        Commit(scene =>
+            scene.Shapes = Interactions.MergeShapeInto(
+                scene,
+                new Shape { Id = scene.AllocId(), Kind = Kinds.Pond, Points = pond }
+            )
+        );
+        var field = new List<Vector2>();
+        for (var i = 0; i < 12; i++)
+        {
+            var a = i / 12.0 * Mathf.Tau;
+            field.Add(new Vector2(1250 + (float)Math.Cos(a) * 130, 350 + (float)Math.Sin(a) * 80));
+        }
+        Commit(scene =>
+            scene.Shapes = Interactions.MergeShapeInto(
+                scene,
+                new Shape { Id = scene.AllocId(), Kind = Kinds.Field, Points = field }
+            )
+        );
+        Commit(scene =>
+        {
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Wall,
+                    Points = [new(950, 500), new(1150, 480), new(1250, 560), new(1240, 700)],
+                    Width = 20,
+                    Model = 1,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Fence,
+                    Points = [new(1150, 260), new(1350, 300), new(1420, 420)],
+                    Width = 10,
+                }
+            );
+        });
+        _tool = Tool.Scatter;
+        BeginStroke(); // fake a scatter commit straight through Commit
+        var scat = new List<Vector2>();
+        for (var i = 0; i < 12; i++)
+        {
+            var a = i / 12.0 * Mathf.Tau;
+            scat.Add(new Vector2(900 + (float)Math.Cos(a) * 110, 200 + (float)Math.Sin(a) * 70));
+        }
+        _stroke.Clear();
+        _stroke.AddRange(scat);
+        EndStroke();
+        _tool = Tool.Camp;
+        PlacePropAt(new Vector2(700, 750));
+        // Protection: a tree inside the campfire zone must be nudged out.
+        _tool = Tool.Tree;
+        PlacePropAt(new Vector2(700, 750));
         for (var i = 0; i < 8; i++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _view.Stage.Snapshot().SavePng("/tmp/godot-editor.png");
@@ -338,6 +410,7 @@ public partial class MapEditor : Node2D
         {
             Tool.River => _pRiverW,
             Tool.Road => _pRoadW,
+            Tool.Wall => 20,
             _ => 8,
         };
 
@@ -389,23 +462,84 @@ public partial class MapEditor : Node2D
                 break;
             case Tool.River:
             case Tool.Road:
+            case Tool.Wall:
+            case Tool.Fence:
                 Commit(scene =>
                 {
                     var stroke = new Stroke
                     {
                         Id = scene.AllocId(),
-                        Kind = _tool == Tool.River ? Kinds.River : Kinds.Road,
+                        Kind = _tool switch
+                        {
+                            Tool.River => Kinds.River,
+                            Tool.Wall => Kinds.Wall,
+                            Tool.Fence => Kinds.Fence,
+                            _ => Kinds.Road,
+                        },
                         Points = pts,
                         Width = StrokeWidth(),
                     };
                     Interactions.AddStroke(scene, stroke);
                 });
                 break;
+            case Tool.Pond:
+            case Tool.Field:
+                if (pts.Count >= 6)
+                    Commit(scene =>
+                    {
+                        var shape = new Shape
+                        {
+                            Id = scene.AllocId(),
+                            Kind = _tool == Tool.Pond ? Kinds.Pond : Kinds.Field,
+                            Points = pts,
+                            Size = 24,
+                        };
+                        scene.Shapes = Interactions.MergeShapeInto(scene, shape);
+                    });
+                break;
+            case Tool.Scatter:
+                if (pts.Count >= 6)
+                    Commit(scene =>
+                    {
+                        // Fill the outline with a deterministic forest
+                        // mix — same scatter as the generator uses.
+                        var mix = PropScatter.ScatterMix(
+                            pts,
+                            46,
+                            [(PropKind.Tree, 3.0), (PropKind.Pine, 1.6), (PropKind.Bush, 0.7)],
+                            density: 0.92,
+                            seed: pts[0].X * 0.37 + pts[0].Y * 0.53
+                        );
+                        foreach (var pp in mix)
+                        {
+                            var kind = pp.Kind switch
+                            {
+                                PropKind.Pine => "pine",
+                                PropKind.Bush => Kinds.Bush,
+                                _ => Kinds.Tree,
+                            };
+                            Interactions.PlaceProtected(
+                                scene,
+                                new Prop
+                                {
+                                    Id = scene.AllocId(),
+                                    Kind = kind,
+                                    X = pp.X,
+                                    Y = pp.Y,
+                                    Scale = 22 * pp.Scale,
+                                    Rotation = pp.Rotation,
+                                    Seed = (int)pp.Seed,
+                                }
+                            );
+                        }
+                    });
+                break;
         }
         _stroke.Clear();
     }
 
-    static bool IsPropTool(Tool t) => t is Tool.Tree or Tool.Pine or Tool.Rock or Tool.Bush or Tool.House;
+    static bool IsPropTool(Tool t) =>
+        t is Tool.Tree or Tool.Pine or Tool.Rock or Tool.Bush or Tool.House or Tool.Camp;
 
     // ── Selection (move / delete / param edit) ────────────────────
 
@@ -636,10 +770,11 @@ public partial class MapEditor : Node2D
             Tool.Rock => Kinds.Rock,
             Tool.Bush => Kinds.Bush,
             Tool.House => Kinds.House,
+            Tool.Camp => Kinds.Camp,
             _ => Kinds.Tree,
         };
         Commit(scene =>
-            Interactions.AddProp(
+            Interactions.PlaceProtected(
                 scene,
                 new Prop
                 {
@@ -805,6 +940,12 @@ public partial class MapEditor : Node2D
             ("Terén", Tool.Terrain),
             ("Řeka", Tool.River),
             ("Cesta", Tool.Road),
+            ("Rybník", Tool.Pond),
+            ("Pole", Tool.Field),
+            ("Zeď", Tool.Wall),
+            ("Plot", Tool.Fence),
+            ("Porost", Tool.Scatter),
+            ("Tábor", Tool.Camp),
             ("Strom", Tool.Tree),
             ("Borovice", Tool.Pine),
             ("Kámen", Tool.Rock),
@@ -1022,7 +1163,16 @@ public partial class GhostLayer : Node2D
         switch (_tool)
         {
             case MapEditor.Tool.Terrain:
+            case MapEditor.Tool.Pond:
+            case MapEditor.Tool.Field:
+            case MapEditor.Tool.Scatter:
                 DrawPolyline([.. pts, pts[0]], new Color(0.2f, 0.18f, 0.1f, 0.7f), 2);
+                break;
+            case MapEditor.Tool.Wall:
+                DrawPolyline(pts, new Color(0.72f, 0.71f, 0.6f, 0.5f), (float)_width);
+                break;
+            case MapEditor.Tool.Fence:
+                DrawPolyline(pts, new Color(0.43f, 0.34f, 0.24f, 0.5f), 2);
                 break;
             case MapEditor.Tool.River:
                 DrawPolyline(pts, new Color(0.16f, 0.56f, 0.6f, 0.5f), (float)_width);

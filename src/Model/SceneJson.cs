@@ -74,6 +74,8 @@ public static class SceneJson
                 w.WritePropertyName("points");
                 WritePoints(w, s.Points);
                 w.WriteNumber("width", s.Width);
+                if (s.Model != 0)
+                    w.WriteNumber("model", s.Model);
                 w.WriteEndObject();
             }
             w.WriteEndArray();
@@ -482,6 +484,7 @@ public static class SceneJson
             Kind = kind,
             Points = points,
             Width = Clamped(el, "width", MinSize, MaxSize, 24),
+            Model = (int)Clamped(el, "model", 0, 4, 0),
         };
     }
 
