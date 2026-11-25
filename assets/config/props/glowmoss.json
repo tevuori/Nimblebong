@@ -1,0 +1,31 @@
+{
+  "label": "Svítivý mech",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "cavern"
+  ],
+  "scale": 0.8,
+  "height": 0,
+  "flora": {
+    "form": "groundcover",
+    "count": [
+      4,
+      7
+    ],
+    "radius": 10,
+    "length": [
+      5,
+      8
+    ],
+    "leaf": "#2f5a52",
+    "leafDark": "#1e3a36",
+    "accents": [
+      "#7fe0d4",
+      "#a5f0e0"
+    ],
+    "accentSize": 1.0,
+    "accentChance": 0.7,
+    "ink": 0
+  }
+}

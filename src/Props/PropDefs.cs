@@ -77,6 +77,14 @@ public class FloraSpec
     public static readonly string[] Forms =
         ["tuft", "fern", "flowers", "flowerpatch", "reeds", "mushrooms", "lilypads", "groundcover"];
 
+    /// <summary>Forms of the detail drawer (PropsDetail.cs) — map
+    /// dressing and tactical cover rather than plants.</summary>
+    public static readonly string[] DetailForms =
+    [
+        "log", "stump", "bramble", "rubble", "cairn", "signpost", "shrine", "tracks",
+        "puddle", "carcass", "anthill", "beehive", "stalagmite", "web",
+    ];
+
     public string Form = "tuft";
     /// <summary>Blades / fronds / stems / caps / pads / blobs, min–max.</summary>
     public int CountMin = 5, CountMax = 9;
@@ -179,7 +187,7 @@ public static class PropDefs
     [
         "label", "base", "category", "biomes", "scale", "footprint", "height",
         "species", "model", "palette", "tint", "adjust", "protect", "keepOut",
-        "water", "flora",
+        "water", "flora", "detail",
     ];
 
     /// <summary>Validate + resolve one definition. Public so probes and
@@ -294,15 +302,25 @@ public static class PropDefs
             else
                 def.Flora = ParseFlora(d["flora"].AsGodotDictionary(), $"{path}.flora", err);
         }
+        if (d.ContainsKey("detail"))
+        {
+            if (d["detail"].VariantType != Variant.Type.Dictionary)
+                Need(false, "detail", "object");
+            else
+                def.Flora = ParseFlora(d["detail"].AsGodotDictionary(), $"{path}.detail", err, FloraSpec.DetailForms);
+        }
         if (def.Base == PropKind.Flora && def.Flora == null)
             Need(false, "flora", "object (required for base \"flora\")");
+        if (def.Base == PropKind.Detail && def.Flora == null)
+            Need(false, "detail", "object (required for base \"detail\")");
         if (err.Count > 0)
             throw new ConfigException(string.Join("\n", err));
         return def;
     }
 
-    static FloraSpec ParseFlora(JsonDict f, string path, List<string> err)
+    static FloraSpec ParseFlora(JsonDict f, string path, List<string> err, string[]? forms = null)
     {
+        forms ??= FloraSpec.Forms;
         Warn(f, path,
         [
             "form", "count", "radius", "length", "width", "leaf", "leafDark",
@@ -310,10 +328,10 @@ public static class PropDefs
         ]);
         var spec = new FloraSpec();
         var form = Get(f, "form");
-        if (IsStr(form) && FloraSpec.Forms.Contains(form.AsString()))
+        if (IsStr(form) && forms.Contains(form.AsString()))
             spec.Form = form.AsString();
         else
-            err.Add($"{path}.form: expected {string.Join("/", FloraSpec.Forms)}");
+            err.Add($"{path}.form: expected {string.Join("/", forms)}");
         (double, double) Range(string key, double a, double b)
         {
             if (!f.ContainsKey(key))

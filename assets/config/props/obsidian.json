@@ -1,0 +1,12 @@
+{
+  "label": "Obsidián",
+  "base": "crystal",
+  "category": "Porost a příroda",
+  "biomes": [
+    "volcanic"
+  ],
+  "tint": {
+    "color": "#1a1420",
+    "amount": 0.7
+  }
+}

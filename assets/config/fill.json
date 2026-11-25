@@ -73,7 +73,37 @@
             "red-maple": 0.25,
             "dead-tree": 0.2,
             "dark-pine": 0.25,
-            "snowy-boulder": 0.4
+            "snowy-boulder": 0.4,
+            "fallen-log": 0.35,
+            "birch-log": 0.15,
+            "charred-log": 0.3,
+            "tree-stump": 0.35,
+            "charred-stump": 0.3,
+            "bramble": 0.3,
+            "thornbush": 0.3,
+            "cairn": 0.04,
+            "puddle": 0.12,
+            "mud-pit": 0.08,
+            "carcass": 0.03,
+            "anthill": 0.06,
+            "spider-web": 0.06,
+            "stalagmites": 0.6,
+            "cave-boulder": 0.6,
+            "amethyst": 0.2,
+            "ice-crystal": 0.15,
+            "basalt-boulder": 0.5,
+            "obsidian": 0.15,
+            "ash-bush": 0.6,
+            "lava-rubble": 0.3,
+            "sandstone-boulder": 0.5,
+            "cactus": 0.8,
+            "desert-palm": 0.25,
+            "sandstone-rubble": 0.25,
+            "willow": 0.25,
+            "mangrove": 0.2,
+            "birch": 0.4,
+            "cherry-blossom": 0.12,
+            "snow-fir": 0.5
           }
         },
         "roadside": {
@@ -88,7 +118,12 @@
             "well": 0.12,
             "flag": 0.1,
             "bones": 0.08,
-            "barricade": 0.07
+            "barricade": 0.07,
+            "signpost": 0.12,
+            "wayside-shrine": 0.06,
+            "puddle": 0.2,
+            "animal-tracks": 0.08,
+            "tree-stump": 0.2
           }
         },
         "shore": {
@@ -100,7 +135,12 @@
             "bones": 0.1,
             "dock": 0.06,
             "boat": 0.1,
-            "mossy-boulder": 0.4
+            "mossy-boulder": 0.4,
+            "fallen-log": 0.3,
+            "willow": 0.5,
+            "mangrove": 0.6,
+            "mud-pit": 0.15,
+            "desert-palm": 0.4
           }
         },
         "slope": {
@@ -111,7 +151,16 @@
             "bush": 0.9,
             "crystal": 0.5,
             "statue": 0.05,
-            "snowy-boulder": 0.6
+            "snowy-boulder": 0.6,
+            "rubble": 0.8,
+            "scree": 0.8,
+            "cairn": 0.1,
+            "stalagmites": 0.8,
+            "ice-spikes": 0.3,
+            "basalt-boulder": 0.6,
+            "sandstone-boulder": 0.6,
+            "lava-rubble": 0.4,
+            "sandstone-rubble": 0.4
           }
         },
         "village": {
@@ -124,7 +173,9 @@
             "cart": 0.6,
             "flag": 0.35,
             "well": 0.15,
-            "marker": 0.1
+            "marker": 0.1,
+            "beehive": 0.3,
+            "signpost": 0.1
           }
         },
         "deepWater": {
@@ -172,7 +223,12 @@
             "clover-patch": 0.3,
             "lavender-patch": 0.15,
             "poppies": 0.3,
-            "dandelions": 0.4
+            "dandelions": 0.4,
+            "glowmoss": 1.2,
+            "sage": 1.2,
+            "thistle": 0.6,
+            "snowy-tuft": 1.2,
+            "frost-grass": 1.2
           }
         },
         "roadside": {
@@ -196,7 +252,8 @@
             "grass-tuft": 1.5,
             "fern": 0.5,
             "dry-grass": 1,
-            "glowcaps": 0.5
+            "glowcaps": 0.5,
+            "cotton-grass": 1.2
           }
         },
         "slope": {
@@ -207,7 +264,11 @@
             "fern": 0.6,
             "dry-grass": 1.5,
             "ash-grass": 1.5,
-            "glowcaps": 0.6
+            "glowcaps": 0.6,
+            "snowy-tuft": 1,
+            "frost-grass": 1,
+            "glowmoss": 0.6,
+            "sage": 0.6
           }
         },
         "village": {
@@ -225,7 +286,9 @@
           "chance": 0.55,
           "kinds": {
             "lilypads": 2,
-            "reeds": 1
+            "reeds": 1,
+            "duckweed": 1.0,
+            "cotton-grass": 0.5
           }
         },
         "deepWater": {

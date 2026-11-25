@@ -1,0 +1,22 @@
+{
+  "label": "Louže",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland",
+    "swamp",
+    "alpine"
+  ],
+  "height": 0,
+  "keepOut": false,
+  "detail": {
+    "form": "puddle",
+    "radius": 9,
+    "leaf": "#6a5436",
+    "leafDark": "#6a5436",
+    "accents": [
+      "#5f8c96"
+    ],
+    "ink": 0.3
+  }
+}

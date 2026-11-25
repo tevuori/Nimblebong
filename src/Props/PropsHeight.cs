@@ -61,6 +61,7 @@ public partial class PropsHeight : Node2D
         { PropKind.Butterfly, (3, 0.02) },
         { PropKind.Bird, (4, 0.04) },
         { PropKind.Flora, (8, 0.012) },
+        { PropKind.Detail, (10, 0.03) },
     };
 
     // Terrain height sampler — terrace rings cached like the heightmap
@@ -128,6 +129,21 @@ public partial class PropsHeight : Node2D
             if (h <= 0)
                 continue;
             var base_ = TerrainAt(p.Pos);
+            // Parametric plants/details: one disc sized from the spec's
+            // drawn extent — stepped rings around a small object read as
+            // halo circles under the lighting.
+            if (p.Def?.Flora is { } spec)
+            {
+                var elongated = spec.Form is "log" or "carcass" or "tracks" or "signpost";
+                var srx = (elongated ? spec.LengthMax * 0.5 : Math.Max(spec.Radius, spec.LengthMax * 0.5) * 0.8)
+                    * p.Def.Footprint * p.Scale;
+                var sry = (elongated ? Math.Max(spec.Width * 0.5, 1.5) : srx / p.Scale) * (elongated ? p.Scale : 1);
+                Fill(
+                    Poly.Ellipse(p.X, p.Y, srx, sry, p.Rotation, 14),
+                    Gray(Math.Min(0.97, base_ + h))
+                );
+                continue;
+            }
             var top = Math.Min(0.97, base_ + h);
             // Houses are elongated; everything else is near-round. The
             // canopy blob is a bit smaller than its albedo footprint so

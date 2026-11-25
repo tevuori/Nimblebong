@@ -1,0 +1,18 @@
+{
+  "label": "Mraveniště",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland",
+    "desert"
+  ],
+  "height": 1.2,
+  "detail": {
+    "form": "anthill",
+    "radius": 8,
+    "count": 10,
+    "leaf": "#a07c52",
+    "leafDark": "#6a4e32",
+    "ink": 0.4
+  }
+}

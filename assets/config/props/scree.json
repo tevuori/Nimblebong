@@ -1,0 +1,27 @@
+{
+  "label": "Kamenná drť",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "alpine",
+    "volcanic",
+    "cavern"
+  ],
+  "height": 0.5,
+  "footprint": 1.6,
+  "detail": {
+    "form": "rubble",
+    "radius": 16,
+    "count": [
+      16,
+      24
+    ],
+    "length": [
+      2,
+      4
+    ],
+    "leaf": "@stone",
+    "leafDark": "#55574c",
+    "ink": 0.35
+  }
+}

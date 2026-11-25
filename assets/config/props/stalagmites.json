@@ -1,0 +1,24 @@
+{
+  "label": "Krápníky",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "cavern"
+  ],
+  "height": 4,
+  "detail": {
+    "form": "stalagmite",
+    "radius": 10,
+    "count": [
+      3,
+      6
+    ],
+    "length": [
+      5,
+      10
+    ],
+    "leaf": "#8f8a80",
+    "leafDark": "#4c4844",
+    "ink": 0.6
+  }
+}

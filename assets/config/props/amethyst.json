@@ -1,0 +1,13 @@
+{
+  "label": "Ametyst",
+  "base": "crystal",
+  "category": "Porost a příroda",
+  "biomes": [
+    "cavern",
+    "volcanic"
+  ],
+  "tint": {
+    "color": "#9b5fd8",
+    "amount": 0.55
+  }
+}

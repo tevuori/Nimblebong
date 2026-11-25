@@ -1,0 +1,10 @@
+{
+  "label": "Vrba",
+  "base": "tree",
+  "category": "Porost a příroda",
+  "biomes": [
+    "swamp",
+    "woodland"
+  ],
+  "species": "willow"
+}

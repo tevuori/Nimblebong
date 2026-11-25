@@ -250,6 +250,9 @@ public partial class PropsPainter : Node2D
                 case PropKind.Flora:
                     DrawFlora(p);
                     break;
+                case PropKind.Detail:
+                    DrawDetail(p);
+                    break;
             }
             EndStyle(p);
         }

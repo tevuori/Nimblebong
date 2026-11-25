@@ -1,0 +1,31 @@
+{
+  "label": "Bodlák",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "desert",
+    "woodland",
+    "alpine"
+  ],
+  "scale": 0.8,
+  "height": 1.5,
+  "flora": {
+    "form": "flowers",
+    "count": [
+      4,
+      6
+    ],
+    "radius": 8,
+    "leaf": "#6f7f5a",
+    "leafDark": "#3e4a32",
+    "heads": [
+      "cornflower"
+    ],
+    "accents": [
+      "#a34fb0",
+      "#b862c4"
+    ],
+    "accentChance": 0.6,
+    "ink": 0.2
+  }
+}

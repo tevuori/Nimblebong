@@ -1,0 +1,17 @@
+{
+  "label": "Mohyla",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "height": 2.5,
+  "detail": {
+    "form": "cairn",
+    "radius": 6,
+    "count": [
+      3,
+      5
+    ],
+    "leaf": "@stone",
+    "leafDark": "#5a5c50",
+    "ink": 0.7
+  }
+}

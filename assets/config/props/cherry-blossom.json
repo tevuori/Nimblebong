@@ -1,0 +1,13 @@
+{
+  "label": "Kvetoucí třešeň",
+  "base": "tree",
+  "category": "Porost a příroda",
+  "biomes": [
+    "woodland"
+  ],
+  "species": "oak",
+  "tint": {
+    "color": "#f2b8cc",
+    "amount": 0.5
+  }
+}

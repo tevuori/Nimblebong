@@ -18,7 +18,24 @@ public partial class PropsPainter
 
     void DrawFlora(PropPlacement p)
     {
-        var spec = p.Def?.Flora ?? DefaultFlora;
+        var f = MakeFloraCtx(p, p.Def?.Flora ?? DefaultFlora);
+        switch (f.S.Form)
+        {
+            case "fern": FloraFern(f); break;
+            case "flowers": FloraFlowers(f); break;
+            case "flowerpatch": FloraFlowerPatch(f); break;
+            case "reeds": FloraReeds(f); break;
+            case "mushrooms": FloraMushrooms(f); break;
+            case "lilypads": FloraLilypads(f); break;
+            case "groundcover": FloraGroundcover(f); break;
+            default: FloraTuft(f); break;
+        }
+    }
+
+    /// <summary>Resolve a spec's colors against the biome and seed the
+    /// per-prop jitter — shared by the flora and detail drawers.</summary>
+    FloraCtx MakeFloraCtx(PropPlacement p, FloraSpec spec)
+    {
         var rand = new Jitter(p.VarSeed + 0.5);
         // Leaf color with a per-plant nudge so a meadow isn't one flat tone.
         var leafBase = PropDefs.ResolveColor(spec.Leaf, BiomeCfg);
@@ -36,19 +53,7 @@ public partial class PropsPainter
         var ink = Ink with { A = (float)(0.25 + 0.6 * spec.Ink) };
         var count = spec.CountMin + (int)(rand.Next() * (spec.CountMax - spec.CountMin + 1));
         count = Math.Max(1, count);
-        var f = new FloraCtx(p, spec, rand, leaf, dark, accents, ink, count);
-
-        switch (spec.Form)
-        {
-            case "fern": FloraFern(f); break;
-            case "flowers": FloraFlowers(f); break;
-            case "flowerpatch": FloraFlowerPatch(f); break;
-            case "reeds": FloraReeds(f); break;
-            case "mushrooms": FloraMushrooms(f); break;
-            case "lilypads": FloraLilypads(f); break;
-            case "groundcover": FloraGroundcover(f); break;
-            default: FloraTuft(f); break;
-        }
+        return new FloraCtx(p, spec, rand, leaf, dark, accents, ink, count);
     }
 
     sealed record FloraCtx(

@@ -1,0 +1,22 @@
+{
+  "label": "Březový kmen",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland",
+    "alpine"
+  ],
+  "height": 1.2,
+  "footprint": 1.3,
+  "detail": {
+    "form": "log",
+    "length": [
+      16,
+      22
+    ],
+    "width": 5,
+    "leaf": "#e4ddd0",
+    "leafDark": "#4e463e",
+    "ink": 0.6
+  }
+}

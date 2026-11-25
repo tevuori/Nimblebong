@@ -1,0 +1,22 @@
+{
+  "label": "Pařez",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland",
+    "swamp",
+    "alpine"
+  ],
+  "height": 1.2,
+  "detail": {
+    "form": "stump",
+    "radius": 7,
+    "leaf": "#7a5a3a",
+    "leafDark": "#4f3826",
+    "accents": [
+      "#6f8a45"
+    ],
+    "accentChance": 0.4,
+    "ink": 0.6
+  }
+}

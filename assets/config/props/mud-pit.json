@@ -1,0 +1,20 @@
+{
+  "label": "Bahniště",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "swamp",
+    "woodland"
+  ],
+  "height": 0,
+  "detail": {
+    "form": "puddle",
+    "radius": 16,
+    "leaf": "#4f4030",
+    "leafDark": "#4a3a28",
+    "accents": [
+      "#5a5a3a"
+    ],
+    "ink": 0.2
+  }
+}

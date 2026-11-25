@@ -1,0 +1,10 @@
+{
+  "label": "Mangrovník",
+  "base": "tree",
+  "category": "Porost a příroda",
+  "biomes": [
+    "swamp"
+  ],
+  "species": "mangrove",
+  "water": true
+}

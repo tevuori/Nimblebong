@@ -1,0 +1,16 @@
+{
+  "label": "Čedičový balvan",
+  "base": "rock",
+  "category": "Porost a příroda",
+  "biomes": [
+    "volcanic"
+  ],
+  "scale": 1.25,
+  "height": 1.2,
+  "palette": {
+    "stone": "#3d3a38"
+  },
+  "adjust": {
+    "saturation": 0.6
+  }
+}

@@ -65,6 +65,9 @@ public enum PropKind
     /// <summary>Parametric plant (grass, fern, flowers, reeds…) — shape
     /// from the prop definition's "flora" block (PropsFlora.cs).</summary>
     Flora,
+    /// <summary>Parametric map detail (log, stump, rubble, cairn…) — the
+    /// definition's "detail" block (PropsDetail.cs).</summary>
+    Detail,
 }
 
 /// <summary>One placed map object. Scale is a multiplier on the kind's

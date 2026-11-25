@@ -1,0 +1,27 @@
+{
+  "label": "Okřehek",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "swamp",
+    "woodland"
+  ],
+  "scale": 0.8,
+  "height": 0,
+  "water": true,
+  "flora": {
+    "form": "lilypads",
+    "count": [
+      10,
+      16
+    ],
+    "radius": 14,
+    "length": [
+      1.5,
+      3
+    ],
+    "leaf": "#7fae4a",
+    "leafDark": "#5a8a36",
+    "ink": 0
+  }
+}

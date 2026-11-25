@@ -1,0 +1,27 @@
+{
+  "label": "Ledové krápníky",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "alpine"
+  ],
+  "height": 3.5,
+  "detail": {
+    "form": "stalagmite",
+    "radius": 10,
+    "count": [
+      3,
+      5
+    ],
+    "length": [
+      5,
+      9
+    ],
+    "leaf": "#cfe6f0",
+    "leafDark": "#7fa3b8",
+    "accents": [
+      "#ffffff"
+    ],
+    "ink": 0.5
+  }
+}

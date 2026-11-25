@@ -1,0 +1,10 @@
+{
+  "label": "Bříza",
+  "base": "tree",
+  "category": "Porost a příroda",
+  "biomes": [
+    "woodland",
+    "alpine"
+  ],
+  "species": "birch"
+}

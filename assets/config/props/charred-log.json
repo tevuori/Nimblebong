@@ -1,0 +1,24 @@
+{
+  "label": "Ohořelý kmen",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "volcanic"
+  ],
+  "height": 1.2,
+  "footprint": 1.4,
+  "detail": {
+    "form": "log",
+    "length": [
+      16,
+      24
+    ],
+    "width": 6,
+    "leaf": "#3a3230",
+    "leafDark": "#1c1816",
+    "accents": [
+      "#e0702a"
+    ],
+    "ink": 0.6
+  }
+}

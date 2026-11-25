@@ -1,0 +1,20 @@
+{
+  "label": "Ohořelý pařez",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "volcanic"
+  ],
+  "height": 1.2,
+  "detail": {
+    "form": "stump",
+    "radius": 7,
+    "leaf": "#3a3230",
+    "leafDark": "#1c1816",
+    "accents": [
+      "#e0702a"
+    ],
+    "accentChance": 0.5,
+    "ink": 0.6
+  }
+}

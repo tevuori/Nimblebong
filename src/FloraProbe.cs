@@ -3,7 +3,7 @@
 // with its id as a label. Right: a pond, a river and a hill run through
 // SmartFill (all fill.json layers). Renders through the real SceneView
 // stack. Env: DMMAP_BIOME (default woodland), DMMAP_SEASON, DMMAP_OUT
-// (default /tmp/godot-flora-<biome>.png).
+// (default /tmp/godot-flora-<biome>.png), DMMAP_CATEGORY (gallery filter).
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -19,7 +19,9 @@ public partial class FloraProbe : Node2D
         scene.Season = System.Environment.GetEnvironmentVariable("DMMAP_SEASON");
 
         // Gallery — 4 columns, big scale so details read.
+        var cat = System.Environment.GetEnvironmentVariable("DMMAP_CATEGORY");
         var defs = PropDefs.ForBiome(biome)
+            .Where(d => cat == null || d.Category.Contains(cat))
             .OrderBy(d => d.Base == PropKind.Flora ? 0 : 1)
             .ThenBy(d => d.Id)
             .ToList();

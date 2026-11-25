@@ -1,0 +1,24 @@
+{
+  "label": "Pískovcová suť",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "desert"
+  ],
+  "height": 0.8,
+  "detail": {
+    "form": "rubble",
+    "radius": 12,
+    "count": [
+      7,
+      12
+    ],
+    "length": [
+      3,
+      6
+    ],
+    "leaf": "#c99a62",
+    "leafDark": "#8a6440",
+    "ink": 0.5
+  }
+}

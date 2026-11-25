@@ -1,0 +1,25 @@
+{
+  "label": "Ojíněná tráva",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "alpine"
+  ],
+  "scale": 0.6,
+  "flora": {
+    "form": "tuft",
+    "count": [
+      10,
+      14
+    ],
+    "radius": 8,
+    "length": [
+      5,
+      9
+    ],
+    "width": 1.2,
+    "leaf": "#b9cbc6",
+    "leafDark": "#6f8580",
+    "ink": 0
+  }
+}
