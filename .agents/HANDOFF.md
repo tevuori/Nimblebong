@@ -3,6 +3,31 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (5) — Devin, merge do `main` + smart fill a zkratky
+
+**Hotovo:**
+- Zmergované větve `enhance/nimblehold-98` (`a5542d1`) a
+  `feat/enhance-visuals` (`2113a40`) do `main`. Konflikt v
+  `SceneView.SetRocks` vyřešen tak, že se zachovala velikost ripple/foam
+  podle scale a zároveň detekce všech rock definic přes `MapProp`.
+- Smart fill teď používá všech 75 JSON prop definic; doplněny poslední
+  dvě chybějící (`daisies`, `overgrown-ruin`) do vhodných kontextů
+  v `assets/config/fill.json`.
+- Klávesové zkratky editoru: Ctrl+S Smart výplň, Ctrl+Shift+S uložit,
+  Ctrl+R/Ctrl+Shift+R rotace výběru, Ctrl+A výběr všeho, Enter potvrdí
+  náhled výplně, šipky posouvají výběr nebo kameru, +/− zoom, Ctrl+0
+  reset pohledu. V action baru je dialog „Zkratky“ s českou nápovědou.
+
+**Ověření:**
+- `dotnet build --no-incremental` → 0 errors (17 známých warnings).
+- `DMMAP_PROBE=1` editor self-test prošel.
+- `scenes/probe-flora.tscn` prošla pro všech 6 biomů bez chyb; woodland
+  smart fill už generuje i `daisies`.
+
+**Pozor:** `Ctrl+S` je podle přání uživatele Smart výplň; uložení je proto
+`Ctrl+Shift+S` a pořád i tlačítko „Uložit“. Lokální `main` je před
+`origin/main`, zatím nepushnuto.
+
 ## 2026-11-25 (4) — Claude Code (Opus 5.5), `feat/enhance-visuals`
 
 **Hotovo:**

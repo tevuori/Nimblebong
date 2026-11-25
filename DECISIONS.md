@@ -268,3 +268,20 @@ víc masivů stejné výšky.
 - ref-06/09 byly kompozičně přestavěny a vyžadují další vizuální iteraci
   detailů; ref-10 má správný ink crack směr, ale rozloha skalisek je stále
   širší než v referenci.
+
+
+## Merge visual větve a editorové zkratky (2026-11-25, Devin)
+
+- Při merge `feat/enhance-visuals` zůstala scale-aware verze vodních
+  ripple/foam kolem kamenů, ale detekce kamenů používá `MapProp`, takže
+  se do vody započítávají i JSON varianty (`mossy-boulder`, `cave-boulder`,
+  `sandstone-boulder`…), ne jen vestavěný `rock`.
+- Smart fill zůstává datově řízený přes `assets/config/fill.json`; nové
+  propracované JSON assety se nepřidávají do C# tabulek. Po doplnění
+  `daisies` a `overgrown-ruin` je v tabulkách použitých všech 75 definic.
+- `Ctrl+S` je vyhrazené pro Smart výplň podle uživatelského požadavku.
+  Protože jde jinak o běžnou zkratku uložení, uložení má explicitně
+  `Ctrl+Shift+S` a obě zkratky jsou zdokumentované v dialogu „Zkratky“.
+- Enter je kontextový: v režimu výplně potvrdí dostupný náhled, jinde
+  dál zapisuje kreslení po bodech. Šipky bez výběru panují kameru,
+  s výběrem posouvají prvky jako samostatné undo kroky.

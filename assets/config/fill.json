@@ -67,6 +67,7 @@
             "tent": 0.05,
             "campfire": 0.05,
             "ruin": 0.04,
+            "overgrown-ruin": 0.03,
             "stonecircle": 0.02,
             "statue": 0.02,
             "mossy-boulder": 0.3,
@@ -217,6 +218,7 @@
             "meadow-patch": 0.5,
             "dandelion-patch": 0.35,
             "daisy-patch": 0.3,
+            "daisies": 0.4,
             "poppy-patch": 0.25,
             "bluebell-patch": 0.2,
             "cornflower-patch": 0.15,
@@ -241,6 +243,7 @@
             "heather": 1,
             "dandelion-patch": 0.4,
             "poppy-patch": 0.3,
+            "daisies": 0.35,
             "dandelions": 0.5,
             "poppies": 0.4
           }
@@ -278,6 +281,7 @@
             "wildflowers": 0.6,
             "dry-grass": 1,
             "tulip-patch": 0.3,
+            "daisies": 0.25,
             "sunflower-patch": 0.2,
             "lavender-patch": 0.2
           }

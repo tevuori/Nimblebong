@@ -127,7 +127,7 @@ public partial class MapEditor : Node2D
     /// toolDescriptions (scene-presets.ts), Czech.</summary>
     static readonly Dictionary<string, string> ToolDesc = new()
     {
-        ["select"] = "Klikni pro výběr prvku, táhni pro přesun. Delete smaže, Esc zruší výběr. U terénu upravíš parametry posuvníky.",
+        ["select"] = "Klikni pro výběr prvku, táhni pro přesun. Ctrl+A vybere vše, Ctrl+R otáčí (Ctrl+Shift+R opačně), šipky posouvají. Delete smaže, Esc zruší výběr. U terénu upravíš parametry posuvníky.",
         ["erase"] = "Guma — táhni přes prvky, které chceš smazat.",
         ["terrain"] = "Vymez horní hranu návrší — skalní svah se vykreslí v pásmu ven z obrysu. Kopečky ve stejné výšce se slévají v jeden masiv, různé výšky se skládají do teras. Cesta přes hranu dostane schody, řeka vodopád.",
         ["veg-brush"] = "Táhni přes mapu a štětec nasází vybranou rostlinu v trsech. Směs vybírá podle okolí — u vody rákos, ve vodě lekníny, jinde tráva a květiny (fill.json).",
@@ -182,7 +182,7 @@ public partial class MapEditor : Node2D
         ["label"] = "Klikni pro umístění popisku — zadáš text v dialogu.",
         ["fog-clear"] = "Odhaluj mapu — táhni přes oblasti, které mají hráči vidět.",
         ["fog-shroud"] = "Zahaluj mapu mlhou — táhni přes oblasti, které se mají skrýt.",
-        ["fill"] = "Táhni obdélník přes oblast — naplní ji propy podle těch, co v ní už stojí (nebo vygeneruje krajinu/dungeon). Náhled se ukáže rovnou, tlačítko Vyplnit připíše jako jeden krok historie.",
+        ["fill"] = "Táhni obdélník přes oblast — naplní ji propy podle těch, co v ní už stojí (nebo vygeneruje krajinu/dungeon). Ctrl+S přepne na Smart výplň, Enter potvrdí náhled jako jeden krok historie.",
         ["play"] = "Náhled hraní — značky se zobrazí jako herní žetony (Spawn/Hráči/Nepřítel) a dají se přetahovat jako ve hře.",
     };
 
@@ -1120,11 +1120,30 @@ public partial class MapEditor : Node2D
                         ClearSelection();
                 }
                 else if (k.Keycode == Key.Enter || k.Keycode == Key.KpEnter)
-                    CommitClickStroke();
+                {
+                    if (_tool.Mode == Mode.Fill && _fillRect != null && !_fillCommit.Disabled)
+                        CommitFill();
+                    else
+                        CommitClickStroke();
+                }
                 else if (k.Keycode == Key.D && k.CtrlPressed)
                     DuplicateSelection();
-                else if (k.Keycode == Key.R && !k.CtrlPressed)
+                else if (k.Keycode == Key.A && k.CtrlPressed)
+                    SelectAll();
+                else if (k.Keycode == Key.S && k.CtrlPressed && k.ShiftPressed)
+                    Save();
+                else if (k.Keycode == Key.S && k.CtrlPressed)
+                    ActivateSmartFill();
+                else if (k.Keycode == Key.R)
                     RotateSelection(k.ShiftPressed ? -Math.PI / 12 : Math.PI / 12);
+                else if (k.Keycode is Key.Left or Key.Right or Key.Up or Key.Down)
+                    NudgeOrPan(k);
+                else if (k.Keycode is Key.Equal or Key.KpAdd)
+                    ZoomAt(GetViewportRect().Size / 2, 1.15);
+                else if (k.Keycode is Key.Minus or Key.KpSubtract)
+                    ZoomAt(GetViewportRect().Size / 2, 1 / 1.15);
+                else if (k.Keycode == Key.Key0 && k.CtrlPressed)
+                    ResetView();
                 else if (k.Keycode == Key.V && !k.CtrlPressed)
                     SetTool("select");
                 else if (k.Keycode == Key.E && !k.CtrlPressed)
@@ -1252,6 +1271,79 @@ public partial class MapEditor : Node2D
             if (_tool.Mode == Mode.Prop && _stroke.Count > 1 && _stroke[^1].DistanceTo(_stroke[^2]) > 45)
                 PlacePropAt(p);
         }
+    }
+
+    /// <summary>Ctrl+S — switch the region fill to its context-aware
+    /// Smart mode. With a rectangle already dragged it regenerates the
+    /// preview immediately; otherwise the next drag uses Smart.</summary>
+    void ActivateSmartFill()
+    {
+        if (_tool.Mode != Mode.Fill)
+            SetTool("fill");
+        _fillMode.Selected = 3;
+        if (_fillRect != null)
+            RunFill();
+    }
+
+    /// <summary>Ctrl+A — select every map element, ready for a group
+    /// move/rotate/delete. Switches to the select tool so the selection
+    /// gestures are active too.</summary>
+    void SelectAll()
+    {
+        SetTool("select");
+        ClearSelection();
+        var scene = _view.Scene;
+        _selProps.AddRange(scene.Props);
+        _selStrokes.AddRange(scene.Strokes);
+        _selShapes.AddRange(scene.Shapes);
+        SnapshotBackups();
+        SyncSlidersToSelection();
+        UpdateSelectionGhost();
+        UpdateToolUi();
+    }
+
+    /// <summary>Arrow keys nudge the selection (Shift = larger step);
+    /// without a selection they pan the camera.</summary>
+    void NudgeOrPan(InputEventKey k)
+    {
+        var step = k.ShiftPressed ? 24 : 6;
+        var d = k.Keycode switch
+        {
+            Key.Left => new Vector2(-step, 0),
+            Key.Right => new Vector2(step, 0),
+            Key.Up => new Vector2(0, -step),
+            _ => new Vector2(0, step),
+        };
+        if (!HasSelection())
+        {
+            _camera.Position += d * 6 / _camera.Zoom;
+            return;
+        }
+        var propIds = _selProps.Select(pr => pr.Id).ToHashSet();
+        var strokeIds = _selStrokes.Select(st => st.Id).ToHashSet();
+        var shapeIds = _selShapes.Select(sh => sh.Id).ToHashSet();
+        Commit(scene =>
+        {
+            foreach (var pr in scene.Props.Where(q => propIds.Contains(q.Id)))
+            {
+                pr.X += d.X;
+                pr.Y += d.Y;
+            }
+            foreach (var st in scene.Strokes.Where(q => strokeIds.Contains(q.Id)))
+            for (var i = 0; i < st.Points.Count; i++)
+                st.Points[i] += d;
+            foreach (var sh in scene.Shapes.Where(q => shapeIds.Contains(q.Id)))
+            for (var i = 0; i < sh.Points.Count; i++)
+                sh.Points[i] += d;
+        });
+        RefreshSelection();
+    }
+
+    /// <summary>Ctrl+0 — return to the default whole-map view.</summary>
+    void ResetView()
+    {
+        _camera.Position = MapSize / 2;
+        _camera.Zoom = Vector2.One;
     }
 
     /// <summary>Enter commits the click-point polyline through the same
@@ -2536,6 +2628,24 @@ public partial class MapEditor : Node2D
         ActionButton(actions, "Načíst", Load);
         ActionButton(actions, "Export PNG", ExportPng);
         ActionButton(actions, "Odeslat do DR", () => _bridge?.PopupCentered());
+        var shortcuts = new AcceptDialog
+        {
+            Title = "Klávesové zkratky",
+            DialogText = "Ctrl+S — Smart výplň\n"
+                + "Ctrl+Shift+S — uložit mapu\n"
+                + "Ctrl+A — vybrat vše\n"
+                + "Ctrl+D — duplikovat výběr\n"
+                + "Ctrl+R — otočit výběr (Ctrl+Shift+R opačně)\n"
+                + "Šipky — posunout výběr; bez výběru posunout mapu\n"
+                + "Enter — potvrdit náhled výplně nebo kreslení po bodech\n"
+                + "Ctrl+Z / Ctrl+Shift+Z — zpět / znovu\n"
+                + "+ / − — přiblížit / oddálit, Ctrl+0 — celá mapa\n"
+                + "Mezerník, prostřední nebo pravé tlačítko — posun mapy\n"
+                + "V / E / F / H — výběr / guma / výplň / hraní\n"
+                + "Delete — smazat výběr, Esc — zrušit výběr nebo tah",
+        };
+        layer.AddChild(shortcuts);
+        ActionButton(actions, "Zkratky", () => shortcuts.PopupCentered());
         ActionButton(actions, "Nový", () =>
             Commit(scene =>
             {
