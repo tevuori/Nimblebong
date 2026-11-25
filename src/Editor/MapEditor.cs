@@ -139,6 +139,7 @@ public partial class MapEditor : Node2D
     OptionButton _modelOpt = null!;
     OptionButton _bridgeOpt = null!;
     VBoxContainer _terrainSection = null!;
+    VBoxContainer _fogSection = null!;
     LineEdit _seedEdit = null!;
     OptionButton _presetOpt = null!;
 
@@ -1250,6 +1251,8 @@ public partial class MapEditor : Node2D
             _terrainSection.Visible = _tool.Kind == Kinds.Terrain;
         if (_bridgeOpt != null)
             _bridgeOpt.Visible = _tool.Kind == Kinds.Road;
+        if (_fogSection != null)
+            _fogSection.Visible = _tool.Mode == Mode.Fog;
     }
 
     /// <summary>Categorized tool browser — Nimblehold-style sections,
@@ -1365,6 +1368,21 @@ public partial class MapEditor : Node2D
             _bridgeOpt.AddItem(name);
         _bridgeOpt.ItemSelected += i => _roadModel = (int)i;
         box.AddChild(_bridgeOpt);
+
+        _fogSection = new VBoxContainer();
+        box.AddChild(_fogSection);
+        _fogSection.AddChild(new Label { Text = "Mlha" });
+        var shroudAll = new Button { Text = "Zahalit celou mapu" };
+        shroudAll.Pressed += () => Commit(scene => scene.FogCoverAll = true);
+        _fogSection.AddChild(shroudAll);
+        var revealAll = new Button { Text = "Odkrýt celou mapu" };
+        revealAll.Pressed += () =>
+            Commit(scene =>
+            {
+                scene.FogCoverAll = false;
+                scene.Fog.RemoveAll(t => t.Kind == "shroud");
+            });
+        _fogSection.AddChild(revealAll);
         UpdateToolUi();
 
         box.AddChild(new HSeparator());

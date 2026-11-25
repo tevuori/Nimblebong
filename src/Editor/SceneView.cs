@@ -190,6 +190,7 @@ public partial class SceneView : Node2D
 
         // Fog mask — repainted in place each commit.
         Stage.Fog.Strokes = Scene.Fog;
+        Stage.Fog.CoverAll = Scene.FogCoverAll;
         Stage.Fog.QueueRedraw();
 
         Mood.ApplyTo(Stage);

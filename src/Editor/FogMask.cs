@@ -12,11 +12,13 @@ public partial class FogMask : Node2D
 {
     public Vector2 MapSize;
     public List<Stroke> Strokes = [];
+    /// <summary>Base state — true = whole map shrouded, clear strokes
+    /// punch holes; false = whole map revealed, shroud strokes cover.</summary>
+    public bool CoverAll;
 
     public override void _Draw()
     {
-        // Start fully shrouded.
-        DrawRect(new Rect2(Vector2.Zero, MapSize), Colors.Black);
+        DrawRect(new Rect2(Vector2.Zero, MapSize), CoverAll ? Colors.Black : Colors.White);
         foreach (var s in Strokes)
         {
             var col = s.Kind == "clear" ? Colors.White : Colors.Black;

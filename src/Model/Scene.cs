@@ -221,8 +221,13 @@ public class Scene
     public List<Shape> Shapes = [];
     public List<Stroke> Strokes = [];
     /// <summary>Fog-of-war strokes — "clear" reveals, "shroud" covers.
-    /// The map starts fully shrouded; strokes apply in order.</summary>
+    /// The map starts revealed unless FogCoverAll is set; strokes apply
+    /// in order on top of the base state.</summary>
     public List<Stroke> Fog = [];
+    /// <summary>When true the map starts fully shrouded and "clear"
+    /// strokes punch holes; otherwise it starts revealed and "shroud"
+    /// strokes cover.</summary>
+    public bool FogCoverAll;
     public List<Prop> Props = [];
 
     public int AllocId() => NextId++;
@@ -241,6 +246,7 @@ public class Scene
             Shapes = [.. Shapes.Select(s => s.DeepClone())],
             Strokes = [.. Strokes.Select(s => s.DeepClone())],
             Fog = [.. Fog.Select(s => s.DeepClone())],
+            FogCoverAll = FogCoverAll,
             Props = [.. Props.Select(p => p.DeepClone())],
         };
 
@@ -258,6 +264,7 @@ public class Scene
         && Shapes.Count == o.Shapes.Count
         && Strokes.Count == o.Strokes.Count
         && Fog.Count == o.Fog.Count
+        && FogCoverAll == o.FogCoverAll
         && Props.Count == o.Props.Count
         && Shapes.Zip(o.Shapes).All(p => ShapeEq(p.First, p.Second))
         && Strokes.Zip(o.Strokes).All(p => StrokeEq(p.First, p.Second))

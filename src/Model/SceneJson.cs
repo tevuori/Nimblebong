@@ -81,6 +81,8 @@ public static class SceneJson
                 w.WriteEndObject();
             }
             w.WriteEndArray();
+            if (scene.FogCoverAll)
+                w.WriteBoolean("fogCoverAll", true);
             w.WritePropertyName("fog");
             w.WriteStartArray();
             foreach (var s in scene.Fog)
@@ -220,6 +222,8 @@ public static class SceneJson
                     roadRiverPoints += stroke.Points.Count;
                 scene.Strokes.Add(stroke);
             }
+            if (root.TryGetProperty("fogCoverAll", out var fca) && fca.ValueKind == JsonValueKind.True)
+                scene.FogCoverAll = true;
             foreach (var el in Members(root, "fog", warn))
             {
                 var fog = ReadFog(el, scene, warn);
