@@ -1,0 +1,35 @@
+{
+  "label": "Rozkvetlá louka",
+  "base": "flora",
+  "category": "Květiny",
+  "biomes": [
+    "woodland",
+    "alpine"
+  ],
+  "scale": 1.0,
+  "height": 0.6,
+  "flora": {
+    "form": "flowerpatch",
+    "count": [
+      20,
+      28
+    ],
+    "radius": 16,
+    "length": [
+      4,
+      7
+    ],
+    "width": 0.9,
+    "leaf": "@foliage",
+    "heads": [
+      "dandelion",
+      "daisy",
+      "poppy",
+      "cornflower",
+      "clover",
+      "simple"
+    ],
+    "underlay": 0.5,
+    "ink": 0
+  }
+}

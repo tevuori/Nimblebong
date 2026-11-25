@@ -162,7 +162,17 @@
             "dry-grass": 2.5,
             "desert-scrub": 1.4,
             "ash-grass": 2,
-            "glowcaps": 1
+            "glowcaps": 1,
+            "meadow-patch": 0.5,
+            "dandelion-patch": 0.35,
+            "daisy-patch": 0.3,
+            "poppy-patch": 0.25,
+            "bluebell-patch": 0.2,
+            "cornflower-patch": 0.15,
+            "clover-patch": 0.3,
+            "lavender-patch": 0.15,
+            "poppies": 0.3,
+            "dandelions": 0.4
           }
         },
         "roadside": {
@@ -172,7 +182,11 @@
             "wildflowers": 1.2,
             "clover": 1.2,
             "dry-grass": 2,
-            "heather": 1
+            "heather": 1,
+            "dandelion-patch": 0.4,
+            "poppy-patch": 0.3,
+            "dandelions": 0.5,
+            "poppies": 0.4
           }
         },
         "shore": {
@@ -201,7 +215,10 @@
           "kinds": {
             "grass-tuft": 1,
             "wildflowers": 0.6,
-            "dry-grass": 1
+            "dry-grass": 1,
+            "tulip-patch": 0.3,
+            "sunflower-patch": 0.2,
+            "lavender-patch": 0.2
           }
         },
         "shallows": {

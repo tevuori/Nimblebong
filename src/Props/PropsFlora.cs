@@ -42,6 +42,7 @@ public partial class PropsPainter
         {
             case "fern": FloraFern(f); break;
             case "flowers": FloraFlowers(f); break;
+            case "flowerpatch": FloraFlowerPatch(f); break;
             case "reeds": FloraReeds(f); break;
             case "mushrooms": FloraMushrooms(f); break;
             case "lilypads": FloraLilypads(f); break;
@@ -142,15 +143,7 @@ public partial class PropsPainter
         for (var i = 0; i < heads; i++)
         {
             var c = Polar(f.R.Next() * Math.PI * 2, f.S.Radius * Math.Sqrt(f.R.Next()) * 0.75);
-            var petal = f.Accent();
-            var r = f.S.AccentSize * f.R.Range(0.8, 1.2);
-            var turn = f.R.Next() * Math.PI;
-            for (var k = 0; k < 5; k++)
-            {
-                var pc = c + Polar(turn + k / 5.0 * Math.PI * 2, r * 0.75);
-                DrawCircle(Xform(f.P, pc), W(f, r * 0.62), petal);
-            }
-            DrawCircle(Xform(f.P, c), W(f, r * 0.42), Palette.Mix(petal, Palette.Hex("#e0a020"), 0.6));
+            FlowerHead(f, c, PickHead(f));
         }
     }
 

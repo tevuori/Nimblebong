@@ -75,7 +75,7 @@ public class PropDef
 public class FloraSpec
 {
     public static readonly string[] Forms =
-        ["tuft", "fern", "flowers", "reeds", "mushrooms", "lilypads", "groundcover"];
+        ["tuft", "fern", "flowers", "flowerpatch", "reeds", "mushrooms", "lilypads", "groundcover"];
 
     public string Form = "tuft";
     /// <summary>Blades / fronds / stems / caps / pads / blobs, min–max.</summary>
@@ -97,6 +97,13 @@ public class FloraSpec
     public double AccentChance = 0.5;
     /// <summary>Ink outline strength 0–1.</summary>
     public double Ink = 0.4;
+    /// <summary>Flower head styles (flowers.json ids) for flowers /
+    /// flowerpatch — picked per stem; empty = "simple".</summary>
+    public List<string> Heads = [];
+    /// <summary>Grass under a flower patch, 0–1.</summary>
+    public double Underlay = 0.5;
+    /// <summary>Dandelions shown as seed clocks, 0–1.</summary>
+    public double PuffChance = 0.15;
 }
 
 public static class PropDefs
@@ -299,7 +306,7 @@ public static class PropDefs
         Warn(f, path,
         [
             "form", "count", "radius", "length", "width", "leaf", "leafDark",
-            "accents", "accentSize", "accentChance", "ink",
+            "accents", "accentSize", "accentChance", "ink", "heads", "underlay", "puffChance",
         ]);
         var spec = new FloraSpec();
         var form = Get(f, "form");
@@ -328,6 +335,21 @@ public static class PropDefs
         spec.AccentSize = Num(f, "accentSize", spec.AccentSize, err, path, min: 0);
         spec.AccentChance = Num(f, "accentChance", spec.AccentChance, err, path, min: 0, max: 1);
         spec.Ink = Num(f, "ink", spec.Ink, err, path, min: 0, max: 1);
+        spec.Underlay = Num(f, "underlay", spec.Underlay, err, path, min: 0, max: 1);
+        spec.PuffChance = Num(f, "puffChance", spec.PuffChance, err, path, min: 0, max: 1);
+        if (f.ContainsKey("heads"))
+        {
+            if (f["heads"].VariantType != Variant.Type.Array)
+                err.Add($"{path}.heads: expected array of {string.Join("/", FlowerStyles.Heads)}");
+            else
+                foreach (var h in f["heads"].AsGodotArray())
+                {
+                    if (IsStr(h) && FlowerStyles.Heads.Contains(h.AsString()))
+                        spec.Heads.Add(h.AsString());
+                    else
+                        err.Add($"{path}.heads[]: expected {string.Join("/", FlowerStyles.Heads)}");
+                }
+        }
         string? Color(string key)
         {
             if (!f.ContainsKey(key))

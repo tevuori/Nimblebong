@@ -15,7 +15,7 @@ public partial class FloraProbe : Node2D
     public override void _Ready()
     {
         var biome = System.Environment.GetEnvironmentVariable("DMMAP_BIOME") ?? "woodland";
-        var scene = new Scene { Width = 1400, Height = 820, Biome = biome };
+        var scene = new Scene { Width = 1400, Height = 1180, Biome = biome };
         scene.Season = System.Environment.GetEnvironmentVariable("DMMAP_SEASON");
 
         // Gallery — 4 columns, big scale so details read.
@@ -25,9 +25,9 @@ public partial class FloraProbe : Node2D
             .ToList();
         for (var i = 0; i < defs.Count; i++)
         {
-            var (col, row) = (i % 4, i / 4);
-            var x = 70 + col * 120;
-            var y = 70 + row * 120;
+            var (col, row) = (i % 5, i / 5);
+            var x = 56 + col * 108;
+            var y = 50 + row * 108;
             scene.Props.Add(new Prop
             {
                 Id = scene.AllocId(), Kind = defs[i].Id, X = x, Y = y,
@@ -35,7 +35,7 @@ public partial class FloraProbe : Node2D
             });
             scene.Props.Add(new Prop
             {
-                Id = scene.AllocId(), Kind = "label", X = x, Y = y + 48, Scale = 14,
+                Id = scene.AllocId(), Kind = "label", X = x, Y = y + 40, Scale = 13,
                 Text = defs[i].Id,
             });
         }
@@ -72,11 +72,11 @@ public partial class FloraProbe : Node2D
         for (var k = 0; k < 16; k++)
         {
             var a = k / 16f * Mathf.Tau;
-            pond2.Add(new Vector2(260 + Mathf.Cos(a) * 70, 660 + Mathf.Sin(a) * 45));
+            pond2.Add(new Vector2(260 + Mathf.Cos(a) * 70, 1060 + Mathf.Sin(a) * 45));
         }
         scene.Shapes.Add(new Shape { Id = scene.AllocId(), Kind = Kinds.Pond, Points = pond2 });
-        MapEditor.PlantAlong(scene, [new(60, 520), new(110, 530), new(160, 545)], 26, 0.8, "mushrooms", biome);
-        MapEditor.PlantAlong(scene, [new(180, 610), new(260, 600), new(340, 615), new(350, 690), new(260, 715)], 40, 0.7, null, biome);
+        MapEditor.PlantAlong(scene, [new(60, 920), new(110, 930), new(160, 945)], 26, 0.8, "mushrooms", biome);
+        MapEditor.PlantAlong(scene, [new(180, 1010), new(260, 1000), new(340, 1015), new(350, 1090), new(260, 1115)], 40, 0.7, null, biome);
         var byKind = fill.Props.GroupBy(p => p.Kind).OrderByDescending(g => g.Count())
             .Select(g => $"{g.Key}={g.Count()}");
         GD.Print($"FLORA biome={biome} defs={defs.Count} fill={fill.Props.Count}: {string.Join(" ", byKind)}");
