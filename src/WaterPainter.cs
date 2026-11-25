@@ -70,33 +70,57 @@ public partial class WaterPainter : Node2D
 
     public override void _Draw()
     {
-        foreach (var (run, w) in _rivers)
-            DrawRiver(run, w);
-        foreach (var (run, w) in _roads)
-            DrawRoad(run, w);
+        DrawRiverGroup();
+        DrawRoadGroup();
     }
 
-    void DrawRiver(Vector2[] run, double w)
+    /// <summary>Union a list of stroke ribbons into clean surface pieces —
+    /// crossing strokes merge into one body, disjoint strokes stay separate
+    /// (TS unionCached). Self-merge repairs bow-ties at tight bends.</summary>
+    static List<Vector2[]> UnionAll(IReadOnlyList<(Vector2[] Run, double Width)> strokes, double delta)
+    {
+        var polys = new List<Vector2[]>();
+        foreach (var (run, w) in strokes)
+        {
+            var poly = Spline.StrokePolygon(run, Math.Max(3, w + delta));
+            polys.AddRange(Geometry2D.MergePolygons(poly, poly));
+        }
+        return TerrainGeometry.Union([.. polys]);
+    }
+
+    void DrawRiverGroup()
     {
         var deep = Palette.Tint(Water, -22);
         var shallow = Palette.Tint(Water, 58);
-        var waterSeed = run[0].X * 0.13 + run[0].Y * 0.31;
+        // Bank stack per stroke — wide grassy verge, pale trodden edge,
+        // deep rim, inked shoreline. Drawn before the unioned fill so the
+        // merged water covers the seams inside a confluence (TS order).
+        foreach (var (run, w) in _rivers)
+        {
+            FillRibbon(Spline.StrokePolygon(run, w + 22), BankVerge);
+            FillRibbon(Spline.StrokePolygon(run, w + 18), BankEdge);
+            FillRibbon(Spline.StrokePolygon(run, w + 3), deep);
+            InkOutline(
+                Spline.StrokePolygon(run, w + 5),
+                Palette.Hex("#1d2b1c") with { A = 0.5f },
+                1.4f
+            );
+        }
+        // Unioned water surface — shallow rim, then center, then a darker
+        // core — so confluences read as one body of water.
+        foreach (var piece in UnionAll(_rivers, 0))
+            Fill(piece, shallow);
+        foreach (var piece in UnionAll(_rivers, -10))
+            Fill(piece, Water);
+        foreach (var piece in UnionAll(_rivers, -18))
+            Fill(piece, Palette.Tint(Water, -14));
+        foreach (var (run, w) in _rivers)
+            DrawRiverDetails(run, w);
+    }
 
-        // Bank stack — wide grassy verge, pale trodden edge, deep rim.
-        FillRibbon(Spline.StrokePolygon(run, w + 22), BankVerge);
-        FillRibbon(Spline.StrokePolygon(run, w + 18), BankEdge);
-        FillRibbon(Spline.StrokePolygon(run, w + 3), deep);
-        // Inked seam where bank meets water — the hand-drawn shoreline.
-        InkOutline(
-            Spline.StrokePolygon(run, w + 5),
-            Palette.Hex("#1d2b1c") with { A = 0.5f },
-            1.4f
-        );
-        // Water: shallow rim over the deep band, then the center and a
-        // darker core — the stepped depth gradient of the reference.
-        FillRibbon(Spline.StrokePolygon(run, w), shallow);
-        FillRibbon(Spline.StrokePolygon(run, Math.Max(3, w - 10)), Water);
-        FillRibbon(Spline.StrokePolygon(run, Math.Max(3, w - 18)), Palette.Tint(Water, -14));
+    void DrawRiverDetails(Vector2[] run, double w)
+    {
+        var waterSeed = run[0].X * 0.13 + run[0].Y * 0.31;
 
         // Watercolor mottle — sparse low-alpha blobs drifting inside the
         // channel so the fill reads washed, not flat.
@@ -300,18 +324,28 @@ public partial class WaterPainter : Node2D
         }
     }
 
-    void DrawRoad(Vector2[] run, double w)
+    void DrawRoadGroup()
     {
-        // Worn halo bleeding into the turf, then the packed verge.
-        FillRibbon(Spline.StrokePolygon(run, w + 34), RoadHalo);
-        FillRibbon(Spline.StrokePolygon(run, w + 13), RoadVerge);
-        InkOutline(
-            Spline.StrokePolygon(run, w + 13),
-            Palette.Hex("#4a3a1c") with { A = 0.35f },
-            1.2f
-        );
-        FillRibbon(Spline.StrokePolygon(run, w), RoadDirt);
+        // Worn halo + verge + inked verge outline per stroke; the surface
+        // fills once over the union so junctions read as crossroads.
+        foreach (var (run, w) in _roads)
+        {
+            FillRibbon(Spline.StrokePolygon(run, w + 34), RoadHalo);
+            FillRibbon(Spline.StrokePolygon(run, w + 13), RoadVerge);
+            InkOutline(
+                Spline.StrokePolygon(run, w + 13),
+                Palette.Hex("#4a3a1c") with { A = 0.35f },
+                1.2f
+            );
+        }
+        foreach (var piece in UnionAll(_roads, 0))
+            Fill(piece, RoadDirt);
+        foreach (var (run, w) in _roads)
+            DrawRoadDetails(run, w);
+    }
 
+    void DrawRoadDetails(Vector2[] run, double w)
+    {
         // Wheel ruts — two faint grooves at ±0.26w (TS offsetRun).
         var rut = Palette.TintAlpha(RoadDirt, -34, 0.35);
         DrawPolyline(Spline.Ink(Spline.OffsetLine(run, w * 0.26)), rut, 2f, true);

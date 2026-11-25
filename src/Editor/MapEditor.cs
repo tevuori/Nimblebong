@@ -234,6 +234,7 @@ public partial class MapEditor : Node2D
         // A river that cuts straight through the massif (waterfalls)
         // and a road crossing it (stairs) — exercises CrossingPainter.
         Commit(scene =>
+        {
             Interactions.AddStroke(
                 scene,
                 new Stroke
@@ -249,8 +250,27 @@ public partial class MapEditor : Node2D
                     ],
                     Width = 30,
                 }
-            )
-        );
+            );
+            // Second river crossing the first — confluence must read as
+            // one unioned water body, not stacked ribbons.
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.River,
+                    Points =
+                    [
+                        new(60, 620),
+                        new(420, 600),
+                        new(760, 640),
+                        new(1150, 600),
+                        new(1560, 650),
+                    ],
+                    Width = 22,
+                }
+            );
+        });
         Commit(scene =>
             Interactions.AddStroke(
                 scene,
