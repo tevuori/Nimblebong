@@ -1,0 +1,20 @@
+{
+  "protection": {
+    "enabled": true,
+    "padding": 6,
+    "clearOnPlace": true,
+    "kinds": {
+      "campfire": 1,
+      "well": 1,
+      "tent": 0.9,
+      "lantern": 1,
+      "marker": 1,
+      "portal": 1,
+      "fountain": 1,
+      "stall": 0.9,
+      "statue": 0.8,
+      "chest": 1
+    },
+    "except": ["label", "marker", "door", "window"]
+  }
+}

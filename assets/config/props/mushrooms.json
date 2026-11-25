@@ -1,0 +1,26 @@
+{
+  "label": "Muchomůrky",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "woodland",
+    "swamp"
+  ],
+  "scale": 0.55,
+  "flora": {
+    "form": "mushrooms",
+    "count": [
+      2,
+      5
+    ],
+    "radius": 8,
+    "leaf": "@foliage",
+    "accents": [
+      "#c8402e",
+      "#b5392a"
+    ],
+    "accentSize": 3.6,
+    "accentChance": 0.85,
+    "ink": 0.7
+  }
+}

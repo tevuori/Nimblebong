@@ -1,0 +1,9 @@
+{
+  "label": "Kaktus",
+  "base": "tree",
+  "category": "Porost a příroda",
+  "biomes": [
+    "desert"
+  ],
+  "species": "cactus"
+}

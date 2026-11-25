@@ -1,0 +1,25 @@
+{
+  "label": "Zasněžený trs",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "alpine"
+  ],
+  "scale": 0.6,
+  "flora": {
+    "form": "tuft",
+    "count": [
+      8,
+      12
+    ],
+    "radius": 7,
+    "length": [
+      4,
+      8
+    ],
+    "width": 1.3,
+    "leaf": "#e6eeef",
+    "leafDark": "#8fa3a8",
+    "ink": 0
+  }
+}

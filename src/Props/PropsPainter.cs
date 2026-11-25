@@ -157,6 +157,7 @@ public partial class PropsPainter : Node2D
     {
         foreach (var p in _props)
         {
+            BeginStyle(p);
             switch (p.Kind)
             {
                 case PropKind.Tree:
@@ -279,7 +280,14 @@ public partial class PropsPainter : Node2D
                 case PropKind.Bird:
                     DrawBird(p);
                     break;
+                case PropKind.Flora:
+                    DrawFlora(p);
+                    break;
+                case PropKind.Detail:
+                    DrawDetail(p);
+                    break;
             }
+            EndStyle(p);
         }
     }
 

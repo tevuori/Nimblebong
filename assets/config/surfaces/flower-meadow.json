@@ -1,0 +1,52 @@
+{
+  "label": "Rozkvetlá louka",
+  "biomes": [
+    "woodland",
+    "alpine"
+  ],
+  "fill": {
+    "color": "#8ab84f",
+    "alpha": 0.25,
+    "feather": 14
+  },
+  "patterns": [
+    {
+      "type": "dots",
+      "color": "#f6f3ea",
+      "alpha": 0.6,
+      "spacing": 10,
+      "size": 1
+    },
+    {
+      "type": "dots",
+      "color": "#f2d14b",
+      "alpha": 0.6,
+      "spacing": 13,
+      "size": 1.1
+    },
+    {
+      "type": "dots",
+      "color": "#d9534f",
+      "alpha": 0.55,
+      "spacing": 17,
+      "size": 1.1
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "meadow-patch",
+      "spacing": 45,
+      "chance": 0.5
+    },
+    {
+      "kind": "dandelion-patch",
+      "spacing": 70,
+      "chance": 0.25
+    },
+    {
+      "kind": "daisy-patch",
+      "spacing": 80,
+      "chance": 0.2
+    }
+  ]
+}

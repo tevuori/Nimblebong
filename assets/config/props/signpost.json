@@ -1,0 +1,26 @@
+{
+  "label": "Rozcestník",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland",
+    "alpine",
+    "desert",
+    "swamp",
+    "volcanic"
+  ],
+  "height": 2.5,
+  "protect": 0.6,
+  "detail": {
+    "form": "signpost",
+    "length": 12,
+    "width": 3,
+    "count": [
+      1,
+      3
+    ],
+    "leaf": "@wood",
+    "leafDark": "#4a3524",
+    "ink": 0.7
+  }
+}

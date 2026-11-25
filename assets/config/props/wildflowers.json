@@ -1,0 +1,29 @@
+{
+  "label": "Luční květiny",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "woodland",
+    "alpine"
+  ],
+  "scale": 0.65,
+  "flora": {
+    "form": "flowers",
+    "count": [
+      5,
+      8
+    ],
+    "radius": 8,
+    "leaf": "@foliage",
+    "accentSize": 1.7,
+    "accentChance": 0.6,
+    "ink": 0,
+    "heads": [
+      "simple",
+      "daisy",
+      "cornflower",
+      "poppy",
+      "dandelion"
+    ]
+  }
+}

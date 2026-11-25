@@ -62,6 +62,12 @@ public enum PropKind
     Butterfly,
     /// <summary>Soaring bird — a two-arc chevron high above (smart fill).</summary>
     Bird,
+    /// <summary>Parametric plant (grass, fern, flowers, reeds…) — shape
+    /// from the prop definition's "flora" block (PropsFlora.cs).</summary>
+    Flora,
+    /// <summary>Parametric map detail (log, stump, rubble, cairn…) — the
+    /// definition's "detail" block (PropsDetail.cs).</summary>
+    Detail,
 }
 
 /// <summary>One placed map object. Scale is a multiplier on the kind's
@@ -86,6 +92,9 @@ public class PropPlacement
     public string? Species;
     /// <summary>Caption — the "label" kind draws this.</summary>
     public string? Text;
+    /// <summary>JSON definition restyling the built-in drawer (null =
+    /// plain built-in kind). See PropDefs.</summary>
+    public PropDef? Def;
 
     public Vector2 Pos => new(X, Y);
 

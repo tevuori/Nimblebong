@@ -1,0 +1,30 @@
+{
+  "label": "Levandule",
+  "base": "flora",
+  "category": "Květiny",
+  "biomes": [
+    "woodland",
+    "desert"
+  ],
+  "scale": 1.0,
+  "height": 0.6,
+  "flora": {
+    "form": "flowerpatch",
+    "count": [
+      16,
+      24
+    ],
+    "radius": 16,
+    "length": [
+      4,
+      7
+    ],
+    "width": 0.9,
+    "leaf": "#7d8a5f",
+    "heads": [
+      "lavender"
+    ],
+    "underlay": 0.3,
+    "ink": 0
+  }
+}

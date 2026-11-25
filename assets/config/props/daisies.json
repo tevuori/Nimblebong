@@ -1,0 +1,24 @@
+{
+  "label": "Kopretina",
+  "base": "flora",
+  "category": "Květiny",
+  "biomes": [
+    "woodland",
+    "alpine"
+  ],
+  "scale": 0.85,
+  "flora": {
+    "form": "flowers",
+    "count": [
+      3,
+      5
+    ],
+    "radius": 7,
+    "leaf": "@foliage",
+    "heads": [
+      "daisy"
+    ],
+    "accentChance": 0.7,
+    "ink": 0
+  }
+}

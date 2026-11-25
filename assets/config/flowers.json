@@ -1,0 +1,83 @@
+{
+  "simple": {
+    "colors": [
+      "#f6f3ea",
+      "#f2d14b",
+      "#d9534f",
+      "#9b7fd1",
+      "#f29ac0"
+    ],
+    "size": 1.6
+  },
+  "dandelion": {
+    "colors": [
+      "#f5cf2a",
+      "#f7d93f",
+      "#eec21c"
+    ],
+    "size": 1.4
+  },
+  "poppy": {
+    "colors": [
+      "#d8342a",
+      "#e0452e",
+      "#c92a22"
+    ],
+    "size": 1.7
+  },
+  "daisy": {
+    "colors": [
+      "#f8f6ef",
+      "#f4f1e6"
+    ],
+    "size": 1.5
+  },
+  "bluebell": {
+    "colors": [
+      "#5c6fd1",
+      "#6f7fe0",
+      "#4f5fc0"
+    ],
+    "size": 1.4
+  },
+  "cornflower": {
+    "colors": [
+      "#3f6fe0",
+      "#4a7ff0",
+      "#5a5fd8"
+    ],
+    "size": 1.4
+  },
+  "lavender": {
+    "colors": [
+      "#7f52c4",
+      "#8f62d4",
+      "#6f46b0"
+    ],
+    "size": 1.9
+  },
+  "sunflower": {
+    "colors": [
+      "#f4c021",
+      "#f6cc35"
+    ],
+    "size": 2.8
+  },
+  "tulip": {
+    "colors": [
+      "#e0383a",
+      "#f2c12e",
+      "#f08fb0",
+      "#f6f0e6"
+    ],
+    "size": 1.7
+  },
+  "clover": {
+    "colors": [
+      "#f3e9ee",
+      "#e7b6d0",
+      "#d98fb8"
+    ],
+    "size": 1.2
+  }
+}

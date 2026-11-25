@@ -1,0 +1,10 @@
+{
+  "label": "Palma",
+  "base": "tree",
+  "category": "Porost a příroda",
+  "biomes": [
+    "desert",
+    "swamp"
+  ],
+  "species": "palm"
+}

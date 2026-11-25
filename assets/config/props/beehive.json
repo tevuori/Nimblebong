@@ -1,0 +1,20 @@
+{
+  "label": "Včelí úl",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland"
+  ],
+  "height": 1.8,
+  "detail": {
+    "form": "beehive",
+    "radius": 6,
+    "count": 5,
+    "leaf": "#d4a24a",
+    "leafDark": "#6a4a2c",
+    "accents": [
+      "#f2c12e"
+    ],
+    "ink": 0.6
+  }
+}

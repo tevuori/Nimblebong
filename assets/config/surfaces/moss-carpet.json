@@ -1,0 +1,46 @@
+{
+  "label": "Mechový koberec",
+  "biomes": [
+    "woodland",
+    "swamp",
+    "cavern"
+  ],
+  "fill": {
+    "color": "#4e7a3a",
+    "alpha": 0.45,
+    "feather": 10
+  },
+  "patterns": [
+    {
+      "type": "dots",
+      "color": "#6f9a4a",
+      "alpha": 0.55,
+      "spacing": 6,
+      "size": 1.8
+    },
+    {
+      "type": "dots",
+      "color": "#35552a",
+      "alpha": 0.4,
+      "spacing": 8,
+      "size": 1.4
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "clover",
+      "spacing": 40,
+      "chance": 0.25
+    },
+    {
+      "kind": "glowmoss",
+      "spacing": 30,
+      "chance": 0.4
+    },
+    {
+      "kind": "mushrooms",
+      "spacing": 80,
+      "chance": 0.2
+    }
+  ]
+}

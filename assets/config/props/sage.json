@@ -1,0 +1,30 @@
+{
+  "label": "Šalvěj",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "desert",
+    "alpine"
+  ],
+  "scale": 0.75,
+  "flora": {
+    "form": "groundcover",
+    "count": [
+      4,
+      6
+    ],
+    "radius": 9,
+    "length": [
+      4,
+      7
+    ],
+    "leaf": "#8f9a7a",
+    "leafDark": "#5e6650",
+    "accents": [
+      "#a68fd0"
+    ],
+    "accentSize": 0.9,
+    "accentChance": 0.3,
+    "ink": 0
+  }
+}

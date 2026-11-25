@@ -1,0 +1,19 @@
+{
+  "label": "Svatyně",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "height": 1.8,
+  "protect": 0.8,
+  "detail": {
+    "form": "shrine",
+    "radius": 8,
+    "count": 3,
+    "leaf": "@stone",
+    "leafDark": "#4a4a44",
+    "accents": [
+      "#ffd27a"
+    ],
+    "accentSize": 1.6,
+    "ink": 0.7
+  }
+}

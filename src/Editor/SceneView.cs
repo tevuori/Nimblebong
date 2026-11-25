@@ -142,6 +142,13 @@ public partial class SceneView : Node2D
         }
         AddLayer(Stage.AlbedoVp, areas);
         AddLayer(Stage.HeightVp, areaH);
+        // Ground surfaces (marsh, scree, dunes…) — JSON-defined washes
+        // over ponds/fields, under everything else.
+        var surfaces = new SurfacePainter { Biome = Biome };
+        foreach (var sh in Scene.Shapes)
+            if (SurfaceDefs.ForKind(sh.Kind) is { } sdef)
+                surfaces.Add(sdef, sh.Points);
+        AddLayer(Stage.AlbedoVp, surfaces);
 
         // Buildings & interiors — house/room/floor footprints with
         // roofs, wall rings and door/window openings carved from props.
@@ -201,7 +208,7 @@ public partial class SceneView : Node2D
             }
         }
         water.SetRocks(
-            Scene.Props.Where(p => p.Kind == Kinds.Rock).Select(p => (
+            Scene.Props.Where(p => MapProp(p.Kind) == PropKind.Rock).Select(p => (
                 new Vector2((float)p.X, (float)p.Y),
                 p.Scale
             ))
@@ -232,8 +239,9 @@ public partial class SceneView : Node2D
                     Model = p.Model,
                     Species = p.Species,
                     Text = p.Text,
-                }
+                }.WithDef(p.Kind)
             )
+            .Concat(SurfacePainter.ScatterProps(Scene, Biome.Id))
             .ToList();
         var propsPainter = new PropsPainter
         {
@@ -331,8 +339,18 @@ public partial class SceneView : Node2D
         ["label"] = PropKind.Label,
         ["butterfly"] = PropKind.Butterfly,
         ["bird"] = PropKind.Bird,
+        ["flora"] = PropKind.Flora,
+        ["detail"] = PropKind.Detail,
     };
 
+    /// <summary>Built-in kind names only (JSON definitions excluded).</summary>
+    public static bool TryMapBuiltinProp(string kind, out PropKind k) =>
+        PropKinds.TryGetValue(kind, out k);
+
+    /// <summary>Scene kind → drawer: built-in name, else the base of a
+    /// JSON prop definition (assets/config/props), else a marker.</summary>
     public static PropKind MapProp(string kind) =>
-        PropKinds.TryGetValue(kind, out var k) ? k : PropKind.Marker;
+        PropKinds.TryGetValue(kind, out var k) ? k
+        : PropDefs.TryGet(kind, out var def) ? def.Base
+        : PropKind.Marker;
 }

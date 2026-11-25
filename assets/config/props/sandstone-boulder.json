@@ -1,0 +1,13 @@
+{
+  "label": "Pískovcový balvan",
+  "base": "rock",
+  "category": "Porost a příroda",
+  "biomes": [
+    "desert"
+  ],
+  "scale": 1.25,
+  "height": 1.2,
+  "palette": {
+    "stone": "#c99a62"
+  }
+}

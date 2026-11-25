@@ -1,0 +1,12 @@
+{
+  "label": "Popelavý keř",
+  "base": "bush",
+  "category": "Porost a příroda",
+  "biomes": [
+    "volcanic"
+  ],
+  "adjust": {
+    "saturation": 0.25,
+    "value": 0.7
+  }
+}

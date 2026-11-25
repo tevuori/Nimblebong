@@ -35,14 +35,15 @@ public partial class GlowPainter : Node2D
             _ => Palette.Hex("#c4aef0"),
         };
         _emitters = scene
-            .Props.Where(p =>
-                p.Kind is "campfire" or "lantern" or "fireplace" or "crystal" or "portal" or "stonecircle"
+            .Props.Select(p => (P: p, Kind: PropDefs.BaseKind(p.Kind)))
+            .Where(q =>
+                q.Kind is "campfire" or "lantern" or "fireplace" or "crystal" or "portal" or "stonecircle"
             )
-            .Select(p => new Emitter(
-                new Vector2((float)p.X, (float)p.Y),
-                p.Scale,
-                p.Kind,
-                p.Seed
+            .Select(q => new Emitter(
+                new Vector2((float)q.P.X, (float)q.P.Y),
+                q.P.Scale,
+                q.Kind,
+                q.P.Seed
             ))
             .ToList();
         Visible = _emitters.Count > 0;

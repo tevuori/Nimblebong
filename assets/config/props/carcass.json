@@ -1,0 +1,14 @@
+{
+  "label": "Mršina",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "height": 0.4,
+  "detail": {
+    "form": "carcass",
+    "length": 22,
+    "width": 2,
+    "leaf": "#e8dfc8",
+    "leafDark": "#5a3a2a",
+    "ink": 0.5
+  }
+}

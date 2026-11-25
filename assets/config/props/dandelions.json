@@ -1,0 +1,25 @@
+{
+  "label": "Pampeliška",
+  "base": "flora",
+  "category": "Květiny",
+  "biomes": [
+    "woodland",
+    "alpine",
+    "swamp"
+  ],
+  "scale": 0.85,
+  "flora": {
+    "form": "flowers",
+    "count": [
+      3,
+      5
+    ],
+    "radius": 7,
+    "leaf": "@foliage",
+    "heads": [
+      "dandelion"
+    ],
+    "accentChance": 0.7,
+    "ink": 0
+  }
+}

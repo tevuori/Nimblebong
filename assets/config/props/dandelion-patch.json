@@ -1,0 +1,32 @@
+{
+  "label": "Pampelišky",
+  "base": "flora",
+  "category": "Květiny",
+  "biomes": [
+    "woodland",
+    "alpine",
+    "swamp"
+  ],
+  "scale": 1.0,
+  "height": 0.6,
+  "flora": {
+    "form": "flowerpatch",
+    "count": [
+      16,
+      24
+    ],
+    "radius": 16,
+    "length": [
+      4,
+      7
+    ],
+    "width": 0.9,
+    "leaf": "@foliage",
+    "heads": [
+      "dandelion"
+    ],
+    "underlay": 0.5,
+    "ink": 0,
+    "puffChance": 0.2
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "label": "Trnité křoví",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "desert",
+    "volcanic",
+    "alpine"
+  ],
+  "height": 1.4,
+  "footprint": 1.2,
+  "detail": {
+    "form": "bramble",
+    "radius": 11,
+    "count": [
+      7,
+      10
+    ],
+    "length": [
+      7,
+      12
+    ],
+    "width": 0.8,
+    "leaf": "#7d7a4e",
+    "leafDark": "#4a3a2a",
+    "ink": 0
+  }
+}

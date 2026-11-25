@@ -207,7 +207,7 @@ public static class Interactions
     public static List<Shape> MergeShapeInto(Scene scene, Shape added)
     {
         var shapes = scene.Shapes;
-        if (!MergeableAreaKinds.Contains(added.Kind))
+        if (!MergeableAreaKinds.Contains(added.Kind) && !Kinds.IsSurface(added.Kind))
             return [.. shapes, added];
         var acc = new List<Vector2[]> { added.Points.ToArray() };
         var absorbed = new HashSet<Shape>();
@@ -488,46 +488,26 @@ public static class Interactions
     /// <summary>A keep-out circle around a protected prop.</summary>
     public readonly record struct ProtectionZone(Vector2 Center, double Radius);
 
-    /// <summary>Protection factors per kind — `protection.kinds` from
-    /// the web frontend.json. Radius = (scale/2)*factor + padding.</summary>
-    public static readonly Dictionary<string, double> ProtectedKinds = new()
-    {
-        ["campfire"] = 1,
-        ["well"] = 1,
-        ["tent"] = 0.9,
-        ["lantern"] = 1,
-        ["marker"] = 1,
-        ["portal"] = 1,
-        ["fountain"] = 1,
-        ["stall"] = 0.9,
-        ["statue"] = 0.8,
-        ["chest"] = 1,
-    };
-
-    const double ProtectionPadding = 6;
-
-    /// <summary>Kinds exempt from keep-out (keepOut.except).</summary>
-    static readonly HashSet<string> KeepOutExcept = ["label", "marker", "door", "window"];
+    // Rules (protected kinds, factors, padding, exceptions, on/off)
+    // live in assets/config/placement.json — see Placement.
 
     /// <summary>Zones around every protected prop in the scene.</summary>
     public static List<ProtectionZone> ProtectionZones(Scene scene)
     {
         var zones = new List<ProtectionZone>();
         foreach (var p in scene.Props)
-            if (ProtectedKinds.TryGetValue(p.Kind, out var factor))
+            if (Placement.Factor(p.Kind) is { } factor)
                 zones.Add(
                     new ProtectionZone(
                         new Vector2((float)p.X, (float)p.Y),
-                        p.Scale / 2 * factor + ProtectionPadding
+                        p.Scale / 2 * factor + Placement.Config.Padding
                     )
                 );
         return zones;
     }
 
-    /// <summary>Whether this kind must stand outside every zone —
-    /// keepOut.kinds = ["*"], minus protected kinds and exceptions.</summary>
-    public static bool KeptOut(string kind) =>
-        !ProtectedKinds.ContainsKey(kind) && !KeepOutExcept.Contains(kind);
+    /// <summary>Whether this kind must stand outside every zone.</summary>
+    public static bool KeptOut(string kind) => Placement.KeptOut(kind);
 
     /// <summary>Kinds allowed to sit in water — everything else is
     /// nudged to dry land by PlaceProtected and rejected by fills.
@@ -535,7 +515,10 @@ public static class Interactions
     static readonly HashSet<string> WaterAllowed =
         ["boat", Kinds.Dock, Kinds.Waterfall, "butterfly", "bird"];
 
-    public static bool WaterKind(string kind) => WaterAllowed.Contains(kind);
+    public static bool WaterKind(string kind) =>
+        PropDefs.TryGet(kind, out var def) && def.Water is { } w
+            ? w
+            : WaterAllowed.Contains(PropDefs.BaseKind(kind));
 
     /// <summary>True when a point inflated by `pad` touches any river
     /// stroke or pond shape — the dry-land rule for props.</summary>
@@ -630,6 +613,11 @@ public static class Interactions
     /// zone it cannot leave — map edge clamp).</summary>
     public static bool PlaceProtected(Scene scene, Prop prop)
     {
+        if (!Placement.ProtectionActive)
+        {
+            AddProp(scene, prop);
+            return true;
+        }
         var zones = ProtectionZones(scene);
         var reach = prop.Scale / 2;
         // Dry-land rule first — a land prop dropped into water is nudged
@@ -658,11 +646,11 @@ public static class Interactions
             prop.Y = nudged.Y;
         }
         AddProp(scene, prop);
-        if (ProtectedKinds.ContainsKey(prop.Kind))
+        if (Placement.Config.ClearOnPlace && Placement.Factor(prop.Kind) is { } f)
         {
             var zone = new ProtectionZone(
                 new Vector2((float)prop.X, (float)prop.Y),
-                prop.Scale / 2 * ProtectedKinds[prop.Kind] + ProtectionPadding
+                prop.Scale / 2 * f + Placement.Config.Padding
             );
             scene.Props.RemoveAll(
                 q =>

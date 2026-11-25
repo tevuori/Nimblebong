@@ -1,0 +1,32 @@
+{
+  "label": "Ostružiní",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland",
+    "swamp"
+  ],
+  "height": 1.6,
+  "footprint": 1.2,
+  "detail": {
+    "form": "bramble",
+    "radius": 12,
+    "count": [
+      8,
+      12
+    ],
+    "length": [
+      8,
+      14
+    ],
+    "width": 0.9,
+    "leaf": "#4e6b3a",
+    "leafDark": "#3a2a2e",
+    "accents": [
+      "#3a1f3c",
+      "#5a1a2a"
+    ],
+    "accentChance": 0.6,
+    "ink": 0
+  }
+}

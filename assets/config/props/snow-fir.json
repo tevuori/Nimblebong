@@ -1,0 +1,9 @@
+{
+  "label": "Zasněžená jedle",
+  "base": "tree",
+  "category": "Porost a příroda",
+  "biomes": [
+    "alpine"
+  ],
+  "species": "snowfir"
+}

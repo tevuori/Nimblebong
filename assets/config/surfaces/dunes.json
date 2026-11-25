@@ -1,0 +1,29 @@
+{
+  "label": "Duny",
+  "biomes": [
+    "desert"
+  ],
+  "fill": {
+    "color": "#e3c38a",
+    "alpha": 0.45,
+    "feather": 14
+  },
+  "patterns": [
+    {
+      "type": "waves",
+      "color": "#b8935a",
+      "alpha": 0.55,
+      "spacing": 18,
+      "size": 6,
+      "angle": 15
+    },
+    {
+      "type": "waves",
+      "color": "#f2dcae",
+      "alpha": 0.5,
+      "spacing": 18,
+      "size": 5,
+      "angle": 15
+    }
+  ]
+}

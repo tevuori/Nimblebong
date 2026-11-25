@@ -1,0 +1,13 @@
+{
+  "label": "Rákos",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": ["woodland", "swamp"],
+  "scale": 0.8,
+  "height": 2,
+  "water": true,
+  "flora": {
+    "form": "reeds", "count": [8, 14], "radius": 9, "length": [8, 13], "width": 0.9,
+    "leaf": "#7f9a4e", "leafDark": "#4c5f32", "accents": ["#6b4a2c"], "accentSize": 1.5, "accentChance": 0.4, "ink": 0.3
+  }
+}

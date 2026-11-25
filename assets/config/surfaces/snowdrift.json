@@ -1,0 +1,37 @@
+{
+  "label": "Sněhová návěj",
+  "fill": {
+    "color": "#f4f7f8",
+    "alpha": 0.8,
+    "feather": 16
+  },
+  "edge": {
+    "color": "#c8d6dc",
+    "alpha": 0.4,
+    "width": 2
+  },
+  "patterns": [
+    {
+      "type": "waves",
+      "color": "#b9cdd6",
+      "alpha": 0.5,
+      "spacing": 24,
+      "size": 5,
+      "angle": 10
+    },
+    {
+      "type": "dots",
+      "color": "#ffffff",
+      "alpha": 0.6,
+      "spacing": 12,
+      "size": 1.5
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "snowy-tuft",
+      "spacing": 60,
+      "chance": 0.2
+    }
+  ]
+}

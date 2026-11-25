@@ -1,0 +1,42 @@
+{
+  "label": "Suchá step",
+  "biomes": [
+    "desert",
+    "volcanic"
+  ],
+  "fill": {
+    "color": "#b9a465",
+    "alpha": 0.35,
+    "feather": 12
+  },
+  "patterns": [
+    {
+      "type": "strokes",
+      "color": "#8a7a44",
+      "alpha": 0.5,
+      "spacing": 8,
+      "size": 5,
+      "angle": -75
+    },
+    {
+      "type": "strokes",
+      "color": "#d6c48a",
+      "alpha": 0.4,
+      "spacing": 10,
+      "size": 5,
+      "angle": -105
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "dry-grass",
+      "spacing": 18,
+      "chance": 0.65
+    },
+    {
+      "kind": "desert-scrub",
+      "spacing": 50,
+      "chance": 0.25
+    }
+  ]
+}

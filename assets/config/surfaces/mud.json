@@ -1,0 +1,47 @@
+{
+  "label": "Bahno",
+  "biomes": [
+    "woodland",
+    "swamp",
+    "alpine"
+  ],
+  "fill": {
+    "color": "#6a5436",
+    "alpha": 0.65,
+    "feather": 6
+  },
+  "edge": {
+    "color": "#4a3a26",
+    "alpha": 0.4,
+    "width": 2
+  },
+  "patterns": [
+    {
+      "type": "dots",
+      "color": "#4a3a26",
+      "alpha": 0.45,
+      "spacing": 9,
+      "size": 2.5
+    },
+    {
+      "type": "ripples",
+      "color": "#8a7a5a",
+      "alpha": 0.35,
+      "spacing": 22,
+      "size": 3
+    }
+  ],
+  "scatter": [
+    {
+      "kind": "puddle",
+      "spacing": 50,
+      "chance": 0.35,
+      "size": 22
+    },
+    {
+      "kind": "animal-tracks",
+      "spacing": 80,
+      "chance": 0.2
+    }
+  ]
+}

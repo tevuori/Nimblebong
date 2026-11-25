@@ -1,0 +1,32 @@
+{
+  "label": "Suchopýr",
+  "base": "flora",
+  "category": "Flora",
+  "biomes": [
+    "swamp",
+    "alpine"
+  ],
+  "scale": 0.7,
+  "water": true,
+  "flora": {
+    "form": "tuft",
+    "count": [
+      8,
+      12
+    ],
+    "radius": 7,
+    "length": [
+      6,
+      10
+    ],
+    "width": 1.0,
+    "leaf": "#8a9a5a",
+    "leafDark": "#4e5a34",
+    "accents": [
+      "#f8f6f0"
+    ],
+    "accentSize": 2.2,
+    "accentChance": 0.9,
+    "ink": 0
+  }
+}

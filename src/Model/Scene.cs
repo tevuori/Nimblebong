@@ -4,6 +4,7 @@
 // three typed lists: Shapes (closed areas), Strokes (polylines) and
 // Props (single-point objects). Kind vocabulary and numeric ranges are
 // 1:1 with the TS model so scene files stay interchangeable.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -96,12 +97,36 @@ public static class Kinds
     /// <summary>Removed legacy kinds — dropped silently like parseScene.</summary>
     public static readonly string[] Legacy = ["hill", "mountains"];
 
-    public static readonly string[] Biomes =
-        ["woodland", "desert", "alpine", "swamp", "volcanic", "cavern"];
+    /// <summary>Biome ids = files in assets/config/biomes (a new JSON
+    /// biome is valid in scenes without code changes); the built-in list
+    /// is the fallback when the config can't be read.</summary>
+    public static string[] Biomes =>
+        FromConfig(SceneConfig.BiomeIds, ["woodland", "desert", "alpine", "swamp", "volcanic", "cavern"]);
 
-    public static readonly string[] Moods = ["dawn", "day", "dusk", "night", "fog"];
+    /// <summary>Mood ids = moods in assets/config/moods.json (fallback as above).</summary>
+    public static string[] Moods =>
+        FromConfig(SceneConfig.MoodIds, ["dawn", "day", "dusk", "night", "fog"]);
 
-    public static bool IsArea(string kind) => Areas.Contains(kind);
+    static string[] FromConfig(Func<List<string>> ids, string[] fallback)
+    {
+        try
+        {
+            var list = ids();
+            return list.Count > 0 ? [.. list] : fallback;
+        }
+        catch (Exception)
+        {
+            return fallback;
+        }
+    }
+
+    /// <summary>Surface areas are "surface:&lt;id&gt;" — the id names a
+    /// JSON definition in assets/config/surfaces (SurfaceDefs).</summary>
+    public const string SurfacePrefix = "surface:";
+
+    public static bool IsSurface(string kind) => kind.StartsWith(SurfacePrefix, StringComparison.Ordinal);
+
+    public static bool IsArea(string kind) => Areas.Contains(kind) || IsSurface(kind);
 
     public static bool IsLine(string kind) => Lines.Contains(kind);
 

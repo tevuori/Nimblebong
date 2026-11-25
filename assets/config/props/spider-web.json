@@ -1,0 +1,23 @@
+{
+  "label": "Pavučina",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "cavern",
+    "swamp",
+    "woodland"
+  ],
+  "height": 0,
+  "keepOut": false,
+  "detail": {
+    "form": "web",
+    "radius": 12,
+    "count": 8,
+    "leaf": "#f0f0f0",
+    "accents": [
+      "#2a2a2a"
+    ],
+    "accentChance": 0.6,
+    "ink": 0
+  }
+}

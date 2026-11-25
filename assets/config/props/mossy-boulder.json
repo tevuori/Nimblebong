@@ -1,0 +1,10 @@
+{
+  "label": "Mechový balvan",
+  "base": "rock",
+  "category": "Porost a příroda",
+  "biomes": ["woodland", "swamp"],
+  "scale": 1.25,
+  "height": 1.2,
+  "palette": { "stone": "#8c9278" },
+  "tint": { "color": "@foliage", "amount": 0.22 }
+}

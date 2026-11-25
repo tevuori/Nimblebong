@@ -1,0 +1,27 @@
+{
+  "label": "Padlý kmen",
+  "base": "detail",
+  "category": "Detaily a krytí",
+  "biomes": [
+    "woodland",
+    "swamp",
+    "alpine"
+  ],
+  "height": 1.3,
+  "footprint": 1.4,
+  "detail": {
+    "form": "log",
+    "length": [
+      18,
+      26
+    ],
+    "width": 6,
+    "leaf": "#7a5a3a",
+    "leafDark": "#4a3524",
+    "accents": [
+      "#6f8a45",
+      "#7f9a4e"
+    ],
+    "ink": 0.6
+  }
+}
