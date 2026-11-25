@@ -237,8 +237,40 @@ public partial class PropsPainter : Node2D
                 case PropKind.Fireplace:
                     DrawFireplace(p);
                     break;
+                case PropKind.Label:
+                    DrawLabel(p);
+                    break;
             }
         }
+    }
+
+    // --- label --------------------------------------------------------------
+    // Paper tag: cream rounded rect + ink frame + the caption text.
+    static readonly Font LabelFont = ThemeDB.FallbackFont;
+
+    void DrawLabel(PropPlacement p)
+    {
+        var text = string.IsNullOrWhiteSpace(p.Text) ? "?" : p.Text;
+        var size = Mathf.Max(13, (int)(p.Scale * 0.9));
+        var w = LabelFont.GetStringSize(text, fontSize: size).X;
+        var h = size * 1.3f;
+        var rect = new Rect2(p.X - w / 2 - 8, p.Y - h / 2, w + 16, h);
+        var tag = new Vector2[]
+        {
+            rect.Position,
+            new(rect.End.X, rect.Position.Y),
+            rect.End,
+            new(rect.Position.X, rect.End.Y),
+        };
+        Fill(tag, new Color(0.93f, 0.9f, 0.78f, 0.92f));
+        DrawPolyline([.. tag, tag[0]], new Color(0.25f, 0.22f, 0.16f, 0.85f), 1.2f);
+        DrawString(
+            LabelFont,
+            new Vector2((float)(rect.Position.X + 8), (float)(p.Y + size * 0.36)),
+            text,
+            fontSize: size,
+            modulate: new Color(0.18f, 0.15f, 0.1f)
+        );
     }
 
     // Soft contact shadow SE of the object — the heightmap raymarch adds

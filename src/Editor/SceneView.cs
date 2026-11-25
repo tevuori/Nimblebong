@@ -127,14 +127,19 @@ public partial class SceneView : Node2D
         AddLayer(Stage.AlbedoVp, fortify);
 
         var props = Scene
-            .Props.Select(p => new PropPlacement(
-                MapProp(p.Kind),
-                p.X,
-                p.Y,
-                p.Scale / 24.0,
-                p.Rotation,
-                p.Seed
-            ))
+            .Props.Select(p =>
+                new PropPlacement(
+                    MapProp(p.Kind),
+                    p.X,
+                    p.Y,
+                    p.Scale / 24.0,
+                    p.Rotation,
+                    p.Seed
+                )
+                {
+                    Text = p.Text,
+                }
+            )
             .ToList();
         var propsPainter = new PropsPainter
         {
@@ -217,6 +222,7 @@ public partial class SceneView : Node2D
         ["shelf"] = PropKind.Shelf,
         ["rug"] = PropKind.Rug,
         ["fireplace"] = PropKind.Fireplace,
+        ["label"] = PropKind.Label,
     };
 
     static PropKind MapProp(string kind) =>

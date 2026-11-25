@@ -18,6 +18,7 @@ public partial class MapEditor : Node2D
         Shape,
         Stroke,
         Prop,
+        Label,
     }
 
     /// <summary>One palette entry: label + category + what it commits.</summary>
@@ -81,6 +82,7 @@ public partial class MapEditor : Node2D
         new("barricade", "Zábrany", "Osídlení a dekorace", Mode.Prop, "barricade"),
         new("portal", "Magické brány", "Osídlení a dekorace", Mode.Prop, "portal"),
         new("marker", "Značky", "Mapa a hra", Mode.Prop, "marker"),
+        new("label", "Popisky", "Mapa a hra", Mode.Label, "label"),
     ];
 
     static readonly Vector2 MapSize = new(1600, 1000);
@@ -324,6 +326,24 @@ public partial class MapEditor : Node2D
         EndStroke();
         SetTool("camp");
         PlacePropAt(new Vector2(700, 750));
+        // Label + marker — placed directly (PromptLabel opens a dialog).
+        Commit(scene =>
+        {
+            scene.Props.Add(
+                new Prop
+                {
+                    Id = scene.AllocId(),
+                    Kind = "label",
+                    X = 480,
+                    Y = 120,
+                    Scale = 16,
+                    Text = "Tábor u řeky",
+                }
+            );
+            scene.Props.Add(
+                new Prop { Id = scene.AllocId(), Kind = "marker", X = 700, Y = 690, Scale = 22 }
+            );
+        });
         // Protection: a tree inside the campfire zone must be nudged out.
         SetTool("tree");
         PlacePropAt(new Vector2(700, 750));
@@ -529,6 +549,8 @@ public partial class MapEditor : Node2D
             BeginSelect(_stroke[0]);
         else if (_tool.Mode == Mode.Prop)
             PlacePropAt(_stroke[0]);
+        else if (_tool.Mode == Mode.Label)
+            PromptLabel(_stroke[0]);
         else if (_tool.Mode == Mode.Erase)
             EraseAt(_stroke[0]);
     }
@@ -877,6 +899,39 @@ public partial class MapEditor : Node2D
                 }
             )
         );
+    }
+
+    /// <summary>Small text prompt — on OK places a "label" prop with
+    /// the entered caption at `pos`.</summary>
+    void PromptLabel(Vector2 pos)
+    {
+        var dlg = new ConfirmationDialog { Title = "Popisek" };
+        var edit = new LineEdit { PlaceholderText = "Text popisku…", CustomMinimumSize = new Vector2(220, 0) };
+        dlg.AddChild(edit);
+        dlg.RegisterTextEnter(edit);
+        dlg.Confirmed += () =>
+        {
+            var text = edit.Text.Trim();
+            if (text.Length > 0)
+                Commit(scene =>
+                    scene.Props.Add(
+                        new Prop
+                        {
+                            Id = scene.AllocId(),
+                            Kind = "label",
+                            X = pos.X,
+                            Y = pos.Y,
+                            Scale = 16,
+                            Text = text,
+                        }
+                    )
+                );
+            dlg.QueueFree();
+        };
+        dlg.Canceled += () => dlg.QueueFree();
+        AddChild(dlg);
+        dlg.PopupCentered();
+        edit.GrabFocus();
     }
 
     void EraseAt(Vector2 p)

@@ -1,3 +1,4 @@
+#nullable enable
 // Prop placement — the data model for map objects (trees, rocks,
 // houses…) plus a deterministic scatter that fills a polygon with a
 // jittered grid. All randomness comes from Rng.Noise seeded by the
@@ -55,6 +56,8 @@ public enum PropKind
     Shelf,
     Rug,
     Fireplace,
+    /// <summary>Text caption — paper tag with the label string.</summary>
+    Label,
 }
 
 /// <summary>One placed map object. Scale is a multiplier on the kind's
@@ -68,6 +71,8 @@ public class PropPlacement
     public float Scale = 1f;
     public float Rotation;
     public double Seed;
+    /// <summary>Caption — the "label" kind draws this.</summary>
+    public string? Text;
 
     public Vector2 Pos => new(X, Y);
 

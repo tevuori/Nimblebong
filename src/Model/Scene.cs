@@ -182,6 +182,8 @@ public class Prop
     /// <summary>Deterministic variation seed — seeded noise input,
     /// replaces per-kind model where a continuous variation is wanted.</summary>
     public int Seed;
+    /// <summary>Caption text — only the "label" prop kind uses it.</summary>
+    public string? Text;
 
     public Prop DeepClone() =>
         new()
@@ -193,6 +195,7 @@ public class Prop
             Scale = Scale,
             Rotation = Rotation,
             Seed = Seed,
+            Text = Text,
         };
 }
 

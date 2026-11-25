@@ -91,6 +91,8 @@ public static class SceneJson
                 w.WriteNumber("scale", p.Scale);
                 w.WriteNumber("rotation", p.Rotation);
                 w.WriteNumber("seed", p.Seed);
+                if (p.Text != null)
+                    w.WriteString("text", p.Text);
                 w.WriteEndObject();
             }
             w.WriteEndArray();
@@ -525,6 +527,7 @@ public static class SceneJson
             Scale = Clamped(el, "scale", MinSize, MaxSize, 24),
             Rotation = Clamped(el, "rotation", -Math.PI * 2, Math.PI * 2, 0),
             Seed = seed,
+            Text = el.TryGetProperty("text", out var t) ? t.GetString() : null,
         };
     }
 }
