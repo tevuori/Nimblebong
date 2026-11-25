@@ -22,6 +22,7 @@ public partial class MapEditor : Node2D
         Label,
         Fog,
         Fill,
+        Play,
     }
 
     /// <summary>One palette entry: label + category + what it commits.</summary>
@@ -89,6 +90,7 @@ public partial class MapEditor : Node2D
         new("portal", "Magické brány", "Osídlení a dekorace", Mode.Prop, "portal"),
         new("marker", "Značky", "Mapa a hra", Mode.Prop, "marker"),
         new("fill", "Generátor výplně", "Mapa a hra", Mode.Fill, ""),
+        new("play", "Hrát", "Mapa a hra", Mode.Play, ""),
         new("label", "Popisky", "Mapa a hra", Mode.Label, "label"),
         new("fog-clear", "Mlha: odhalit", "Mapa a hra", Mode.Fog, "clear"),
         new("fog-shroud", "Mlha: zahalit", "Mapa a hra", Mode.Fog, "shroud"),
@@ -117,7 +119,7 @@ public partial class MapEditor : Node2D
         ["chest"] = "#8a6a44", ["bones"] = "#d8cdb2", ["barricade"] = "#7d6547",
         ["portal"] = "#9a86c8", ["marker"] = "#d34f3d", ["label"] = "#4a3a28",
         ["fog-clear"] = "#7f8c8d", ["fog-shroud"] = "#5a6b6f",
-        ["fill"] = "#7a9a6a",
+        ["fill"] = "#7a9a6a", ["play"] = "#d34f3d",
     };
 
     /// <summary>Tool descriptions shown under the name — the web
@@ -179,6 +181,7 @@ public partial class MapEditor : Node2D
         ["fog-clear"] = "Odhaluj mapu — táhni přes oblasti, které mají hráči vidět.",
         ["fog-shroud"] = "Zahaluj mapu mlhou — táhni přes oblasti, které se mají skrýt.",
         ["fill"] = "Táhni obdélník přes oblast — naplní ji propy podle těch, co v ní už stojí (nebo vygeneruje krajinu/dungeon). Náhled se ukáže rovnou, tlačítko Vyplnit připíše jako jeden krok historie.",
+        ["play"] = "Náhled hraní — značky se zobrazí jako herní žetony (Spawn/Hráči/Nepřítel) a dají se přetahovat jako ve hře.",
     };
 
     static readonly Vector2 MapSize = new(1600, 1000);
@@ -186,6 +189,7 @@ public partial class MapEditor : Node2D
     SceneView _view = null!;
     SceneHistory _history = null!;
     GhostLayer _ghost = null!;
+    PlayLayer _playLayer = null!;
     Camera2D _camera = null!;
 
     // Current tool + parameters.
@@ -277,6 +281,8 @@ public partial class MapEditor : Node2D
         _history = new SceneHistory(_view.Scene);
         _ghost = new GhostLayer();
         AddChild(_ghost);
+        _playLayer = new PlayLayer { Visible = false };
+        AddChild(_playLayer);
         _fillPreview = new PropsPainter
         {
             Modulate = new Color(1, 1, 1, 0.55f),
@@ -779,6 +785,33 @@ public partial class MapEditor : Node2D
             ClearSelection();
         }
 
+        // ── play mode: marker props → draggable token chips ──
+        {
+            Commit(scene =>
+                scene.Props.Add(
+                    new Prop { Id = scene.AllocId(), Kind = "marker", X = 800, Y = 500, Scale = 22 }
+                )
+            );
+            SetTool("play");
+            var tokens = PlayTokens();
+            GD.Print($"play tokens: {tokens.Count} (expect >0)");
+            if (tokens.Count > 0)
+            {
+                var t = tokens[0];
+                var depth = _history.UndoDepth;
+                BeginPlay(t.Pos);
+                MoveSelectionTo(t.Pos + new Vector2(60, 40));
+                _selEdited = true;
+                EndSelect(t.Pos + new Vector2(60, 40));
+                var moved = _view.Scene.Props.First(p => p.Kind == "marker");
+                GD.Print(
+                    $"token drag commits: {_history.UndoDepth - depth} (expect 1), at {moved.X:0},{moved.Y:0}"
+                );
+            }
+            GetViewport().GetTexture().GetImage().SavePng("/tmp/godot-play.png");
+            SetTool("select");
+        }
+
         // Optional: exercise the real backend bridge end-to-end.
         if (System.Environment.GetEnvironmentVariable("DMMAP_BRIDGE_PROBE") == "1")
         {
@@ -848,6 +881,8 @@ public partial class MapEditor : Node2D
                     SetTool("erase");
                 else if (k.Keycode == Key.F && !k.CtrlPressed)
                     SetTool("fill");
+                else if (k.Keycode == Key.H && !k.CtrlPressed)
+                    SetTool("play");
                 else if (k.Keycode == Key.Space)
                     _spacePan = true;
                 break;
@@ -924,6 +959,12 @@ public partial class MapEditor : Node2D
                 _ghost.SetMarquee(_marquee);
             }
             else if (_selMoving)
+                MoveSelectionTo(p);
+            return;
+        }
+        if (_tool.Mode == Mode.Play)
+        {
+            if (_selMoving)
                 MoveSelectionTo(p);
             return;
         }
@@ -1061,6 +1102,8 @@ public partial class MapEditor : Node2D
         }
         else if (_tool.Mode == Mode.Select)
             BeginSelect(_stroke[0], Input.IsKeyPressed(Key.Shift));
+        else if (_tool.Mode == Mode.Play)
+            BeginPlay(_stroke[0]);
         else if (_tool.Mode == Mode.Prop)
             PlacePropAt(_stroke[0]);
         else if (_tool.Mode == Mode.Label)
@@ -1075,7 +1118,7 @@ public partial class MapEditor : Node2D
     {
         _drawing = false;
         _draftAt = 0;
-        if (_tool.Mode == Mode.Select)
+        if (_tool.Mode is Mode.Select or Mode.Play)
         {
             if (_marqueeing)
                 EndMarquee();
@@ -1382,6 +1425,58 @@ public partial class MapEditor : Node2D
     bool HasSelection() =>
         _selProps.Count > 0 || _selStrokes.Count > 0 || _selShapes.Count > 0;
 
+    /// <summary>Play mode: grab the marker token under the cursor and
+    /// live-drag it like a select-move (web hitToken + gesture).</summary>
+    void BeginPlay(Vector2 p)
+    {
+        var tokens = PlayTokens();
+        for (var i = tokens.Count - 1; i >= 0; i--)
+            if (tokens[i].Pos.DistanceTo(p) <= tokens[i].R)
+            {
+                ClearSelection();
+                _selProps.Add(tokens[i].Prop);
+                SnapshotBackups();
+                _selMoving = true;
+                _selOrigin = p;
+                RefreshPlayTokens();
+                return;
+            }
+        ClearSelection();
+        RefreshPlayTokens();
+    }
+
+    /// <summary>Marker props → DR-style tokens (web tokensForScene):
+    /// deterministic label = markerTokenLabels[model] + running number.</summary>
+    List<(Prop Prop, Vector2 Pos, float R, string Text)> PlayTokens()
+    {
+        var tokens = new List<(Prop, Vector2, float, string)>();
+        var counter = 0;
+        foreach (var pr in _view.Scene.Props)
+        {
+            if (pr.Kind != "marker")
+                continue;
+            counter++;
+            var model = pr.Model < 0 ? 0 : Math.Min(2, pr.Model);
+            var label = $"{MarkerTokenLabels[model]} {counter}";
+            // chipText — first letter of the label + its number.
+            var chip = $"{label[0]}{counter}";
+            tokens.Add((pr, new Vector2((float)pr.X, (float)pr.Y), (float)(pr.Scale * 0.9), chip));
+        }
+        return tokens;
+    }
+
+    static readonly string[] MarkerTokenLabels = ["Spawn", "Hráči", "Nepřítel"];
+
+    void RefreshPlayTokens()
+    {
+        var selected = _selProp;
+        _playLayer.SetTokens(
+            PlayTokens()
+                .Select(t => (t.Pos, t.R, t.Prop == selected, t.Text))
+                .ToList()
+        );
+    }
+
     /// <summary>Live-move the selected element by the drag delta
     /// (mutated in place; history entry is written on release).</summary>
     void MoveSelectionTo(Vector2 p)
@@ -1400,6 +1495,8 @@ public partial class MapEditor : Node2D
         }
         _selEdited = delta.LengthSquared() > 1;
         UpdateSelectionGhost();
+        if (_tool.Mode == Mode.Play)
+            RefreshPlayTokens();
         _pendingRebuild = true;
     }
 
@@ -1943,6 +2040,10 @@ public partial class MapEditor : Node2D
             if (t.Id == id)
             {
                 _tool = t;
+                ClearSelection();
+                _playLayer.Visible = t.Mode == Mode.Play;
+                if (_playLayer.Visible)
+                    RefreshPlayTokens();
                 UpdateToolUi();
                 return;
             }
@@ -2600,5 +2701,44 @@ public partial class GhostLayer : Node2D
             _ => new Color(0.82f, 0.72f, 0.49f, 0.5f),
         };
         DrawPolyline(pts, col, (float)_width);
+    }
+}
+
+/// <summary>Play-mode overlay — DR-style token chips over the map
+/// (web renderPlayOverlay/renderTokenChip): parchment ring, colored
+/// core, dark rim, inner ring and a bold chip label. Drawn in world
+/// space under the camera; tokens are draggable via the editor's
+/// select-move machinery.</summary>
+public partial class PlayLayer : Node2D
+{
+    List<(Vector2 Pos, float R, bool Selected, string Text)> _tokens = [];
+
+    public void SetTokens(List<(Vector2 Pos, float R, bool Selected, string Text)> tokens)
+    {
+        _tokens = tokens;
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        var paper = new Color(0.957f, 0.906f, 0.741f);
+        var ink = new Color(0.184f, 0.165f, 0.118f);
+        var core = Palette.Hex("#d34f3d");
+        foreach (var (pos, r, selected, text) in _tokens)
+        {
+            // Drop shadow, parchment body, colored core, rims.
+            DrawCircle(pos + new Vector2(r * 0.12f, r * 0.2f), r, new Color(0.08f, 0.13f, 0.1f, 0.4f));
+            DrawCircle(pos, r, paper);
+            DrawCircle(pos, r * 0.8f, core);
+            DrawArc(pos, r * 0.8f, 0, Mathf.Tau, 32, ink, Mathf.Max(1, r * 0.08f));
+            DrawArc(pos, r * 0.58f, 0, Mathf.Tau, 32, ink with { A = 0.35f }, Mathf.Max(0.8f, r * 0.05f));
+            var size = Mathf.Max(9, (int)(r * 0.55));
+            var font = ThemeDB.FallbackFont;
+            var advance = font.GetStringSize(text, fontSize: size).X;
+            var tp = pos + new Vector2(-advance / 2, size * 0.36f);
+            DrawString(font, tp, text, fontSize: size, modulate: paper);
+            if (selected)
+                DrawArc(pos, r + Mathf.Max(2, r * 0.1f), 0, Mathf.Tau, 32, new Color(1f, 0.96f, 0.79f), Mathf.Max(2, r * 0.12f));
+        }
     }
 }
