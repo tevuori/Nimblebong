@@ -1,0 +1,3 @@
+# keep the folder, not the bulk renders
+probes/*.png
+settings.local.json
