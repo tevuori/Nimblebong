@@ -182,7 +182,7 @@ public partial class MapEditor : Node2D
         ["label"] = "Klikni pro umístění popisku — zadáš text v dialogu.",
         ["fog-clear"] = "Odhaluj mapu — táhni přes oblasti, které mají hráči vidět.",
         ["fog-shroud"] = "Zahaluj mapu mlhou — táhni přes oblasti, které se mají skrýt.",
-        ["fill"] = "Táhni obdélník přes oblast — naplní ji propy podle těch, co v ní už stojí (nebo vygeneruje krajinu/dungeon). Ctrl+S přepne na Smart výplň, Enter potvrdí náhled jako jeden krok historie.",
+        ["fill"] = "Táhni obdélník přes oblast — naplní ji propy podle těch, co v ní už stojí (nebo vygeneruje krajinu/dungeon). Ctrl+S přepne na Smart výplň. Hustotu a seed upravuj nad aktivním náhledem; Enter nebo Vyplnit zapíše jeden krok historie.",
         ["play"] = "Náhled hraní — značky se zobrazí jako herní žetony (Spawn/Hráči/Nepřítel) a dají se přetahovat jako ve hře.",
     };
 
@@ -260,6 +260,8 @@ public partial class MapEditor : Node2D
     Label _fillStats = null!;
     OptionButton _fillMode = null!;
     HSlider _fillDensity = null!;
+    Label _fillDensityValue = null!;
+    ulong _fillRegenAt;
     LineEdit _fillSeedEdit = null!;
     Godot.Button _fillCommit = null!;
     // Pending region fill: the dragged rect, generated scene/props and
@@ -449,9 +451,23 @@ public partial class MapEditor : Node2D
         {
             _fillMode.Selected = 3;
             _fillRect = new Rect2(140, 260, 780, 340);
-            RunFill();
+            _fillDensity.Value = 15;
+            while (_fillRegenAt > 0)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var densityLow = _fillProps.Count;
+            var densityLowMain = _fillProps.Count(p => SceneView.MapProp(p.Kind) != PropKind.Flora);
+            _fillDensity.Value = 100;
+            while (_fillRegenAt > 0)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var densityHigh = _fillProps.Count;
+            var densityHighMain = _fillProps.Count(p => SceneView.MapProp(p.Kind) != PropKind.Flora);
+            _fillDensity.Value = 55;
+            while (_fillRegenAt > 0)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            GD.Print($"SMART generated={_fillProps.Count}");
+            GD.Print(
+                $"SMART generated={_fillProps.Count} density15={densityLow}/{densityLowMain} density100={densityHigh}/{densityHighMain}"
+            );
             CommitFill();
         }
         _camera.Position = new Vector2(560, 400);
@@ -551,6 +567,8 @@ public partial class MapEditor : Node2D
             _lastRebuild = now;
             _view.Rebuild();
         }
+        if (_fillRegenAt > 0 && now >= _fillRegenAt)
+            RunFill();
         // Poll the window size — WM_SIZE_CHANGED does not fire
         // reliably (e.g. startup maximize lands silently).
         var b = ComputeUiBucket();
@@ -939,6 +957,20 @@ public partial class MapEditor : Node2D
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _view.Stage.Snapshot().SavePng("/tmp/godot-generated.png");
         GD.Print("dumped /tmp/godot-generated.png");
+
+        // Smart density on a populated generated landscape — collisions
+        // with the existing forest must not saturate the slider away.
+        _fillMode.Selected = 3;
+        _fillRect = new Rect2(300, 200, 1000, 600);
+        _fillDensity.Value = 15;
+        RunFill();
+        var genLow = _fillProps.Count;
+        _fillDensity.Value = 100;
+        RunFill();
+        var genHigh = _fillProps.Count;
+        GD.Print($"SMART generated-landscape density15={genLow} density100={genHigh}");
+        ClearFill();
+        _fillDensity.Value = 55;
 
         // dungeon preset
         _presetOpt.Selected = 1;
@@ -2131,6 +2163,7 @@ public partial class MapEditor : Node2D
     /// the current mode/density/seed — same rect, new preview.</summary>
     void RunFill()
     {
+        _fillRegenAt = 0;
         if (_fillRect is not { } r)
             return;
         _fillScene = null;
@@ -2168,7 +2201,7 @@ public partial class MapEditor : Node2D
                 );
                 _fillProps = res.Props;
                 _fillSources = res.SourceIds;
-                _fillStats.Text = $"Nových {_fillProps.Count} · kostka = jiná varianta";
+                _fillStats.Text = $"Nových {_fillProps.Count} · hustota {_fillDensity.Value:0} % · kostka = jiná varianta";
                 break;
             }
             default:
@@ -2207,9 +2240,21 @@ public partial class MapEditor : Node2D
         }).Where(q => q != Vector2.Zero).ToList(), outlines, lines);
     }
 
+    /// <summary>Density drags otherwise re-run the whole context sampler
+    /// for every slider step; coalesce them into one preview refresh.</summary>
+    void QueueFillRegen()
+    {
+        if (_fillRect == null)
+            return;
+        _fillRegenAt = Time.GetTicksMsec() + 160;
+        _fillStats.Text = "Přepočítávám…";
+    }
+
     /// <summary>Commit the previewed fill as one undo step.</summary>
     void CommitFill()
     {
+        if (_fillRegenAt > 0)
+            RunFill();
         if (_fillScene is { } gen)
             Commit(scene => MapGenerator.MergeInto(scene, gen));
         else if (_fillProps.Count > 0)
@@ -2227,6 +2272,7 @@ public partial class MapEditor : Node2D
     void ClearFill()
     {
         _fillRect = null;
+        _fillRegenAt = 0;
         _fillProps = [];
         _fillSources = [];
         _fillScene = null;
@@ -2815,9 +2861,15 @@ public partial class MapEditor : Node2D
         _fillSection.AddChild(_fillStats);
         var drow = new HBoxContainer();
         _fillDensity = new HSlider { MinValue = 15, MaxValue = 100, Value = 55, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _fillDensity.ValueChanged += _ => RunFill();
+        _fillDensityValue = new Label { Text = "55 %", CustomMinimumSize = new Vector2(Us(38), 0) };
+        _fillDensity.ValueChanged += v =>
+        {
+            _fillDensityValue.Text = $"{v:0} %";
+            QueueFillRegen();
+        };
         drow.AddChild(new Label { Text = "Hustota" });
         drow.AddChild(_fillDensity);
+        drow.AddChild(_fillDensityValue);
         _fillSection.AddChild(drow);
         var srow = new HBoxContainer();
         _fillSeedEdit = new LineEdit { Text = "42", PlaceholderText = "seed", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };

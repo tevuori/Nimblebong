@@ -3,6 +3,26 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (7) — Devin, Smart fill hustota
+
+**Hotovo:**
+- Slider hustoty už nespouští drahý `SmartFill.Generate` pro každý
+  drobný pohyb. Změny se sloučí do jednoho přepočtu po 160 ms; před
+  commitem („Vyplnit“/Enter) se případný čekající přepočet vždy dokončí.
+- Vedle slideru je vidět procentuální hodnota a statistiky Smart fillu
+  ukazují počet nových objektů i aktuální hustotu.
+- Tooltip nástroje vysvětluje, že hustota/seed se upravují nad aktivním
+  náhledem oblasti.
+- Probe kontroluje jak debounced cestu slideru, tak hustotu na plně
+  generované krajině s existujícími kolizemi.
+
+**Ověření:**
+- Testovací oblast: hustota 15 % → 94 objektů (20 hlavních), 100 % →
+  230 objektů (61 hlavních).
+- Generovaná krajina: hustota 15 % → 233 objektů, 100 % → 529 objektů.
+- `dotnet build --no-incremental` → 0 errors (17 známých warnings).
+- `DMMAP_SMART_SHOT` i plný `DMMAP_PROBE=1` prošly.
+
 ## 2026-11-25 (6) — Devin, výkon editoru na hybridní NVIDIA
 
 **Hotovo:**
