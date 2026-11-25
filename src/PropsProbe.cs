@@ -69,7 +69,7 @@ public partial class PropsProbe : Node2D
         _stage.Albedo.SetMassifs(massifs);
         _stage.Height.SetMassifs(massifs);
 
-        var props = new List<Prop>();
+        var props = new List<PropPlacement>();
 
         // Mixed forest patch on open ground, south-west.
         var forest = Poly.Ellipse(620, 800, 270, 130, 0.12, 26);
@@ -125,11 +125,11 @@ public partial class PropsProbe : Node2D
             );
 
         // Two houses on open ground.
-        props.Add(new Prop(PropKind.House, 985, 505, 1.0, 0.12, 985 * 0.37 + 505 * 0.53));
-        props.Add(new Prop(PropKind.House, 1435, 640, 0.85, -0.35, 1435 * 0.37 + 640 * 0.53));
+        props.Add(new PropPlacement(PropKind.House, 985, 505, 1.0, 0.12, 985 * 0.37 + 505 * 0.53));
+        props.Add(new PropPlacement(PropKind.House, 1435, 640, 0.85, -0.35, 1435 * 0.37 + 640 * 0.53));
         // A path-side bush + lone tree near the houses for scale.
-        props.Add(new Prop(PropKind.Bush, 930, 555, 1.1, 0, 930 * 0.37 + 555 * 0.53));
-        props.Add(new Prop(PropKind.Tree, 1055, 555, 1.15, 0, 1055 * 0.37 + 555 * 0.53));
+        props.Add(new PropPlacement(PropKind.Bush, 930, 555, 1.1, 0, 930 * 0.37 + 555 * 0.53));
+        props.Add(new PropPlacement(PropKind.Tree, 1055, 555, 1.15, 0, 1055 * 0.37 + 555 * 0.53));
 
         var painter = new PropsPainter();
         _stage.AlbedoVp.AddChild(painter);

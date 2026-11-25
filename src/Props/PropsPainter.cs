@@ -24,9 +24,9 @@ public partial class PropsPainter : Node2D
     public Color Roof = Palette.Hex("#ac6948");
     public Color Ink = Palette.Hex("#3a3527");
 
-    List<Prop> _props = [];
+    List<PropPlacement> _props = [];
 
-    public void SetProps(IEnumerable<Prop> props)
+    public void SetProps(IEnumerable<PropPlacement> props)
     {
         // Painter's order — northern props first so canopies and roofs
         // overlap whatever stands north of them.
@@ -65,7 +65,7 @@ public partial class PropsPainter : Node2D
     }
 
     // --- prop-local frame ------------------------------------------------
-    static Vector2 Xform(Prop p, Vector2 local)
+    static Vector2 Xform(PropPlacement p, Vector2 local)
     {
         var c = Math.Cos(p.Rotation);
         var s = Math.Sin(p.Rotation);
@@ -75,16 +75,16 @@ public partial class PropsPainter : Node2D
         );
     }
 
-    static Vector2[] Xform(Prop p, IEnumerable<Vector2> pts) =>
+    static Vector2[] Xform(PropPlacement p, IEnumerable<Vector2> pts) =>
         pts.Select(q => Xform(p, q)).ToArray();
 
     /// <summary>Translate + scale only — for parts that must keep a
     /// screen-south direction (trunks, eaves) no matter how the prop
     /// is rotated.</summary>
-    static Vector2 XformU(Prop p, Vector2 local) =>
+    static Vector2 XformU(PropPlacement p, Vector2 local) =>
         new(p.X + local.X * p.Scale, p.Y + local.Y * p.Scale);
 
-    static Vector2[] XformU(Prop p, IEnumerable<Vector2> pts) =>
+    static Vector2[] XformU(PropPlacement p, IEnumerable<Vector2> pts) =>
         pts.Select(q => XformU(p, q)).ToArray();
 
     /// <summary>Jittered blob polygon — the TS `blob()` helper.</summary>
@@ -147,7 +147,7 @@ public partial class PropsPainter : Node2D
 
     // Soft contact shadow SE of the object — the heightmap raymarch adds
     // the directional shadow, this anchors the prop to the ground.
-    void ContactShadow(Prop p, double rx, double ry)
+    void ContactShadow(PropPlacement p, double rx, double ry)
     {
         Fill(
             Xform(p, Poly.Ellipse(rx * 0.22, ry * 0.3, rx, ry * 0.8, 0, 12)),
@@ -158,7 +158,7 @@ public partial class PropsPainter : Node2D
     // --- deciduous tree ---------------------------------------------------
     // Two seeded variants: a round oak-like lobed canopy, and a clump
     // variant where the lobes sit apart so sky shows between them.
-    void DrawTree(Prop p)
+    void DrawTree(PropPlacement p)
     {
         var rand = new Jitter(p.Seed);
         var r = 24 * rand.Range(0.85, 1.15);
@@ -239,7 +239,7 @@ public partial class PropsPainter : Node2D
 
     // --- conifer ------------------------------------------------------------
     // Stacked star layers shrinking upward — the TS `conifer()` port.
-    void DrawPine(Prop p)
+    void DrawPine(PropPlacement p)
     {
         var rand = new Jitter(p.Seed);
         var r = 22 * rand.Range(0.85, 1.15);
@@ -286,7 +286,7 @@ public partial class PropsPainter : Node2D
     // --- rock -----------------------------------------------------------------
     // Angular 7-gon with a sunlit NW facet and a crack; a seeded
     // variant makes a tall crag with a small stone at its foot.
-    void DrawRock(Prop p)
+    void DrawRock(PropPlacement p)
     {
         var rand = new Jitter(p.Seed);
         var r = 13 * rand.Range(0.9, 1.3);
@@ -364,7 +364,7 @@ public partial class PropsPainter : Node2D
     // --- bush -------------------------------------------------------------------
     // A handful of overlapping discs on golden-angle offsets; some get
     // blossom speckles.
-    void DrawBush(Prop p)
+    void DrawBush(PropPlacement p)
     {
         var rand = new Jitter(p.Seed);
         var r = 10 * rand.Range(0.9, 1.3);
@@ -415,7 +415,7 @@ public partial class PropsPainter : Node2D
     // Oblique mini-building: dark wall face hanging off the south edge,
     // gable roof with the ridge along the longer side, sunlit north
     // slope vs. shaded south slope, ridge cap, chimney.
-    void DrawHouse(Prop p)
+    void DrawHouse(PropPlacement p)
     {
         var rand = new Jitter(p.Seed);
         var w = rand.Range(52, 64);

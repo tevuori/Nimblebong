@@ -25,7 +25,7 @@ public enum PropKind
 /// <summary>One placed map object. Scale is a multiplier on the kind's
 /// base size; Rotation is radians; Seed is the position-derived jitter
 /// source shared by the albedo and height painters.</summary>
-public class Prop
+public class PropPlacement
 {
     public PropKind Kind;
     public float X;
@@ -36,7 +36,7 @@ public class Prop
 
     public Vector2 Pos => new(X, Y);
 
-    public Prop(
+    public PropPlacement(
         PropKind kind,
         double x,
         double y,
@@ -60,7 +60,7 @@ public static class PropScatter
     /// cell (rows offset by half a cell for organic packing), jittered
     /// within the cell, kept only when inside the polygon and under
     /// `density`. Deterministic for the same inputs.</summary>
-    public static List<Prop> Scatter(
+    public static List<PropPlacement> Scatter(
         IReadOnlyList<Vector2> polygon,
         double spacing,
         PropKind kind,
@@ -70,7 +70,7 @@ public static class PropScatter
         double seed = 0
     )
     {
-        var props = new List<Prop>();
+        var props = new List<PropPlacement>();
         var (xs, ys) = BBox(polygon);
         var step = (float)spacing;
         var row = 0;
@@ -89,7 +89,7 @@ public static class PropScatter
                 if (Rng.Noise(s + 3) > density)
                     continue;
                 props.Add(
-                    new Prop(
+                    new PropPlacement(
                         kind,
                         p.X,
                         p.Y,
@@ -105,7 +105,7 @@ public static class PropScatter
 
     /// <summary>Same jittered grid, but the kind is picked per point
     /// from a weighted table — forests mix species deterministically.</summary>
-    public static List<Prop> ScatterMix(
+    public static List<PropPlacement> ScatterMix(
         IReadOnlyList<Vector2> polygon,
         double spacing,
         (PropKind Kind, double Weight)[] kinds,
@@ -115,7 +115,7 @@ public static class PropScatter
         double seed = 0
     )
     {
-        var props = new List<Prop>();
+        var props = new List<PropPlacement>();
         var (xs, ys) = BBox(polygon);
         var step = (float)spacing;
         double total = 0;
@@ -148,7 +148,7 @@ public static class PropScatter
                     }
                 }
                 props.Add(
-                    new Prop(
+                    new PropPlacement(
                         kind,
                         p.X,
                         p.Y,

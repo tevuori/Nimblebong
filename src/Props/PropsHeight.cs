@@ -13,7 +13,7 @@ namespace DmMap;
 
 public partial class PropsHeight : Node2D
 {
-    List<Prop> _props = [];
+    List<PropPlacement> _props = [];
 
     // Gray contribution above the local terrain base per kind —
     // house tallest, bush barely a bump (× uScale=60 → world relief px).
@@ -63,7 +63,7 @@ public partial class PropsHeight : Node2D
         return level;
     }
 
-    public void SetProps(IEnumerable<Prop> props)
+    public void SetProps(IEnumerable<PropPlacement> props)
     {
         _props = [.. props];
         QueueRedraw();
