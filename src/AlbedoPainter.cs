@@ -353,6 +353,80 @@ public partial class AlbedoPainter : Node2D
                         2.5f
                     );
                 }
+
+                // ── Roughness décor on the plateau ──
+                // Eroded step rings — nested stone contours shrinking
+                // inward, the erosional terraces of the web version.
+                if (tR > 0.3)
+                {
+                    var rings = tR > 0.7 ? 3 : 2;
+                    for (var r = 1; r <= rings; r++)
+                    {
+                        var depth = m.Size * (0.35 + r * 0.5) * tR;
+                        foreach (
+                            var eroded in TerrainGeometry.Offset(top, -depth)
+                        )
+                            DrawPolyline(
+                                eroded,
+                                Palette.TintAlpha(Cliff, -12, 0.4),
+                                1.6f,
+                                true
+                            );
+                    }
+                }
+                // Rocky outcrops scattered on rough plateaus.
+                if (tR > 0.25)
+                {
+                    var (ox, oy) = BBox(top);
+                    for (var i = 0; i < tR * 10; i++)
+                    {
+                        var seed = ox.X * 0.17 + oy.X * 0.23 + i * 13.7;
+                        if (Rng.Noise(seed) < 0.45)
+                            continue;
+                        var p = new Vector2(
+                            (float)(ox.X + Rng.Noise(seed + 1) * (ox.Y - ox.X)),
+                            (float)(oy.X + Rng.Noise(seed + 2) * (oy.Y - oy.X))
+                        );
+                        if (!Poly.PointInPolygon(p, top))
+                            continue;
+                        var r = 2.5 + Rng.Noise(seed + 3) * 5;
+                        var lump = Poly.Ellipse(
+                            p.X,
+                            p.Y,
+                            r,
+                            r * 0.8,
+                            Rng.Noise(seed + 4) * System.Math.PI,
+                            7
+                        );
+                        Fill(lump, Palette.Tint(Cliff, -6 + Rng.Noise(seed + 5) * 10));
+                        DrawPolyline(lump, Palette.TintAlpha(Cliff, -24, 0.4), 0.8f, true);
+                    }
+                }
+                // Summit crag — a jagged light/shadow split rock at the
+                // very top of the roughest massifs.
+                if (tR > 0.8)
+                {
+                    var cragSeed = top[0].X * 0.11 + top[0].Y * 0.19;
+                    var cpts = new Vector2[9];
+                    for (var i = 0; i < 9; i++)
+                    {
+                        var a = (i / 9.0) * Mathf.Tau;
+                        var rr = 12 + Rng.Noise(cragSeed + i * 7) * 16;
+                        cpts[i] = tcen + new Vector2(
+                            (float)(System.Math.Cos(a) * rr),
+                            (float)(System.Math.Sin(a) * rr * 0.7)
+                        );
+                    }
+                    Fill(cpts, Palette.Tint(Cliff, 10));
+                    // Shadow split — the SE half sits in shade.
+                    var dark = cpts
+                        .Where(p => p.Y > tcen.Y)
+                        .Append(tcen)
+                        .ToArray();
+                    if (dark.Length >= 3)
+                        Fill(dark, Palette.TintAlpha(Cliff, -18, 0.5));
+                    DrawPolyline(cpts, ink, 1.6f, true);
+                }
             }
         }
     }
