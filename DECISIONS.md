@@ -168,3 +168,61 @@ víc masivů stejné výšky.
   zůstává na disku v `docs/nimblehold/` mimo git (`.gitignore` v adresáři).
 - Skóre je vizuální hodnocení dle checklistů, ne automatická metrika —
   `compare.py` počítá jen paletu/saturaci jako pomůcku.
+
+## Interakce prostředí + smart výplň (2025-11-25)
+
+### Propy nesmí do vody
+
+- `Interactions.InWater(scene, p, pad)` — bod nafouknutý o `pad`
+  protíná řeku (tah, width/2) nebo rybník (polygon + nábřehní pásmo).
+- `WaterKind` = boat/dock/waterfall/butterfly/bird — všechno ostatní
+  stojí na suchu.
+- `PlaceProtected` nejdřív spirálově vysune prop na nejbližší suchý
+  bod (do 140 px), jinak placement odmítne. Platí pro ruční pokládání
+  i scatter (oba jedou přes PlaceProtected).
+- `MapFill.Generate` (výplň podle vzorků) zahazuje body ve vodě
+  pro nevodní kindy.
+
+### Zeď/plot otevírá branu přes cestu
+
+- Render-time, ne datově: `FortifyPainter.Add` dostane seznam cest a
+  `CutAtCrossings` rozřeže běh zdi/plotu všude, kde leží v pásmu cesty
+  (road.w/2 + wall.w/2 + 8). Z ohonů vzniknou segmenty, do konců se
+  kreslí vrátové sloupky (kámen u zdi, vyšší paždík u plotu).
+- Funguje obousměrně (cesta po zdi i zeď přes cestu), undo-neutral.
+
+### Smart výplň (4. režim výplně)
+
+- `SmartFill.Generate(region, scene, seed, density)` — kontextový
+  scatter: každý bod jitterované mřížky se klasifikuje podle mapy:
+  - na silnici (rd<10) se nic nespawne — cesta zůstane volná,
+  - u cesty (rd<46) křoví/kameny/lucerny/kačeny/mílíky,
+  - u břehu (wd<44) kameny/křoví, vzácně dok/loďka,
+  - otevřená voda: jen vzácná loďka,
+  - svah/plato masifu: kameny, borovice, krystaly,
+  - u budov (<100 px): bedny, sudy, seno, lucerny — vesnický binec,
+  - jinak otevřená krajina: stromy/křoví/kameny podle biomu
+    (species necháváme null → biome species list).
+- Patchiness maska (dvě sinusovky ze seedu) shlukuje volnou krajinu
+  do houštin s mýtinami místo rovnoměrného posypu; pásmové kontexty
+  masku ignorují.
+- Tvrdé blokace: zeď/plot (width/2 + size/2), voda pro nevodní kindy,
+  overlap proti existujícím i novým propům (0.42 scale radius).
+- Zvířátka: nové kindy `butterfly` (dvě barevné křídlové elipsy +
+  tělíčko) a `bird` (dvouobloukový chevron); motýli u břehů a luk,
+  ptáci řídce všude. Height bump nízký (0.02/0.04) — vyšší házel
+  dlouhý raymarchovaný pruh, který četl jako škrábanec.
+- Reroll = existující kostka (náhodný seed + RunFill), hint
+  ve stats labelu.
+
+### Probe
+
+- `DMMAP_SMART_SHOT=cesta` bakeuje cestu+řeku+zeď+plot přes cestu,
+  masif, dům, strom hozený do řeky (test nudge), smart výplň přes
+  střed a dumpne okno bez docku; `bare` v cestě výplň přeskočí.
+
+## Ověření
+
+- `dotnet build` → 0 errors; `DMMAP_PROBE=1` celý self-test prošel.
+- Screenshoty: brány se sloupky u zdi i plotu, strom vysunutý na břeh,
+  houštiny s mýtinami, cesta/řeka čisté.

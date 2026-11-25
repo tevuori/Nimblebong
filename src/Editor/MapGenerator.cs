@@ -560,6 +560,11 @@ public static class MapFill
                 }
                 if (blocked)
                     continue;
+                if (
+                    !Interactions.WaterKind(sample.Kind)
+                    && Interactions.InWater(scene, point, size * 0.35)
+                )
+                    continue;
                 if (solids.Any(poly => Poly.PointInPolygon(point, poly)))
                     continue;
                 if (tops.Any(top => Poly.PointInPolygon(point, top)))

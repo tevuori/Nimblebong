@@ -529,6 +529,69 @@ public static class Interactions
     public static bool KeptOut(string kind) =>
         !ProtectedKinds.ContainsKey(kind) && !KeepOutExcept.Contains(kind);
 
+    /// <summary>Kinds allowed to sit in water — everything else is
+    /// nudged to dry land by PlaceProtected and rejected by fills.
+    /// Flying critters count as water kinds (they hover, not stand).</summary>
+    static readonly HashSet<string> WaterAllowed =
+        ["boat", Kinds.Dock, Kinds.Waterfall, "butterfly", "bird"];
+
+    public static bool WaterKind(string kind) => WaterAllowed.Contains(kind);
+
+    /// <summary>True when a point inflated by `pad` touches any river
+    /// stroke or pond shape — the dry-land rule for props.</summary>
+    public static bool InWater(Scene scene, Vector2 p, double pad)
+    {
+        foreach (var st in scene.Strokes)
+        {
+            if (st.Kind != Kinds.River)
+                continue;
+            var lim = st.Width / 2 + pad;
+            for (var i = 1; i < st.Points.Count; i++)
+                if (SegDist(p, st.Points[i - 1], st.Points[i]) <= lim)
+                    return true;
+        }
+        foreach (var sh in scene.Shapes)
+        {
+            if (sh.Kind != Kinds.Pond)
+                continue;
+            if (Poly.PointInPolygon(p, sh.Points))
+                return true;
+            if (pad > 0)
+                for (var i = 0; i < sh.Points.Count; i++)
+                    if (SegDist(p, sh.Points[i], sh.Points[(i + 1) % sh.Points.Count]) <= pad)
+                        return true;
+        }
+        return false;
+    }
+
+    /// <summary>Spiral-search the nearest dry point for a prop of
+    /// `reach`. Null when nothing within ~140 px is dry — the placement
+    /// is then fully blocked (deep water).</summary>
+    static Vector2? NudgeOutOfWater(Scene scene, Vector2 p, double reach)
+    {
+        if (!InWater(scene, p, reach))
+            return p;
+        for (var r = 8.0; r <= 140; r += 8)
+            for (var k = 0; k < 10; k++)
+            {
+                var a = k / 10.0 * Math.PI * 2 + r;
+                var q = p + new Vector2((float)Math.Cos(a), (float)Math.Sin(a)) * (float)r;
+                if (q.X < 0 || q.Y < 0 || q.X > scene.Width || q.Y > scene.Height)
+                    continue;
+                if (!InWater(scene, q, reach))
+                    return q;
+            }
+        return null;
+    }
+
+    static double SegDist(Vector2 p, Vector2 a, Vector2 b)
+    {
+        var ab = b - a;
+        var len2 = ab.LengthSquared();
+        var t = len2 < 1e-6 ? 0 : Math.Clamp((p - a).Dot(ab) / len2, 0, 1);
+        return (a + ab * (float)t - p).Length();
+    }
+
     /// <summary>The zone a circle of `reach` at `point` overlaps, if any.</summary>
     public static ProtectionZone? ZoneHit(
         Vector2 point,
@@ -569,6 +632,16 @@ public static class Interactions
     {
         var zones = ProtectionZones(scene);
         var reach = prop.Scale / 2;
+        // Dry-land rule first — a land prop dropped into water is nudged
+        // to the shore or refused outright.
+        if (!WaterKind(prop.Kind))
+            if (NudgeOutOfWater(scene, new Vector2((float)prop.X, (float)prop.Y), reach) is { } dry)
+            {
+                prop.X = dry.X;
+                prop.Y = dry.Y;
+            }
+            else
+                return false;
         if (KeptOut(prop.Kind))
         {
             var p = new Vector2((float)prop.X, (float)prop.Y);

@@ -1740,4 +1740,59 @@ public partial class PropsPainter
     // so the partial class still compiles.
     void Stub(PropPlacement p) =>
         DrawCircle(p.Pos, 4 * p.Scale, new Color(0.4f, 0.2f, 0.6f, 0.5f));
+
+    // --- ambient critters (smart fill) -------------------------------------
+
+    /// <summary>Butterfly — two bright wings around a dark body. Ambient
+    /// critter from the smart fill; no contact shadow (it hovers, the
+    /// heightmap throws the shadow south of it instead).</summary>
+    void DrawButterfly(PropPlacement p)
+    {
+        var rand = new Jitter(p.VarSeed);
+        var wing = new[]
+        {
+            Palette.Hex("#e8a13a"),
+            Palette.Hex("#d8648e"),
+            Palette.Hex("#e8e0f0"),
+            Palette.Hex("#86b7e0"),
+            Palette.Hex("#e8d05a"),
+        }[(int)(rand.Next() * 5) % 5];
+        var a = rand.Next() * Math.PI * 2;
+        var ca = Math.Cos(a);
+        var sa = Math.Sin(a);
+        var spread = rand.Range(0.55, 0.95);
+        foreach (var side in new[] { -1.0, 1.0 })
+        {
+            var c = new Vector2((float)(-sa * side * 3.6), (float)(ca * side * 3.6));
+            Fill(Xform(p, Poly.Ellipse(c.X, c.Y, 4.2, 2.3, a + side * spread, 8)), wing);
+        }
+        DrawLine(
+            Xform(p, new Vector2((float)(-ca * 4.4), (float)(-sa * 4.4))),
+            Xform(p, new Vector2((float)(ca * 4.4), (float)(sa * 4.4))),
+            StoneEdge,
+            1.8f
+        );
+    }
+
+    /// <summary>Soaring bird — a shallow two-arc chevron, ink-dark.
+    /// Reads as a distant flyer; the height entry puts its shadow far
+    /// south-east like the real thing.</summary>
+    void DrawBird(PropPlacement p)
+    {
+        var rand = new Jitter(p.VarSeed);
+        var s = rand.Range(7, 11);
+        var a = rand.Next() * Math.PI * 2;
+        var ca = Math.Cos(a);
+        var sa = Math.Sin(a);
+        Vector2 Dir(double x, double y) =>
+            new((float)(x * ca - y * sa), (float)(x * sa + y * ca));
+        var ink = Palette.Mix(StoneEdge, Colors.Black, 0.25);
+        foreach (var side in new[] { -1.0, 1.0 })
+        {
+            var mid = Dir(s * 0.32, side * s * 0.52);
+            var tip = Dir(s * 0.1, side * s);
+            DrawLine(Xform(p, mid), Xform(p, tip), ink, Math.Max(1.2f, (float)(s * 0.15)));
+            DrawLine(Xform(p, Dir(-s * 0.06, 0)), Xform(p, mid), ink, Math.Max(1.4f, (float)(s * 0.19)));
+        }
+    }
 }

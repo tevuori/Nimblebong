@@ -58,6 +58,10 @@ public enum PropKind
     Fireplace,
     /// <summary>Text caption — paper tag with the label string.</summary>
     Label,
+    /// <summary>Ambient insect — two bright wing ellipses (smart fill).</summary>
+    Butterfly,
+    /// <summary>Soaring bird — a two-arc chevron high above (smart fill).</summary>
+    Bird,
 }
 
 /// <summary>One placed map object. Scale is a multiplier on the kind's

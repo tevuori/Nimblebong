@@ -56,6 +56,10 @@ public partial class PropsHeight : Node2D
         { PropKind.Shelf, (12, 0.05) },
         { PropKind.Rug, (12, 0.008) },
         { PropKind.Fireplace, (13, 0.06) },
+        // Flying critters — small body, low bump: a taller one throws
+        // a long raymarched streak that reads as a scratch, not a bird.
+        { PropKind.Butterfly, (3, 0.02) },
+        { PropKind.Bird, (4, 0.04) },
     };
 
     // Terrain height sampler — terrace rings cached like the heightmap

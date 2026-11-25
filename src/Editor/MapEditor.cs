@@ -348,6 +348,115 @@ public partial class MapEditor : Node2D
         var ghostShot = System.Environment.GetEnvironmentVariable("DMMAP_GHOST_SHOT");
         if (ghostShot != null)
             CallDeferred(nameof(GhostShot), ghostShot);
+        var smartShot = System.Environment.GetEnvironmentVariable("DMMAP_SMART_SHOT");
+        if (smartShot != null)
+            CallDeferred(nameof(SmartShot), smartShot);
+    }
+
+    /// <summary>Probe: bake a road + river + crossing wall/fence + a
+    /// massif and a house, drop a tree into the river (must be nudged
+    /// out), run the smart fill over the middle and dump the window.</summary>
+    async void SmartShot(string path)
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene =>
+        {
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(80, 400), new(500, 420), new(1080, 480)],
+                    Width = 16,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.River,
+                    Points = [new(880, 60), new(820, 300), new(900, 640)],
+                    Width = 26,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Wall,
+                    Points = [new(620, 300), new(640, 430), new(660, 560)],
+                    Width = 10,
+                }
+            );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Fence,
+                    Points = [new(300, 340), new(300, 430), new(320, 540)],
+                    Width = 6,
+                }
+            );
+            scene.Shapes.Add(
+                new Shape
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Terrain,
+                    Height = 40,
+                    Size = 40,
+                    Roughness = 40,
+                    Points = [new(120, 80), new(420, 60), new(470, 240), new(140, 260)],
+                }
+            );
+            Interactions.PlaceProtected(
+                scene,
+                new Prop
+                {
+                    Id = scene.AllocId(),
+                    Kind = "house",
+                    X = 180,
+                    Y = 330,
+                    Scale = 30,
+                }
+            );
+            // Dry-land test — a tree dropped mid-river must be nudged
+            // to the shore (or refused when nothing near is dry).
+            var before = scene.Props.Count;
+            Interactions.PlaceProtected(
+                scene,
+                new Prop
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Tree,
+                    X = 855,
+                    Y = 330,
+                    Scale = 30,
+                }
+            );
+            GD.Print($"SMART water-nudge placed={scene.Props.Count > before}");
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!path.Contains("bare"))
+        {
+            _fillMode.Selected = 3;
+            _fillRect = new Rect2(140, 260, 780, 340);
+            RunFill();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GD.Print($"SMART generated={_fillProps.Count}");
+            CommitFill();
+        }
+        _camera.Position = new Vector2(560, 400);
+        _camera.Zoom = new Vector2(0.72f, 0.72f);
+        if (_uiLayer != null)
+            _uiLayer.Visible = false;
+        for (var i = 0; i < 6; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GetViewport().GetTexture().GetImage().SavePng(path);
+        GetTree().Quit();
     }
 
     /// <summary>Probe: bake a road + river, activate the painted stroke
@@ -1935,6 +2044,19 @@ public partial class MapEditor : Node2D
                 _fillStats.Text = $"Nových {_fillScene.Shapes.Count + _fillScene.Strokes.Count + _fillProps.Count}";
                 break;
             }
+            case 3: // Smart — context-aware scatter, no source samples
+            {
+                var res = SmartFill.Generate(
+                    region,
+                    _view.Scene,
+                    seed,
+                    _fillDensity.Value / 100
+                );
+                _fillProps = res.Props;
+                _fillSources = res.SourceIds;
+                _fillStats.Text = $"Nových {_fillProps.Count} · kostka = jiná varianta";
+                break;
+            }
             default:
             {
                 var res = MapFill.Generate(
@@ -2527,6 +2649,7 @@ public partial class MapEditor : Node2D
         _fillMode.AddItem("Výplň podle vzorků");
         _fillMode.AddItem("Krajina");
         _fillMode.AddItem("Dungeon");
+        _fillMode.AddItem("Smart");
         _fillMode.ItemSelected += _ => RunFill();
         _fillSection.AddChild(_fillMode);
         _fillStats = new Label();
