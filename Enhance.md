@@ -10,6 +10,25 @@ Dodatečné pravidlo pro tento úkol: práci smíš přerušit a zeptat se uživ
 jen tehdy, když ti chybí assety, které se nepodařilo získat z Nimblehold
 materiálů. Jinak pracuj plně autonomně (bypass privilege).
 
+### Paralelní agenti
+
+Smíš si spawnout více subagentů (`run_subagent`), když to urychlí práci —
+vždy na disjunktní úkolech, aby se nesrazili na sdílených souborech.
+Vhodné rozdělení:
+
+- **Sběr materiálů** — jeden agent Steam, druhý YouTube/videa, třetí web
+  research (každý píše do vlastního adresáře v `docs/nimblehold/`).
+- **Analýza** — agenti rozdělení podle témat (paleta, nástroje, interakce,
+  UI, animace), výstup do separátních souborů mergovaných do `analysis.md`.
+- **Iterační vlny** — render/opravy jednoho referenčního obrázku dělá vždy
+  jen jeden agent (editory se přepisují); paralelizovat lze read-only
+  diagnostiku („proč se náš masiv nelíbí" apod.) a per-kategorií painter
+  práce s vlastními soubory (jako při vlnách A–D: stub + worktree + merge).
+
+Pravidla: front-load kontext do promptu (agenti jsou stateless), read-only
+agenti pro průzkum, plní agenti jen pro disjunktní soubory, každý merge
+ověř `dotnet build` + probem.
+
 ---
 
 ## Cíl
