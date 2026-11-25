@@ -8,9 +8,11 @@ Sdílený seznam úkolů. Každá sekce patří jednomu agentovi/oblasti.
 Cíl: krajina DM mapy vypadá dobře a každý vizuální prvek jde přidat
 přes JSON config (`assets/config/`) bez psaní C#. UI sem nepatří.
 
-- [~] **Prop registry.** Druh propu = string id z `assets/config/props/*.json`
-  (archetyp = existující C# kreslič + parametry: barvy z palety biomu,
-  velikost, výška, stín, jitter, biomy). Nová varianta = nový JSON soubor.
+- [x] **Prop registry.** `assets/config/props/*.json` (schéma v README tam).
+  Definice = vestavěný kreslič (`base`) + paleta/tint/HSV/scale/výška.
+- [ ] Prop registry: vizuálně ověřit 6 ukázkových definic v probe (chybí Godot).
+- [ ] Biomy: scatter lesů/porostu z JSONu (váhy prop id per biom místo
+  natvrdo `(Tree 3, Pine 1.6, Bush 0.7)` v MapGenerator/MapEditor).
 - [ ] **Deklarativní tvary.** Prop složený čistě z JSON vrstev (blob,
   elipsa, polygon, ink obrys, stín). Úplně nové objekty bez kódu.
 - [ ] **Terén přes config.** Povrchové textury, styly břehů a útesů a
