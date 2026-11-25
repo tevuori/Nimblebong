@@ -34,7 +34,7 @@
     }
   },
   "palette": {
-    "ground": "#7db24d",
+    "ground": "#6fa346",
     "cliff": "#c2bda0",
     "water": "#14646f",
     "foliage": "#4e7440",
@@ -96,10 +96,10 @@
     "edge": null
   },
   "roads": {
-    "dirt": "#d1b87c",
+    "dirt": "#c3aa6d",
     "stone": "#b3b39b",
     "verge": "#a7aa64",
-    "halo": "#e6dda055"
+    "halo": "#e6dda044"
   },
   "colors": {
     "lilyPads": "#5d8a45"

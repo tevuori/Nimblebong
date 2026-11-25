@@ -65,7 +65,7 @@ void fragment() {
             if (occ > 0.985) break;
         }
     }
-    vec3 lit = albedo.rgb * (uAmbient * (1.0 - occ * 0.55) + uSunColor * diff * (1.0 - occ * 0.9));
+    vec3 lit = albedo.rgb * (uAmbient * (1.0 - occ * 0.66) + uSunColor * diff * (1.0 - occ * 0.94));
     // Animated water: slow wave tint drift + sparse moving glints,
     // confined to the water mask (uWater alpha = coverage).
     float w = texture(uWater, UV).a;

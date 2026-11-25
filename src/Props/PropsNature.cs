@@ -781,7 +781,7 @@ public partial class PropsPainter
                 }
             );
             Fill(base_, plinth);
-            Stroke(base_, Palette.Hex("#3d4137"), (float)Math.Max(0.8, 1.2 * p.Scale));
+            Stroke(base_, Palette.Hex("#3b3226"), (float)Math.Max(0.8, 1.2 * p.Scale));
             if (v < 0.65)
             {
                 // Obelisk + pyramid cap (TS model 1).

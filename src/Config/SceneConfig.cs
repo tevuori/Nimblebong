@@ -785,6 +785,10 @@ public static class SceneConfig
     {
         if (season != null && b.Seasons.Contains(season))
             return season;
+        // Nimblehold's neutral look is summer; biome files list spring
+        // first for UI order, but an unseasoned scene must not blossom.
+        if (b.Seasons.Contains("summer"))
+            return "summer";
         return b.Seasons.Count > 0 ? b.Seasons[0] : "summer";
     }
 

@@ -15,7 +15,7 @@ namespace DmMap;
 public partial class WaterPainter : Node2D
 {
     // Woodland palette (biome defaults from src/config).
-    public Color Water = Palette.Hex("#298f99");
+    public Color Water = Palette.Hex("#14646f");
     public Color BankVerge = Palette.Hex("#647750");
     public Color BankEdge = Palette.Hex("#b4c985");
     public Color RoadDirt = Palette.Hex("#d1b87c");
@@ -158,8 +158,8 @@ public partial class WaterPainter : Node2D
 
     void DrawRiverGroup()
     {
-        var deep = Palette.Tint(Water, -22);
-        var shallow = Palette.Tint(Water, 34);
+        var deep = Palette.Tint(Water, -30);
+        var shallow = Palette.Tint(Water, 42);
         // Bank stack per stroke — wide grassy verge, pale trodden edge,
         // deep rim, inked shoreline. Drawn before the unioned fill so the
         // merged water covers the seams inside a confluence (TS order).
@@ -176,7 +176,7 @@ public partial class WaterPainter : Node2D
         // One inked shoreline around the merged water — per-stroke
         // outlines drew spikes where ribbons meet at a confluence.
         foreach (var piece in UnionAll(_rivers, 5))
-            InkOutline(piece, Palette.Hex("#1d2b1c") with { A = 0.65f }, 1.6f);
+            InkOutline(piece, Palette.Hex("#2a2115") with { A = 0.65f }, 1.6f);
         foreach (var (run, w) in _rivers)
             DrawPolyline(run, shallow, (float)w, true);
         foreach (var (run, w) in _rivers)
@@ -403,13 +403,13 @@ public partial class WaterPainter : Node2D
     void BankShading(Vector2[] side, Vector2[] normals, int sign)
     {
         var shadow = Palette.TintAlpha(Water, -46, 0.4);
-        var rim = Palette.Hex("#eaf8f2") with { A = 0.3f };
+        var rim = Palette.Hex("#eaf8f2") with { A = 0.52f };
         var runPts = new List<Vector2>();
         var dark = false;
         void Flush()
         {
             if (runPts.Count > 1)
-                DrawPolyline([.. runPts], dark ? shadow : rim, dark ? 3.2f : 1.8f, true);
+                DrawPolyline([.. runPts], dark ? shadow : rim, dark ? 3.2f : 2.4f, true);
             runPts.Clear();
         }
         for (var i = 0; i < side.Length; i++)

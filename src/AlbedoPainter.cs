@@ -62,12 +62,9 @@ public partial class AlbedoPainter : Node2D
         var rings = new List<(Vector2[], Color)>();
         var contours = new List<Vector2[]>();
         var face = FaceColor(m);
-        (double f, double tone)[] steps =
-        [
-            (0.88, -6),
-            (0.58, 5),
-            (0.3, -7),
-        ];
+        // Nimblehold cliff faces are continuous painted stone, not
+        // contour terraces: keep the structure cache but no opaque rings.
+        (double f, double tone)[] steps = [];
         for (var s = 0; s < steps.Length; s++)
         {
             var (fOut, tone) = steps[s];
@@ -85,9 +82,7 @@ public partial class AlbedoPainter : Node2D
                 }
             }
         }
-        // One hairline contour echo floating in the face.
-        foreach (var top in m.Tops)
-            contours.AddRange(TerrainGeometry.Offset(top, 0.45 * m.Size));
+        // No mechanical contour echo — cracks/cobble carry the face.
         _strata[m] = rings;
         _contours[m] = contours;
     }
@@ -196,7 +191,7 @@ public partial class AlbedoPainter : Node2D
             var face = FaceColor(m);
             var faceDark = Palette.Tint(face, m.Model == 1 ? -38 : -34);
             var faceLight = Palette.Tint(face, 16);
-            var ink = m.Model == 1 ? Palette.Hex("#7a6749") : Palette.Hex("#555a45");
+            var ink = m.Model == 1 ? Palette.Hex("#7a6749") : Palette.Hex("#514734");
             var dirt = m.Model == 1;
             var higher = _massifs
                 .FindAll(h => h.Height > m.Height)
@@ -228,14 +223,12 @@ public partial class AlbedoPainter : Node2D
                     TextureTiles.Stamp(this, poly, TextureTiles.Cliff, 0.3f, 0.5);
                 }
             }
-            // Crack mesh on the stone face — dominant in the ink pack
-            // (the 2mt slab signature), a faint fracture hint elsewhere.
-            if (!dirt)
-            {
-                var crackInk = Biome?.ArtPack == "ink" ? 0.7f : 0.22f;
-                foreach (var poly in bandPieces)
-                    CrackMesh(poly, face, crackInk);
-            }
+            // Crack mesh is the ink pack's 2mt slab signature. Classic
+            // faces stay painterly: cobble, strata arcs and rim scree
+            // carry the texture without a geometric wireframe overlay.
+            if (!dirt && Biome?.ArtPack == "ink")
+            foreach (var poly in bandPieces)
+                CrackMesh(poly, face, 0.78f);
 
             // Terrace rings — the sedimentary strata.
             foreach (var (ring, tone) in _strata[m])
@@ -243,7 +236,7 @@ public partial class AlbedoPainter : Node2D
                 Fill(poly, tone);
 
             // Toe contact + south shading — the foot of the face sinks.
-            DrawPolyline(m.Base, Palette.TintAlpha(face, -20, 0.55), (float)System.Math.Max(8, m.Size * 0.3), true);
+            DrawPolyline(m.Base, Palette.TintAlpha(face, -24, 0.68), (float)System.Math.Max(8, m.Size * 0.3), true);
             var cy = Poly.Centroid(m.Base).Y;
             foreach (var arc in Poly.Runs(m.Base, p => p.Y > cy))
                 if (arc.Count > 1)
@@ -253,9 +246,6 @@ public partial class AlbedoPainter : Node2D
                         (float)System.Math.Max(5, m.Size * 0.24)
                     );
 
-            // Hairline contour echo.
-            foreach (var c in _contours[m])
-                DrawPolyline(c, Palette.TintAlpha(face, -16, 0.5), 1.2f, true);
 
             // Material patches — soft ellipses in shifted tints.
             foreach (var (point, angle, index) in Poly.SampleLine(m.Base, System.Math.Max(30, m.Size * 1.4)))
@@ -289,11 +279,11 @@ public partial class AlbedoPainter : Node2D
             // Cobble mosaic — larger rounded stones with real gaps, the
             // hand-drawn packed-rock look of the reference.
             var (xs, ys) = BBox(m.Base);
-            for (var y = ys.X; y < ys.Y; y += 17)
-            for (var x = xs.X; x < xs.Y; x += 17)
+            for (var y = ys.X; y < ys.Y; y += 22)
+            for (var x = xs.X; x < xs.Y; x += 22)
             {
                 var seed = x * 0.37 + y * 0.53;
-                if (Rng.Noise(seed) < 0.24)
+                if (Rng.Noise(seed) < 0.68)
                     continue;
                 var p = new Vector2(
                     (float)(x + (Rng.Noise(seed + 1) - 0.5) * 9),
@@ -301,7 +291,7 @@ public partial class AlbedoPainter : Node2D
                 );
                 if (!InBand(m, p))
                     continue;
-                var r = 6.5 + Rng.Noise(seed + 3) * (dirt ? 3.4 : 6.5);
+                var r = 4.2 + Rng.Noise(seed + 3) * (dirt ? 2.8 : 4.6);
                 var pebble = Poly.Ellipse(
                     p.X,
                     p.Y,
