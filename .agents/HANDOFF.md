@@ -3,6 +3,17 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (2) — Claude Code (Opus 5.5), `feat/enhance-visuals`
+
+**Hotovo:**
+- `assets/config/placement.json` + `Placement`: ochranné zóny z configu.
+  Prop definice je přepisují (`protect`, `keepOut`). Checkbox
+  „Ignorovat ochranné zóny“ v sekcích Varianta a Štětec.
+- `Kinds.Biomes`/`Kinds.Moods` se berou z configu. Nový biom/mood v JSON
+  už neztratí scéna při načtení.
+- `assets/config/README.md`: kompletní reference všech JSON configů
+  (+ odkaz v AGENTS.md, pravidlo „vizuální parametry do configu“).
+
 ## 2026-11-25 — Claude Code (Opus 5.5), větev `feat/enhance-visuals`
 
 **Hotovo:** prop registry. Nové druhy objektů jdou přidat jako JSON do

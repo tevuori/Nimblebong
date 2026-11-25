@@ -15,6 +15,7 @@ renderer `gl_compatibility`. Dokumentace a UI jsou česky.
 |---|---|
 | Architektura, render pipeline, pravidla | `ARCHITECTURE.md` (přečti před zásahem do painterů/editoru) |
 | Aktuální úkol: Nimblehold parita | `Enhance.md` |
+| **Config vzhledu (biomy, moody, stromy, props, pokládání)** | `assets/config/README.md` (reference všech JSON) |
 | Reference, checklisty, skóre | `docs/nimblehold/` (`refs/ref-XX.{png,md}`, `scores.json`, `analysis.md`, `features.md`) |
 | Zdrojáky | `src/` (painters v rootu, `Editor/`, `Bridge/`, `Props/`, `Model/`, `Config/`) |
 | Probe scény | `scenes/probe-*.tscn` |
@@ -41,6 +42,8 @@ python3 tools/compare.py ...   # naše vs. ref vedle sebe + skóre
   přes `Geometry2D.MergePolygons(p, p)`.
 - Nový vizuální prvek = nový painter soubor, integrace přes `LightingStage`.
   Painters nesahají na cizí vrstvy.
+- Vizuální parametry patří do JSON configu (`assets/config/`), ne do
+  C# konstant. Nový config klíč zdokumentuj v `assets/config/README.md`.
 - Editor změny jdou přes `SceneHistory` (undo). Tah/slider = živá mutace
   a pak jeden commit.
 - Nepřidávej `.uid`/`.import` ručně, generuje je Godot.
