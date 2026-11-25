@@ -358,6 +358,179 @@ public partial class MapEditor : Node2D
         var vegShot = System.Environment.GetEnvironmentVariable("DMMAP_VEG_SHOT");
         if (vegShot != null)
             CallDeferred(nameof(VegShot), vegShot);
+        if (System.Environment.GetEnvironmentVariable("DMMAP_DRAG_PROBE") == "1")
+            CallDeferred(nameof(DragProbe));
+    }
+
+    /// <summary>Probe: reproduce the selection-drag bug — bake a house,
+    /// props and strokes, then simulate a real drag (live mutation +
+    /// throttled rebuilds + release commit) and verify object counts
+    /// and positions survive intact.</summary>
+    async void DragProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var useRealMap = System.Environment.GetEnvironmentVariable("DMMAP_DRAG_LOAD") == "1";
+        if (useRealMap)
+            Load();
+        if (System.Environment.GetEnvironmentVariable("DMMAP_DRAG_LANDSCAPE") == "1")
+            Commit(scene => MapGenerator.MergeInto(scene, MapGenerator.GenerateLandscape(42, MapSize)));
+        if (useRealMap)
+        {
+            // Drag whatever the user's map already has — no baked extras.
+        }
+        else
+        Commit(scene =>
+        {
+            scene.Shapes.Add(
+                new Shape
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.House,
+                    Height = 18,
+                    Size = 20,
+                    Points = [new(500, 400), new(620, 400), new(620, 500), new(500, 500)],
+                }
+            );
+            for (var i = 0; i < 8; i++)
+                scene.Props.Add(
+                    new Prop
+                    {
+                        Id = scene.AllocId(),
+                        Kind = Kinds.Tree,
+                        X = 150 + i * 90,
+                        Y = 200,
+                        Scale = 24,
+                        Seed = i * 17,
+                    }
+                );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = [new(80, 700), new(500, 720), new(1000, 750)],
+                    Width = 16,
+                }
+            );
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        int[] Counts() =>
+            [_view.Scene.Shapes.Count, _view.Scene.Strokes.Count, _view.Scene.Props.Count];
+        var before = Counts();
+        GD.Print($"DRAG before shapes={before[0]} strokes={before[1]} props={before[2]}");
+
+        // Grab the house at its center like the user would — prefer a
+        // house footprint shape, fall back to a house prop stamp.
+        SetTool("select");
+        var houseShape = _view.Scene.Shapes.FirstOrDefault(s => s.Kind == Kinds.House);
+        var houseProp = _view.Scene.Props.FirstOrDefault(p => p.Kind == Kinds.House);
+        float cx, cy;
+        if (houseShape != null)
+        {
+            cx = (float)houseShape.Points.Average(p => p.X);
+            cy = (float)houseShape.Points.Average(p => p.Y);
+        }
+        else if (houseProp != null)
+        {
+            cx = (float)houseProp.X;
+            cy = (float)houseProp.Y;
+        }
+        else
+        {
+            GD.Print("DRAG FAIL no house in scene");
+            GetTree().Quit();
+            return;
+        }
+        var grab = new Vector2(cx, cy);
+        BeginStroke();
+        // Simulate the mouse motion path: BeginStroke used the real
+        // cursor position, so re-run the hit-test at the house center.
+        ClearSelection();
+        BeginSelect(grab, false);
+        GD.Print($"DRAG selected shapes={_selShapes.Count} props={_selProps.Count} moving={_selMoving}");
+        // Live drag in steps, with the throttled rebuild in between —
+        // exactly what _Process does while the mouse moves.
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var worst = 0L;
+        for (var i = 1; i <= 12; i++)
+        {
+            var tm = sw.ElapsedMilliseconds;
+            MoveSelectionTo(grab + new Vector2(i * 15, i * 8));
+            var tMove = sw.ElapsedMilliseconds - tm;
+            // Rebuild only when the probe asks for the legacy path —
+            // the real input path leaves it to the _Process throttle.
+            if (System.Environment.GetEnvironmentVariable("DMMAP_DRAG_REBUILD") == "1")
+            {
+                var t0 = sw.ElapsedMilliseconds;
+                _view.Rebuild();
+                worst = Math.Max(worst, sw.ElapsedMilliseconds - t0);
+            }
+            var tf = sw.ElapsedMilliseconds;
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (System.Environment.GetEnvironmentVariable("DMMAP_DRAG_STEPS") == "1")
+                GD.Print($"DRAG step{i} move={tMove}ms frame={sw.ElapsedMilliseconds - tf}ms");
+        }
+        GD.Print($"DRAG rebuild worst={worst}ms total={sw.ElapsedMilliseconds}ms");
+        var mid = Counts();
+        GD.Print($"DRAG mid shapes={mid[0]} strokes={mid[1]} props={mid[2]}");
+        EndSelect(grab + new Vector2(180, 96));
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var after = Counts();
+        GD.Print($"DRAG after shapes={after[0]} strokes={after[1]} props={after[2]}");
+        Vector2 HouseCenter()
+        {
+            var hs = _view.Scene.Shapes.FirstOrDefault(s => s.Kind == Kinds.House);
+            if (hs != null)
+                return new Vector2((float)hs.Points.Average(p => p.X), (float)hs.Points.Average(p => p.Y));
+            var hp = _view.Scene.Props.FirstOrDefault(p => p.Kind == Kinds.House);
+            return hp == null ? new Vector2(float.NaN, float.NaN) : new Vector2((float)hp.X, (float)hp.Y);
+        }
+        var nc = HouseCenter();
+        if (!float.IsNaN(nc.X))
+            GD.Print($"DRAG house center {nc.X:0.0},{nc.Y:0.0} (expect ~{cx + 180:0.0},{cy + 96:0.0})");
+        else
+            GD.Print("DRAG FAIL house missing");
+        // A second drag right after the commit — the selection still
+        // holds references into the PREVIOUS scene clone. This is where
+        // stale-reference corruption would show.
+        BeginSelect(HouseCenter(), false);
+        for (var i = 1; i <= 6; i++)
+        {
+            MoveSelectionTo(GetGlobalMousePosition() + new Vector2(i * 10, 0));
+            _view.Rebuild();
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        EndSelect(GetGlobalMousePosition() + new Vector2(60, 0));
+        var final = Counts();
+        GD.Print($"DRAG final shapes={final[0]} strokes={final[1]} props={final[2]}");
+        GD.Print(
+            before.SequenceEqual(final)
+                ? "DRAG counts OK"
+                : $"DRAG COUNTS LOST before={before[0]}/{before[1]}/{before[2]} final={final[0]}/{final[1]}/{final[2]}"
+        );
+        // Baseline: plain frames with the full scene, no rebuilds.
+        sw.Restart();
+        for (var i = 0; i < 10; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GD.Print($"DRAG idle frame avg={sw.ElapsedMilliseconds / 10.0:0.0}ms");
+        // And a single commit's frame cost (what every edit pays once).
+        sw.Restart();
+        Commit(scene => { });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GD.Print($"DRAG single-commit 2 frames={sw.ElapsedMilliseconds}ms");
+        var shot = System.Environment.GetEnvironmentVariable("DMMAP_DRAG_SHOT");
+        if (shot != null)
+        {
+            _camera.Position = new Vector2(700, 450);
+            if (_uiLayer != null)
+                _uiLayer.Visible = false;
+            for (var i = 0; i < 6; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GetViewport().GetTexture().GetImage().SavePng(shot);
+        }
+        GetTree().Quit();
     }
 
     /// <summary>Probe: bake a road + river + crossing wall/fence + a
@@ -561,7 +734,11 @@ public partial class MapEditor : Node2D
             _draftAt = 0;
             UpdateDraftPreview();
         }
-        if (_pendingRebuild && now - _lastRebuild >= 90)
+        // Selection drags skip live rebuilds entirely: a full repaint
+        // costs ~100-200 ms, so rebuilding on a timer during the drag
+        // starves every other frame and the editor hitches. The ghost
+        // outline tracks the cursor instead; the drop commit repaints.
+        if (_pendingRebuild && !_selMoving && now - _lastRebuild >= 90)
         {
             _pendingRebuild = false;
             _lastRebuild = now;
@@ -1219,17 +1396,26 @@ public partial class MapEditor : Node2D
                     _panFrom = b.Position;
                 }
                 else
-                    BeginStroke();
+                    BeginStroke(ScreenToWorld(b.Position));
             }
             else
             {
                 if (_panning)
                     _panning = false;
                 else
-                    EndStroke();
+                    EndStroke(ScreenToWorld(b.Position));
             }
         }
     }
+
+    /// World position for a screen-space event position — the same
+    /// camera math ZoomAt uses. Input handlers prefer event positions
+    /// over GetGlobalMousePosition: when a frame is slow the cursor has
+    /// already moved on by the time the event is processed, so hit-tests
+    /// at the live cursor grab whatever the mouse hovers NOW, not what
+    /// the user actually clicked.
+    Vector2 ScreenToWorld(Vector2 screenPos) =>
+        _camera.Position + (screenPos - GetViewportRect().Size / 2) / _camera.Zoom;
 
     void ZoomAt(Vector2 screenPos, double factor)
     {
@@ -1251,7 +1437,7 @@ public partial class MapEditor : Node2D
         }
         if (!_drawing)
             return;
-        var p = GetGlobalMousePosition();
+        var p = ScreenToWorld(m.Position);
         if (_tool.Mode == Mode.Select)
         {
             if (_marqueeing)
@@ -1462,10 +1648,10 @@ public partial class MapEditor : Node2D
         return null;
     }
 
-    void BeginStroke()
+    void BeginStroke(Vector2? at = null)
     {
         _stroke.Clear();
-        _stroke.Add(GetGlobalMousePosition());
+        _stroke.Add(at ?? GetGlobalMousePosition());
         _drawing = true;
         if (_tool.Mode == Mode.Brush)
         {
@@ -1488,7 +1674,7 @@ public partial class MapEditor : Node2D
             ClearFill();
     }
 
-    void EndStroke()
+    void EndStroke(Vector2? at = null)
     {
         _drawing = false;
         _draftAt = 0;
@@ -1497,7 +1683,7 @@ public partial class MapEditor : Node2D
             if (_marqueeing)
                 EndMarquee();
             else
-                EndSelect(GetGlobalMousePosition());
+                EndSelect(at ?? GetGlobalMousePosition());
             return;
         }
         _ghost.ClearDraft();
@@ -1894,6 +2080,9 @@ public partial class MapEditor : Node2D
     void EndSelect(Vector2 endPos)
     {
         _selMoving = false;
+        // The drop repaints once below — any throttled rebuild the drag
+        // left pending would only paint the same state twice.
+        _pendingRebuild = false;
         if (!_selEdited)
             return;
         _selEdited = false;

@@ -3,6 +3,40 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (8) — Devin, drag objektů: sekání + mizení objektů
+
+**Hotovo:**
+- Sekání při přesouvání: tah objektu už nespouští plný `Rebuild` každých
+  90 ms (jeden rebuild stojí ~100–300 ms na reálné mapě, takže editor
+  žil v permanentním rebuildu). Během tahu se nepřekresluje vůbec —
+  pozici ukazuje žlutý ghost obrys — a rebuild proběhne jednou při
+  puštění. Tah zrychlil z ~3–5 FPS na ~60–120 FPS (12 kroků tahu nad
+  reálnou mapou: 12 000 ms → 92 ms).
+- Mizení objektů: loader scény (`SceneJson.ReadProp`) tiše zahazoval
+  prop kindy mimo hardcoded whitelist `Kinds.Props` — přitom editor sám
+  zapisuje `house` (Smart fill), `birch`/`dark-pine`/`reeds`/`tree-stump`
+  (biom species) apod. Reálná mapa uživatele: 108/126 props načteno,
+  18 zahozeno. Model specifikuje otevřený slovník („any string accepted"),
+  parser teď kindy nepřezkoumává. Po opravě 126/126.
+- Hit-testy používají pozici z input události (`ScreenToWorld`), ne
+  `GetGlobalMousePosition` — při pomalém framu se jinak klik/tah
+  vyhodnotí podle pozice myši *až při zpracování eventu*, ne při stisku,
+  takže tah chytil marquee/ničeho místo objektu.
+
+**Ověření:**
+- Nový probe `DMMAP_DRAG_PROBE=1` (+ `DMMAP_DRAG_LOAD=1` pro reálnou
+  uloženou mapu, `DMMAP_DRAG_STEPS=1` per-step timing): počty objektů
+  před/uprostřed/po tahu konzistentní, pozice domu přesná, druhý tah po
+  commitu OK.
+- `probe-model` ALL PASS, plný `DMMAP_PROBE=1` OK, build 0 errors.
+
+**Známé zbytkové problémy:**
+- Idle frame s velkou mapou ~35 ms (FinalVp composit běží Always kvůli
+  vodě/glow) — editor se složitou mapou jede ~25–30 FPS i bez práce.
+- Jeden rebuild = ~100–300 ms; cítit při každém commitu, nejen tahu.
+- Během tahu se objekt nehýbe vizuálně, jen ghost obrys (architektura
+  painterů neumožňuje levný inkrementální přesun).
+
 ## 2026-11-25 (7) — Devin, Smart fill hustota
 
 **Hotovo:**

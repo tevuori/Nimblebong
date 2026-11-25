@@ -564,11 +564,11 @@ public static class SceneJson
         var kind = ReadKind(el, ctx, warn);
         if (kind == null)
             return null;
-        if (!Kinds.IsProp(kind))
-        {
-            warn.Add($"{ctx} {kind}: not a prop kind — dropped");
-            return null;
-        }
+        // Prop kinds are an open vocabulary — the TS model accepts any
+        // string and the editor itself stamps kinds outside the legacy
+        // whitelist (house, biome species like birch/reeds/dark-pine,
+        // smart-fill ruins). Rejecting them here silently deleted valid
+        // objects on every load. Only legacy kinds vanish (ReadKind).
         var x = Clamped(el, "x", 0, scene.Width, double.NaN);
         var y = Clamped(el, "y", 0, scene.Height, double.NaN);
         if (double.IsNaN(x) || double.IsNaN(y))

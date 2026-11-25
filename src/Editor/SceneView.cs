@@ -270,7 +270,8 @@ public partial class SceneView : Node2D
         Stage.Fog.QueueRedraw();
 
         Mood.ApplyTo(Stage);
-        Stage.RefreshStatic();
+        if (System.Environment.GetEnvironmentVariable("DMMAP_NO_STATIC_REFRESH") != "1")
+            Stage.RefreshStatic();
     }
 
     void AddLayer(SubViewport vp, Node2D painter)
