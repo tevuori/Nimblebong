@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dmmapinter1"]
+
+[ext_resource type="Script" path="res://src/InteriorProbe.cs" id="1_probe"]
+
+[node name="InteriorProbe" type="Node2D"]
+script = ExtResource("1_probe")
