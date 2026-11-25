@@ -1,0 +1,6 @@
+{
+  "label": "Zarostlá ruina",
+  "base": "ruin",
+  "category": "structure",
+  "tint": { "color": "@foliage", "amount": 0.25 }
+}

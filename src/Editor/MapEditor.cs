@@ -1822,7 +1822,7 @@ public partial class MapEditor : Node2D
                     pr.Scale / 24.0,
                     pr.Rotation,
                     pr.Seed
-                )
+                ).WithDef(pr.Kind)
             )
         );
         _fillPreview.Visible = true;

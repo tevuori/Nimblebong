@@ -186,7 +186,7 @@ public partial class SceneView : Node2D
             }
         }
         water.SetRocks(
-            Scene.Props.Where(p => p.Kind == Kinds.Rock).Select(p => new Vector2(
+            Scene.Props.Where(p => MapProp(p.Kind) == PropKind.Rock).Select(p => new Vector2(
                 (float)p.X,
                 (float)p.Y
             ))
@@ -217,7 +217,7 @@ public partial class SceneView : Node2D
                     Model = p.Model,
                     Species = p.Species,
                     Text = p.Text,
-                }
+                }.WithDef(p.Kind)
             )
             .ToList();
         var propsPainter = new PropsPainter
@@ -316,6 +316,14 @@ public partial class SceneView : Node2D
         ["label"] = PropKind.Label,
     };
 
+    /// <summary>Built-in kind names only (JSON definitions excluded).</summary>
+    public static bool TryMapBuiltinProp(string kind, out PropKind k) =>
+        PropKinds.TryGetValue(kind, out k);
+
+    /// <summary>Scene kind → drawer: built-in name, else the base of a
+    /// JSON prop definition (assets/config/props), else a marker.</summary>
     public static PropKind MapProp(string kind) =>
-        PropKinds.TryGetValue(kind, out var k) ? k : PropKind.Marker;
+        PropKinds.TryGetValue(kind, out var k) ? k
+        : PropDefs.TryGet(kind, out var def) ? def.Base
+        : PropKind.Marker;
 }

@@ -1,0 +1,8 @@
+{
+  "label": "Rudý javor",
+  "base": "tree",
+  "category": "nature",
+  "biomes": ["woodland"],
+  "species": "oak",
+  "tint": { "color": "#c8612e", "amount": 0.42 }
+}

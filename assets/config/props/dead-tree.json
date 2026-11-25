@@ -1,0 +1,8 @@
+{
+  "label": "Suchý strom",
+  "base": "tree",
+  "category": "nature",
+  "biomes": ["swamp", "volcanic", "desert"],
+  "species": "deadtree",
+  "adjust": { "saturation": 0.6, "value": 0.9 }
+}

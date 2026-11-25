@@ -1,0 +1,9 @@
+{
+  "label": "Starý smrk",
+  "base": "pine",
+  "category": "nature",
+  "biomes": ["woodland", "alpine"],
+  "scale": 1.3,
+  "height": 1.4,
+  "palette": { "pine": "#34503c" }
+}

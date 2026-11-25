@@ -116,6 +116,8 @@ public partial class PropsHeight : Node2D
             if (!Sizes.TryGetValue(p.Kind, out var dim))
                 continue;
             var (r, h) = dim;
+            if (p.Def != null)
+                (r, h) = (r * p.Def.Footprint, h * p.Def.Height);
             var base_ = TerrainAt(p.Pos);
             var top = Math.Min(0.97, base_ + h);
             // Houses are elongated; everything else is near-round. The

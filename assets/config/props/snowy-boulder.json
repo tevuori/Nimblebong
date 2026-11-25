@@ -1,0 +1,8 @@
+{
+  "label": "Zasněžený balvan",
+  "base": "rock",
+  "category": "nature",
+  "biomes": ["alpine"],
+  "scale": 1.15,
+  "adjust": { "saturation": 0.35, "value": 1.22 }
+}

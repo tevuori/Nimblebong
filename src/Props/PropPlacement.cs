@@ -82,6 +82,9 @@ public class PropPlacement
     public string? Species;
     /// <summary>Caption — the "label" kind draws this.</summary>
     public string? Text;
+    /// <summary>JSON definition restyling the built-in drawer (null =
+    /// plain built-in kind). See PropDefs.</summary>
+    public PropDef? Def;
 
     public Vector2 Pos => new(X, Y);
 

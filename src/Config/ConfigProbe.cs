@@ -160,6 +160,19 @@ public partial class ConfigProbe : Node2D
                 GD.PrintErr(e.Message);
                 failures++;
             }
+
+        // Prop definitions (assets/config/props) — every file must parse.
+        try
+        {
+            PropDefs.Reload();
+            foreach (var def in PropDefs.All.Values)
+                GD.Print($"prop {def.Id}  base={def.Base} \"{def.Label}\"");
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr(e.Message);
+            failures++;
+        }
         GetTree().Quit(failures);
     }
 }
