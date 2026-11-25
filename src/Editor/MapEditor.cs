@@ -21,6 +21,7 @@ public partial class MapEditor : Node2D
         Prop,
         Label,
         Fog,
+        Fill,
     }
 
     /// <summary>One palette entry: label + category + what it commits.</summary>
@@ -87,6 +88,7 @@ public partial class MapEditor : Node2D
         new("barricade", "Zábrany", "Osídlení a dekorace", Mode.Prop, "barricade"),
         new("portal", "Magické brány", "Osídlení a dekorace", Mode.Prop, "portal"),
         new("marker", "Značky", "Mapa a hra", Mode.Prop, "marker"),
+        new("fill", "Generátor výplně", "Mapa a hra", Mode.Fill, ""),
         new("label", "Popisky", "Mapa a hra", Mode.Label, "label"),
         new("fog-clear", "Mlha: odhalit", "Mapa a hra", Mode.Fog, "clear"),
         new("fog-shroud", "Mlha: zahalit", "Mapa a hra", Mode.Fog, "shroud"),
@@ -115,6 +117,7 @@ public partial class MapEditor : Node2D
         ["chest"] = "#8a6a44", ["bones"] = "#d8cdb2", ["barricade"] = "#7d6547",
         ["portal"] = "#9a86c8", ["marker"] = "#d34f3d", ["label"] = "#4a3a28",
         ["fog-clear"] = "#7f8c8d", ["fog-shroud"] = "#5a6b6f",
+        ["fill"] = "#7a9a6a",
     };
 
     /// <summary>Tool descriptions shown under the name — the web
@@ -175,6 +178,7 @@ public partial class MapEditor : Node2D
         ["label"] = "Klikni pro umístění popisku — zadáš text v dialogu.",
         ["fog-clear"] = "Odhaluj mapu — táhni přes oblasti, které mají hráči vidět.",
         ["fog-shroud"] = "Zahaluj mapu mlhou — táhni přes oblasti, které se mají skrýt.",
+        ["fill"] = "Táhni obdélník přes oblast — naplní ji propy podle těch, co v ní už stojí (nebo vygeneruje krajinu/dungeon). Náhled se ukáže rovnou, tlačítko Vyplnit připíše jako jeden krok historie.",
     };
 
     static readonly Vector2 MapSize = new(1600, 1000);
@@ -231,6 +235,19 @@ public partial class MapEditor : Node2D
     VBoxContainer _fogSection = null!;
     VBoxContainer _brushSection = null!;
     VBoxContainer _variantSection = null!;
+    VBoxContainer _fillSection = null!;
+    Label _fillStats = null!;
+    OptionButton _fillMode = null!;
+    HSlider _fillDensity = null!;
+    LineEdit _fillSeedEdit = null!;
+    Godot.Button _fillCommit = null!;
+    // Pending region fill: the dragged rect, generated scene/props and
+    // detected source ids — previewed until "Vyplnit" commits.
+    Rect2? _fillRect;
+    List<Prop> _fillProps = [];
+    List<int> _fillSources = [];
+    Scene? _fillScene;
+    PropsPainter _fillPreview = null!;
     LineEdit _seedEdit = null!;
     OptionButton _presetOpt = null!;
     OptionButton _seasonOpt = null!;
@@ -245,6 +262,13 @@ public partial class MapEditor : Node2D
         _history = new SceneHistory(_view.Scene);
         _ghost = new GhostLayer();
         AddChild(_ghost);
+        _fillPreview = new PropsPainter
+        {
+            Modulate = new Color(1, 1, 1, 0.55f),
+            Visible = false,
+            BiomeCfg = _view.Biome,
+        };
+        AddChild(_fillPreview);
         _camera = new Camera2D { Position = MapSize / 2, Enabled = true };
         AddChild(_camera);
         BuildUi();
@@ -657,6 +681,42 @@ public partial class MapEditor : Node2D
         for (var i = 0; i < 30; i++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
 
+        // ── region fill: rect over a prop cluster → sources detected,
+        // new props previewed, "Vyplnit" commits in one step ──
+        {
+            var anchor = _view.Scene.Props.FirstOrDefault(p => p.Kind == Kinds.Tree);
+            if (anchor != null)
+            {
+                var before = _view.Scene.Props.Count;
+                _fillRect = new Rect2(
+                    (float)anchor.X - 280,
+                    (float)anchor.Y - 220,
+                    600,
+                    460
+                );
+                _fillMode.Selected = 0;
+                RunFill();
+                GD.Print(
+                    $"fill: sources {_fillSources.Count}, generated {_fillProps.Count} (expect >0/>0)"
+                );
+                CommitFill();
+                GD.Print($"fill commit: props {before} -> {_view.Scene.Props.Count}");
+            }
+            // Dungeon-in-region mode.
+            _fillRect = new Rect2(60, 60, 500, 380);
+            _fillMode.Selected = 2;
+            RunFill();
+            GD.Print(
+                $"fill dungeon: {_fillScene?.Shapes.Count ?? 0} shapes, {_fillScene?.Props.Count ?? 0} props"
+            );
+            CommitFill();
+            _fillMode.Selected = 0;
+            for (var i = 0; i < 10; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            _view.Stage.Snapshot().SavePng("/tmp/godot-fill.png");
+            GD.Print("dumped /tmp/godot-fill.png");
+        }
+
         // selection: grab the first house, move it, verify one commit
         var house = _view.Scene.Props.FirstOrDefault(p => p.Kind == Kinds.House);
         if (house != null)
@@ -790,6 +850,21 @@ public partial class MapEditor : Node2D
             }
             return;
         }
+        if (_tool.Mode == Mode.Fill)
+        {
+            if (_stroke.Count > 1)
+                _stroke[1] = p;
+            else
+                _stroke.Add(p);
+            var r = new Rect2(_stroke[0], _stroke[1] - _stroke[0]).Abs();
+            _ghost.SetFill(
+                [r.Position, r.Position + new Vector2(r.Size.X, 0), r.End, r.Position + new Vector2(0, r.Size.Y)],
+                [],
+                [],
+                []
+            );
+            return;
+        }
         if (_stroke.Count == 0 || _stroke[^1].DistanceTo(p) > 4)
         {
             _stroke.Add(p);
@@ -891,6 +966,8 @@ public partial class MapEditor : Node2D
             PromptLabel(_stroke[0]);
         else if (_tool.Mode == Mode.Erase)
             EraseAt(_stroke[0]);
+        else if (_tool.Mode == Mode.Fill)
+            ClearFill();
     }
 
     void EndStroke()
@@ -906,6 +983,15 @@ public partial class MapEditor : Node2D
         _ghost.SetStroke(_tool, [], 0);
         if (_stroke.Count < 2)
             return;
+        if (_tool.Mode == Mode.Fill)
+        {
+            if (_stroke.Count >= 2)
+            {
+                _fillRect = new Rect2(_stroke[0], _stroke[1] - _stroke[0]).Abs();
+                RunFill();
+            }
+            return;
+        }
         var pts = Interactions.SimplifyPath(_stroke, 2.0);
         if (_tool.Mode == Mode.Shape && _form > 0)
             pts = FormPoints(_form);
@@ -1321,6 +1407,103 @@ public partial class MapEditor : Node2D
         );
     }
 
+    // ── Region fill ("Generátor výplně") ─────────────────────────
+
+    /// <summary>Regenerate the pending fill for the dragged rect with
+    /// the current mode/density/seed — same rect, new preview.</summary>
+    void RunFill()
+    {
+        if (_fillRect is not { } r)
+            return;
+        _fillScene = null;
+        _fillProps = [];
+        _fillSources = [];
+        var region = new List<Vector2>
+        {
+            r.Position,
+            r.Position + new Vector2(r.Size.X, 0),
+            r.End,
+            r.Position + new Vector2(0, r.Size.Y),
+        };
+        var seed = int.TryParse(_fillSeedEdit.Text, out var sd) ? Math.Abs(sd) : 42;
+        var outlines = new List<Vector2[]>();
+        var lines = new List<Vector2[]>();
+        switch (_fillMode.Selected)
+        {
+            case 1: // Krajina
+            case 2: // Dungeon
+            {
+                _fillScene = MapGenerator.GenerateIn(seed, r, _fillMode.Selected == 2);
+                outlines = _fillScene.Shapes.Select(sh => sh.Points.ToArray()).ToList();
+                lines = _fillScene.Strokes.Select(st => st.Points.ToArray()).ToList();
+                _fillProps = _fillScene.Props;
+                _fillStats.Text = $"Nových {_fillScene.Shapes.Count + _fillScene.Strokes.Count + _fillProps.Count}";
+                break;
+            }
+            default:
+            {
+                var res = MapFill.Generate(
+                    region,
+                    _view.Scene,
+                    seed,
+                    _fillDensity.Value / 100
+                );
+                _fillProps = res.Props;
+                _fillSources = res.SourceIds;
+                _fillStats.Text = $"Zdrojů {_fillSources.Count} · Nových {_fillProps.Count}";
+                break;
+            }
+        }
+        _fillPreview.SetProps(
+            _fillProps.Select(pr =>
+                new PropPlacement(
+                    SceneView.MapProp(pr.Kind),
+                    pr.X,
+                    pr.Y,
+                    pr.Scale / 24.0,
+                    pr.Rotation,
+                    pr.Seed
+                )
+            )
+        );
+        _fillPreview.Visible = true;
+        _fillCommit.Disabled =
+            _fillProps.Count == 0 && (_fillScene?.Shapes.Count ?? 0) == 0;
+        _ghost.SetFill(region, _fillSources.Select(id =>
+        {
+            var pr = _view.Scene.Props.FirstOrDefault(q => q.Id == id);
+            return pr != null ? new Vector2((float)pr.X, (float)pr.Y) : Vector2.Zero;
+        }).Where(q => q != Vector2.Zero).ToList(), outlines, lines);
+    }
+
+    /// <summary>Commit the previewed fill as one undo step.</summary>
+    void CommitFill()
+    {
+        if (_fillScene is { } gen)
+            Commit(scene => MapGenerator.MergeInto(scene, gen));
+        else if (_fillProps.Count > 0)
+            Commit(scene =>
+            {
+                foreach (var pr in _fillProps)
+                {
+                    pr.Id = scene.AllocId();
+                    scene.Props.Add(pr);
+                }
+            });
+        ClearFill();
+    }
+
+    void ClearFill()
+    {
+        _fillRect = null;
+        _fillProps = [];
+        _fillSources = [];
+        _fillScene = null;
+        if (_fillPreview != null)
+            _fillPreview.Visible = false;
+        _ghost?.SetFill([], [], [], []);
+    }
+
     /// <summary>Small text prompt — on OK places a "label" prop with
     /// the entered caption at `pos`.</summary>
     void PromptLabel(Vector2 pos)
@@ -1528,6 +1711,10 @@ public partial class MapEditor : Node2D
             _fogSection.Visible = _tool.Mode == Mode.Fog;
         if (_brushSection != null)
             _brushSection.Visible = _tool.Mode == Mode.Brush;
+        if (_fillSection != null)
+            _fillSection.Visible = _tool.Mode == Mode.Fill;
+        if (_tool.Mode != Mode.Fill)
+            ClearFill();
         if (_variantSection != null)
             _variantSection.Visible =
                 _tool.Mode == Mode.Prop || (_tool.Mode == Mode.Select && _selProp != null);
@@ -1772,6 +1959,49 @@ public partial class MapEditor : Node2D
             });
         _fogSection.AddChild(revealAll);
 
+        _fillSection = new VBoxContainer { Visible = false };
+        box.AddChild(_fillSection);
+        _fillMode = new OptionButton();
+        _fillMode.AddItem("Výplň podle vzorků");
+        _fillMode.AddItem("Krajina");
+        _fillMode.AddItem("Dungeon");
+        _fillMode.ItemSelected += _ => RunFill();
+        _fillSection.AddChild(_fillMode);
+        _fillStats = new Label();
+        _fillStats.AddThemeFontSizeOverride("font_size", 11);
+        _fillSection.AddChild(_fillStats);
+        var drow = new HBoxContainer();
+        _fillDensity = new HSlider { MinValue = 15, MaxValue = 100, Value = 55, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        _fillDensity.ValueChanged += _ => RunFill();
+        drow.AddChild(new Label { Text = "Hustota" });
+        drow.AddChild(_fillDensity);
+        _fillSection.AddChild(drow);
+        var srow = new HBoxContainer();
+        _fillSeedEdit = new LineEdit { Text = "42", PlaceholderText = "seed", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        _fillSeedEdit.TextSubmitted += _ => RunFill();
+        srow.AddChild(_fillSeedEdit);
+        var dice = new Godot.Button { Text = "🎲" };
+        dice.Pressed += () =>
+        {
+            _fillSeedEdit.Text = ((int)(Time.GetTicksMsec() % 100000)).ToString();
+            RunFill();
+        };
+        srow.AddChild(dice);
+        _fillSection.AddChild(srow);
+        var frow = new HBoxContainer();
+        _fillCommit = new Godot.Button
+        {
+            Text = "Vyplnit",
+            Disabled = true,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        _fillCommit.Pressed += CommitFill;
+        frow.AddChild(_fillCommit);
+        var cancel = new Godot.Button { Text = "Zrušit" };
+        cancel.Pressed += ClearFill;
+        frow.AddChild(cancel);
+        _fillSection.AddChild(frow);
+
         row.AddChild(new VSeparator());
 
         // ── tool library: search + selects + card grid ───────────
@@ -1941,6 +2171,26 @@ public partial class GhostLayer : Node2D
     Vector2[]? _selLine;
     Vector2[]? _selOutline;
     Vector2? _snap;
+    List<Vector2> _fillRect = [];
+    List<Vector2> _fillSrc = [];
+    List<Vector2[]> _fillPolys = [];
+    List<Vector2[]> _fillLines = [];
+
+    /// <summary>Pending region fill: the rect outline, detected source
+    /// positions (green "detected" glow) and ghosted generated geometry.</summary>
+    public void SetFill(
+        List<Vector2> rect,
+        List<Vector2> sources,
+        List<Vector2[]> polys,
+        List<Vector2[]> lines
+    )
+    {
+        _fillRect = rect;
+        _fillSrc = sources;
+        _fillPolys = polys;
+        _fillLines = lines;
+        QueueRedraw();
+    }
 
     public void SetSnap(Vector2? p)
     {
@@ -2007,6 +2257,25 @@ public partial class GhostLayer : Node2D
             foreach (var poly in m.Tops)
                 DrawPolyline([.. poly, poly[0]], new Color(0.2f, 0.18f, 0.1f, 0.8f), 2);
         }
+
+        // pending fill — region rect, source glow, ghosted geometry
+        if (_fillRect.Count >= 3)
+            DrawPolyline(
+                [.. _fillRect, _fillRect[0]],
+                new Color(0.35f, 0.85f, 0.45f, 0.9f),
+                2f
+            );
+        foreach (var sp in _fillSrc)
+            DrawArc(sp, 14, 0, Mathf.Tau, 20, new Color(0.3f, 0.9f, 0.45f, 0.8f), 2.5f);
+        foreach (var poly in _fillPolys)
+            if (poly.Length >= 3)
+            {
+                DrawColoredPolygon(poly, new Color(0.35f, 0.85f, 0.45f, 0.12f));
+                DrawPolyline([.. poly, poly[0]], new Color(0.35f, 0.85f, 0.45f, 0.6f), 1.5f);
+            }
+        foreach (var line in _fillLines)
+            if (line.Length >= 2)
+                DrawPolyline(line, new Color(0.35f, 0.85f, 0.45f, 0.6f), 3f);
 
         // the raw stroke on top
         if (_pts.Count < 2)

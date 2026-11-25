@@ -292,6 +292,6 @@ public partial class SceneView : Node2D
         ["label"] = PropKind.Label,
     };
 
-    static PropKind MapProp(string kind) =>
+    public static PropKind MapProp(string kind) =>
         PropKinds.TryGetValue(kind, out var k) ? k : PropKind.Marker;
 }

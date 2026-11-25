@@ -4,11 +4,12 @@
 // the same seed always produces the same map.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace DmMap;
 
-public static class MapGenerator
+public static partial class MapGenerator
 {
     /// <summary>Deterministic [0,1) value for (seed, index) — Rng.Noise
     /// is hash-based so arbitrary seeds are fine.</summary>
@@ -377,4 +378,263 @@ public static class MapGenerator
             Rotation = p.Rotation,
             Seed = (int)p.Seed,
         };
+}
+
+// ── Region fill (TS generateFill — "encounter filler") ──────────────
+public static class MapFill
+{
+    // Kinds a fill may clone across the region — lines, areas, utility
+    // kinds and auto-generated structures are excluded (TS fillable).
+    static readonly HashSet<string> Excluded =
+        ["marker", "label", "waterfall", "dock", "camp", "portal", "door", "window"];
+
+    static readonly HashSet<string> Solids =
+        [Kinds.House, Kinds.Room, Kinds.Pond, Kinds.Field, Kinds.Scatter, Kinds.Floor];
+
+    static bool Fillable(string kind) => !Excluded.Contains(kind) && !Solids.Contains(kind);
+
+    // Companion decor — synthesized extras weighted as a fraction of the
+    // source count so a pure forest still gets undergrowth (TS companions).
+    static readonly Dictionary<string, (string Kind, double Factor)[]> Companions = new()
+    {
+        ["tree"] = [("bush", 0.4), ("rock", 0.2), ("crystal", 0.06), ("bones", 0.04)],
+        ["bush"] = [("rock", 0.2), ("crystal", 0.05)],
+        ["rock"] = [("bush", 0.18), ("crystal", 0.08)],
+        ["crystal"] = [("rock", 0.2), ("bush", 0.12)],
+        ["bones"] = [("rock", 0.15), ("crystal", 0.08)],
+        ["boat"] = [("rock", 0.15)],
+        ["tent"] = [("crate", 0.25), ("barrel", 0.2), ("bale", 0.18), ("bones", 0.06)],
+        ["campfire"] = [("crate", 0.2), ("bale", 0.18), ("bones", 0.1)],
+        ["house"] = [("crate", 0.2), ("barrel", 0.2), ("lantern", 0.12), ("cart", 0.08)],
+        ["tower"] = [("barricade", 0.2), ("flag", 0.15), ("lantern", 0.1)],
+        ["stall"] = [("crate", 0.25), ("barrel", 0.2), ("bale", 0.18)],
+        ["well"] = [("barrel", 0.18), ("crate", 0.15), ("lantern", 0.1)],
+        ["cart"] = [("crate", 0.25), ("bale", 0.2), ("barrel", 0.15)],
+        ["fountain"] = [("lantern", 0.15), ("statue", 0.08)],
+        ["statue"] = [("lantern", 0.12)],
+        ["lantern"] = [("crate", 0.12)],
+        ["grave"] = [("bones", 0.25), ("rock", 0.15), ("lantern", 0.08)],
+        ["ruin"] = [("rock", 0.22), ("bones", 0.15), ("bush", 0.15)],
+        ["stonecircle"] = [("bones", 0.2), ("crystal", 0.15), ("rock", 0.15)],
+        ["chest"] = [("crate", 0.2), ("barrel", 0.15)],
+        ["barricade"] = [("flag", 0.12), ("crate", 0.1)],
+        ["flag"] = [("lantern", 0.1)],
+    };
+
+    static readonly Dictionary<string, double> CompanionSize = new()
+    {
+        ["bush"] = 30, ["rock"] = 22, ["crystal"] = 24, ["bones"] = 32,
+        ["crate"] = 24, ["barrel"] = 20, ["bale"] = 30, ["lantern"] = 14,
+        ["flag"] = 24, ["cart"] = 42, ["statue"] = 36, ["barricade"] = 52,
+    };
+
+    /// <summary>mulberry32 — sequential seeded rand like the TS fill.</summary>
+    class Mulberry
+    {
+        int _t;
+        public Mulberry(int seed) => _t = seed;
+        public double Next()
+        {
+            unchecked
+            {
+                _t += 0x6D2B79F5;
+                var t = _t;
+                t = (t ^ (int)((uint)t >> 15)) * (t | 1);
+                t ^= t + ((t ^ (int)((uint)t >> 7)) * (t | 61));
+                return (double)(uint)(t ^ (int)((uint)t >> 14)) / 4294967296.0;
+            }
+        }
+    }
+
+    public readonly record struct FillResult(List<Prop> Props, List<int> SourceIds);
+
+    /// <summary>Fill a region with a kind-weighted mix of the props found
+    /// inside it plus companion decor, dodging existing props, strokes,
+    /// solid shapes and massif tops.</summary>
+    public static FillResult Generate(
+        IReadOnlyList<Vector2> region,
+        Scene scene,
+        int seed,
+        double density = 0.6
+    )
+    {
+        var sources = scene
+            .Props.Where(p => Fillable(p.Kind) && Poly.PointInPolygon(new Vector2((float)p.X, (float)p.Y), region))
+            .ToList();
+        if (sources.Count == 0 || region.Count < 3)
+            return new FillResult([], []);
+        var rand = new Mulberry(seed);
+        var minX = region.Min(p => p.X);
+        var minY = region.Min(p => p.Y);
+        var maxX = region.Max(p => p.X);
+        var maxY = region.Max(p => p.Y);
+
+        // Kind-weighted palette: pick proportional to source counts.
+        var byKind = sources.GroupBy(p => p.Kind).ToDictionary(g => g.Key, g => g.ToList());
+        var table = byKind.Select(kv => (Kind: kv.Key, List: kv.Value, Weight: (double)kv.Value.Count)).ToList();
+        var extra = new Dictionary<string, double>();
+        foreach (var kv in byKind)
+            if (Companions.TryGetValue(kv.Key, out var comps))
+                foreach (var (companion, factor) in comps)
+                    if (!byKind.ContainsKey(companion))
+                        extra[companion] = extra.GetValueOrDefault(companion) + kv.Value.Count * factor;
+        foreach (var (kind, weight) in extra)
+        {
+            if (weight < 0.15)
+                continue;
+            table.Add((kind, [new Prop { Kind = kind, Scale = CompanionSize.GetValueOrDefault(kind, 24) }], weight));
+        }
+        var total = table.Sum(e => e.Weight);
+        Prop Pick()
+        {
+            var roll = rand.Next() * total;
+            foreach (var e in table)
+            {
+                roll -= e.Weight;
+                if (roll <= 0)
+                    return e.List[(int)(rand.Next() * e.List.Count)];
+            }
+            return table[^1].List[0];
+        }
+
+        // Blockers.
+        const double margin = 120;
+        var props = scene
+            .Props.Where(p =>
+                Fillable(p.Kind)
+                && p.X > minX - margin && p.X < maxX + margin
+                && p.Y > minY - margin && p.Y < maxY + margin
+            )
+            .ToList();
+        var lines = scene
+            .Strokes.Where(s => s.Kind is Kinds.River or Kinds.Road or Kinds.Wall or Kinds.Fence)
+            .ToList();
+        var solids = scene
+            .Shapes.Where(s => Solids.Contains(s.Kind))
+            .Select(s => s.Points)
+            .ToList();
+        var massifs = TerrainGeometry.BuildMassifs(
+            scene
+                .Shapes.Where(s => s.Kind == Kinds.Terrain)
+                .Select(s => new TerrainShape
+                {
+                    Model = s.Model,
+                    Height = s.Height,
+                    Size = s.Size,
+                    Roughness = s.Roughness,
+                    Outline = [.. s.Points],
+                })
+        );
+        var tops = massifs.SelectMany(m => m.Tops).ToList();
+        var spacing = Math.Max(26, 95 - density * 65);
+        double Edge(Vector2 p) =>
+            region.Select((a, i) => DistToSeg(p, a, region[(i + 1) % region.Count])).Min();
+
+        var generated = new List<Prop>();
+        for (var y = (double)minY; y <= maxY && generated.Count < 400; y += spacing)
+            for (var x = (double)minX; x <= maxX && generated.Count < 400; x += spacing)
+            {
+                var point = new Vector2(
+                    (float)(x + (rand.Next() - 0.5) * spacing * 1.15),
+                    (float)(y + (rand.Next() - 0.5) * spacing * 1.15)
+                );
+                if (!Poly.PointInPolygon(point, region))
+                    continue;
+                var edge = Edge(point);
+                if (edge < spacing * 0.25)
+                    continue;
+                if (edge < spacing && rand.Next() > edge / spacing)
+                    continue;
+                var sample = Pick();
+                var size = Math.Max(8, sample.Scale * (0.8 + rand.Next() * 0.45));
+                if (props.Any(p => new Vector2((float)p.X, (float)p.Y).DistanceTo(point) < (p.Scale + size) * 0.42))
+                    continue;
+                var blocked = false;
+                foreach (var line in lines)
+                {
+                    for (var i = 1; i < line.Points.Count && !blocked; i++)
+                        if (DistToSeg(point, line.Points[i - 1], line.Points[i]) <= line.Width / 2 + size * 0.5)
+                            blocked = true;
+                    if (blocked)
+                        break;
+                }
+                if (blocked)
+                    continue;
+                if (solids.Any(poly => Poly.PointInPolygon(point, poly)))
+                    continue;
+                if (tops.Any(top => Poly.PointInPolygon(point, top)))
+                    continue;
+                generated.Add(
+                    new Prop
+                    {
+                        Kind = sample.Kind,
+                        X = point.X,
+                        Y = point.Y,
+                        Scale = size,
+                        Rotation = rand.Next() * Math.PI * 2,
+                        Seed = (int)(point.X * 0.37 + point.Y * 0.53),
+                    }
+                );
+            }
+        return new FillResult(generated, sources.Select(s => s.Id).ToList());
+    }
+
+    static double DistToSeg(Vector2 p, Vector2 a, Vector2 b)
+    {
+        var ab = b - a;
+        var len2 = ab.LengthSquared();
+        var t = len2 < 1e-6 ? 0 : Math.Clamp((p - a).Dot(ab) / len2, 0, 1);
+        return (a + ab * (float)t - p).Length();
+    }
+}
+
+public static partial class MapGenerator
+{
+    /// <summary>Generate a landscape/dungeon inside an arbitrary map
+    /// region — builds at the region size then offsets into place
+    /// (the web fill tool's "map"/"dungeon" modes).</summary>
+    public static Scene GenerateIn(int seed, Rect2 region, bool dungeon)
+    {
+        var s = dungeon
+            ? GenerateDungeon(seed, region.Size)
+            : GenerateLandscape(seed, region.Size);
+        Offset(s, region.Position);
+        return s;
+    }
+
+    static void Offset(Scene s, Vector2 off)
+    {
+        foreach (var sh in s.Shapes)
+            for (var i = 0; i < sh.Points.Count; i++)
+                sh.Points[i] += off;
+        foreach (var st in s.Strokes)
+            for (var i = 0; i < st.Points.Count; i++)
+                st.Points[i] += off;
+        foreach (var p in s.Props)
+        {
+            p.X += off.X;
+            p.Y += off.Y;
+        }
+    }
+
+    /// <summary>Append a generated scene's elements into `dst`,
+    /// re-allocating ids so nothing collides (one commit = one undo).</summary>
+    public static void MergeInto(Scene dst, Scene gen)
+    {
+        foreach (var sh in gen.Shapes)
+        {
+            sh.Id = dst.AllocId();
+            dst.Shapes.Add(sh);
+        }
+        foreach (var st in gen.Strokes)
+        {
+            st.Id = dst.AllocId();
+            dst.Strokes.Add(st);
+        }
+        foreach (var p in gen.Props)
+        {
+            p.Id = dst.AllocId();
+            dst.Props.Add(p);
+        }
+    }
 }
