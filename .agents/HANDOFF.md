@@ -3,6 +3,19 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (4) — Claude Code (Opus 5.5), `feat/enhance-visuals`
+
+**Hotovo:**
+- Paleta editoru ukazuje prop definice z JSONu v sekci podle `category`
+  (`MapEditor.PaletteTools`, `FindTool`, náhledy v `ToolThumbs`).
+- Nový nástroj „Štětec vegetace“ (`src/Editor/MapEditorVegetation.cs`):
+  konkrétní rostlina nebo směs podle okolí z `fill.json`.
+- Ověřeno screenshotem UI (`DMMAP_VEG_SHOT`, `DMMAP_VEG_SEARCH`).
+
+**Pro UI agenta:** zásahy do `MapEditor.cs` jsou malé (tool `veg-brush`,
+`PaletteTools()` místo `Tools` v SetTool/PopulateToolCards, volání
+`OnPaletteBiomeChanged`, `BuildVegSection`). Logika je v partial souboru.
+
 ## 2026-11-25 (3) — Claude Code (Opus 5.5), `feat/enhance-visuals`
 
 **Hotovo:**
