@@ -360,6 +360,83 @@ public partial class MapEditor : Node2D
             CallDeferred(nameof(VegShot), vegShot);
         if (System.Environment.GetEnvironmentVariable("DMMAP_DRAG_PROBE") == "1")
             CallDeferred(nameof(DragProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_ROTATE_PROBE") == "1")
+            CallDeferred(nameof(RotateProbe));
+    }
+
+    /// <summary>Probe: rotation must keep the shape's centroid fixed —
+    /// a full 360° in R-key steps returns the outline where it started —
+    /// and the selection ghost shows the orientation tick.</summary>
+    async void RotateProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Commit(scene =>
+        {
+            scene.Shapes.Add(
+                new Shape
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.House,
+                    Height = 18,
+                    Size = 20,
+                    Points = [new(500, 400), new(640, 420), new(620, 520), new(490, 500)],
+                }
+            );
+            scene.Props.Add(
+                new Prop
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Tree,
+                    X = 800,
+                    Y = 450,
+                    Scale = 28,
+                    Seed = 7,
+                }
+            );
+        });
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        // Shape rotation: 24 × 15° = 360° — the centroid must not drift.
+        SetTool("select");
+        BeginSelect(new Vector2(562, 460), false);
+        GD.Print($"ROT selected shapes={_selShapes.Count}");
+        static Vector2 Ctr(List<Vector2> pts)
+        {
+            var c = Vector2.Zero;
+            foreach (var q in pts)
+                c += q;
+            return c / pts.Count;
+        }
+        var startCenter = Ctr(_view.Scene.Shapes.First(s => s.Kind == Kinds.House).Points);
+        var startPt = _view.Scene.Shapes.First(s => s.Kind == Kinds.House).Points[0];
+        for (var i = 0; i < 24; i++)
+            RotateSelection(Math.PI / 12);
+        var endCenter = Ctr(_view.Scene.Shapes.First(s => s.Kind == Kinds.House).Points);
+        var endPt = _view.Scene.Shapes.First(s => s.Kind == Kinds.House).Points[0];
+        GD.Print(
+            $"ROT center drift={startCenter.DistanceTo(endCenter):0.00} pt drift={startPt.DistanceTo(endPt):0.00} (expect <1)"
+        );
+
+        // Prop rotation accumulates on the prop itself.
+        ClearSelection();
+        BeginSelect(new Vector2(800, 450), false);
+        GD.Print($"ROT prop selected={_selProps.Count}");
+        RotateSelection(Math.PI / 12);
+        var rot = _view.Scene.Props.First(p => p.Kind == Kinds.Tree).Rotation;
+        GD.Print($"ROT prop rotation={rot:0.000} (expect ~0.262)");
+        var shot = System.Environment.GetEnvironmentVariable("DMMAP_ROTATE_SHOT");
+        if (shot != null)
+        {
+            RotateSelection(Math.PI / 12);
+            _camera.Position = new Vector2(650, 460);
+            _camera.Zoom = new Vector2(1.2f, 1.2f);
+            if (_uiLayer != null)
+                _uiLayer.Visible = false;
+            for (var i = 0; i < 6; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            GetViewport().GetTexture().GetImage().SavePng(shot);
+        }
+        GetTree().Quit();
     }
 
     /// <summary>Probe: reproduce the selection-drag bug — bake a house,
@@ -2176,16 +2253,16 @@ public partial class MapEditor : Node2D
                 (float)(c.Y + d.X * Math.Sin(a) + d.Y * Math.Cos(a))
             );
         }
-        static Vector2 BBoxCenter(List<Vector2> pts)
+        // Pivot = centroid, not the bbox center: the bbox changes with
+        // every rotation step, so a bbox pivot makes repeated R presses
+        // orbit/drift the shape instead of spinning it in place. The
+        // centroid rotates with the shape, so the pivot stays fixed.
+        static Vector2 Centroid(List<Vector2> pts)
         {
-            var min = pts[0];
-            var max = pts[0];
+            var c = Vector2.Zero;
             foreach (var q in pts)
-            {
-                min = new Vector2(Math.Min(min.X, q.X), Math.Min(min.Y, q.Y));
-                max = new Vector2(Math.Max(max.X, q.X), Math.Max(max.Y, q.Y));
-            }
-            return (min + max) / 2;
+                c += q;
+            return c / pts.Count;
         }
         Commit(scene =>
         {
@@ -2195,7 +2272,7 @@ public partial class MapEditor : Node2D
                 .Concat(scene.Shapes.Where(q => shapeIds.Contains(q.Id))))
             {
                 var pts = el is Stroke st ? st.Points : ((Shape)el).Points;
-                var c = BBoxCenter(pts);
+                var c = Centroid(pts);
                 for (var i = 0; i < pts.Count; i++)
                     pts[i] = Rotate(pts[i], delta, c);
                 if (el is Shape sh)
@@ -2302,7 +2379,7 @@ public partial class MapEditor : Node2D
     void UpdateSelectionGhost()
     {
         _ghost.SetSelection(
-            _selProps.Select(pr => new Vector2((float)pr.X, (float)pr.Y)).ToList(),
+            _selProps.Select(pr => (new Vector2((float)pr.X, (float)pr.Y), (float)pr.Rotation, (float)pr.Scale)).ToList(),
             _selStrokes.Select(st => st.Points.ToArray()).ToList(),
             _selShapes.Select(sh => sh.Points.ToArray()).ToList()
         );
@@ -3288,7 +3365,7 @@ public partial class GhostLayer : Node2D
     double _width;
     Massif? _draft;
     WaterPainter? _strokePaint;
-    List<Vector2> _selProps = [];
+    List<(Vector2 Pos, float Rot, float Scale)> _selProps = [];
     List<Vector2[]> _selLines = [];
     List<Vector2[]> _selOutlines = [];
     Rect2? _marquee;
@@ -3419,7 +3496,11 @@ public partial class GhostLayer : Node2D
         QueueRedraw();
     }
 
-    public void SetSelection(List<Vector2> props, List<Vector2[]> lines, List<Vector2[]> outlines)
+    public void SetSelection(
+        List<(Vector2 Pos, float Rot, float Scale)> props,
+        List<Vector2[]> lines,
+        List<Vector2[]> outlines
+    )
     {
         (_selProps, _selLines, _selOutlines) = (props, lines, outlines);
         QueueRedraw();
@@ -3441,8 +3522,31 @@ public partial class GhostLayer : Node2D
         foreach (var l in _selLines)
             if (l.Length > 1)
                 DrawPolyline(l, hi, 3);
-        foreach (var pp in _selProps)
-            DrawArc(pp, 20, 0, Mathf.Tau, 24, hi, 2.5f);
+        foreach (var (pos, rot, scale) in _selProps)
+        {
+            var r = (float)Math.Max(18, scale * 0.9);
+            DrawArc(pos, r, 0, Mathf.Tau, 24, hi, 2.5f);
+            // Orientation tick — points the way the prop's local "up"
+            // faces after rotation, with an arrowhead, so rotating
+            // symmetric props (trees, rocks) is visible. Rotation is
+            // clockwise-positive, same as the painter's transform.
+            var up = new Vector2((float)Math.Sin(rot), -(float)Math.Cos(rot));
+            var tip = pos + up * (r + 12);
+            var side = new Vector2(-up.Y, up.X);
+            DrawLine(pos + up * (r * 0.35f), tip, hi, 3);
+            DrawLine(tip, tip - up * 7 + side * 4, hi, 2.5f);
+            DrawLine(tip, tip - up * 7 - side * 4, hi, 2.5f);
+            var deg = (int)Math.Round(rot * 180 / Math.PI) % 360;
+            if (deg < 0)
+                deg += 360;
+            DrawString(
+                ThemeDB.FallbackFont,
+                pos + new Vector2(r + 14, 5),
+                $"{deg}°",
+                fontSize: 13,
+                modulate: hi
+            );
+        }
 
         // marquee rubber band
         if (_marquee is { } mq)

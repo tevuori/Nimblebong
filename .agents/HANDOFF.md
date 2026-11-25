@@ -3,6 +3,22 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (9) — Devin, rotace objektů
+
+**Hotovo:**
+- Pivot rotace tvarů/strokes opraven z bbox centra na centroid. Bbox se
+  po každém kroku rotace změnil, takže opakované mačkání R tvar
+  „uneslo“ — orbitovalo místo otáčení na místě. Po 24×15° (plná
+  otáčka) je drift centroidu i bodů přesně 0.00 (probe).
+- Indikace natočení: výběr propů teď v ghost vrstvě kreslí žlutou
+  šipku ve směru lokální „up“ osy objektu (stejná transformace jako
+  painter — rotace clockwise-positive) + popisek ve stupních. Rotace
+  symetrických objektů (stromy, kameny) je tak vidět.
+- Nový probe `DMMAP_ROTATE_PROBE=1` (+ `DMMAP_ROTATE_SHOT=path`):
+  drift pivotu, akumulace rotace propů, screenshot indikátoru.
+
+**Ověření:** probe-model ALL PASS, `DMMAP_PROBE=1` OK, build 0 errors.
+
 ## 2026-11-25 (8) — Devin, drag objektů: sekání + mizení objektů
 
 **Hotovo:**
