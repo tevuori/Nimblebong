@@ -35,7 +35,11 @@ public static class Interactions
             );
             return;
         }
-        var merged = MergeStrokeInto(scene.Strokes, stroke);
+        // Simplify before merging — drawing oversamples the path at ~4 px
+        // and dense control points make the spline ribbons self-intersect.
+        var host = stroke.DeepClone();
+        host.Points = SimplifyPath(host.Points);
+        var merged = MergeStrokeInto(scene.Strokes, host);
         scene.Strokes.Clear();
         scene.Strokes.AddRange(merged);
     }

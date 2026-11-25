@@ -41,11 +41,20 @@ public partial class WaterPainter : Node2D
 
     /// <summary>Fill a polygon only when it triangulates — clipper and
     /// stroke geometry can yield degenerate slivers the canvas renderer
-    /// rejects.</summary>
+    /// rejects. Complex unioned outlines that defeat the triangulator get
+    /// retried after simplification (drops near-duplicate vertices).</summary>
     void Fill(Vector2[] poly, Color color)
     {
-        if (poly.Length >= 3 && Geometry2D.TriangulatePolygon(poly).Length > 0)
+        if (poly.Length < 3)
+            return;
+        if (Geometry2D.TriangulatePolygon(poly).Length > 0)
+        {
             DrawColoredPolygon(poly, color);
+            return;
+        }
+        var simple = Interactions.SimplifyPath(poly, 1.2);
+        if (simple.Count >= 3 && Geometry2D.TriangulatePolygon([.. simple]).Length > 0)
+            DrawColoredPolygon([.. simple], color);
     }
 
     /// <summary>Ribbon fill that survives self-intersections at tight
@@ -83,9 +92,23 @@ public partial class WaterPainter : Node2D
         foreach (var (run, w) in strokes)
         {
             var poly = Spline.StrokePolygon(run, Math.Max(3, w + delta));
-            polys.AddRange(Geometry2D.MergePolygons(poly, poly));
+            var pieces = Geometry2D.MergePolygons(poly, poly);
+            if (pieces.Count == 0)
+            {
+                // Heavily self-intersecting ribbon — simplify the run and
+                // rebuild; last resort keeps the raw polygon so something
+                // still paints instead of a hole.
+                var simple = Interactions.SimplifyPath(run, 2.5);
+                poly = Spline.StrokePolygon(simple, Math.Max(3, w + delta));
+                pieces = Geometry2D.MergePolygons(poly, poly);
+            }
+            if (pieces.Count == 0)
+                polys.Add(poly);
+            else
+                polys.AddRange(pieces);
         }
-        return TerrainGeometry.Union([.. polys]);
+        var merged = TerrainGeometry.Union([.. polys]);
+        return merged.Count > 0 ? merged : polys;
     }
 
     void DrawRiverGroup()
@@ -251,7 +274,6 @@ public partial class WaterPainter : Node2D
     {
         var reeds = Palette.Hex("#5e7a45");
         var turf = Palette.Hex("#76a64e");
-        var turfInk = Palette.Hex("#3e6841");
         for (var i = 4; i < side.Length; i += 3)
         {
             var outward = normals[i] * sign;
@@ -259,7 +281,8 @@ public partial class WaterPainter : Node2D
                 continue;
             var p = side[i] + outward * 7f;
             var seed = i * 6.1 + waterSeed;
-            // Reeds — two bent strokes + a grass mound.
+            // Reeds — two bent strokes + a low turf clump (kept flat and
+            // small so it reads as riverside grass, not a tree).
             if (i % 6 == 1)
             {
                 DrawPolyline(
@@ -268,8 +291,10 @@ public partial class WaterPainter : Node2D
                     1.3f,
                     true
                 );
-                DrawCircle(p + outward * 2f, 3.5f, turf);
-                DrawArc(p + outward * 2f, 3.5f, 0, Mathf.Tau, 10, turfInk, 0.9f);
+                Fill(
+                    Poly.Ellipse(p.X + outward.X * 2f, p.Y + outward.Y * 2f, 4, 1.8, 0),
+                    turf
+                );
             }
             // Pebbles at the water's edge.
             if (i % 5 == 2)
@@ -289,36 +314,35 @@ public partial class WaterPainter : Node2D
                         Palette.Hex(Rng.Noise(ps + 3) > 0.5 ? "#8a8872" : "#6d6c5a")
                     );
                 }
-            // Lily pads on wide calm stretches.
-            if (w >= 24 && i % 13 == 5)
+            // Lily pads on wide calm stretches — sparse, flat.
+            if (w >= 30 && i % 19 == 5)
             {
-                var inward = outward * (float)(-w * 0.14);
-                for (var pad = 0; pad < 3; pad++)
+                var inward = outward * (float)(-w * 0.16);
+                for (var pad = 0; pad < 2; pad++)
                 {
                     var ps = i * 11 + pad * 5 + waterSeed;
                     var pp =
                         side[i]
                         + inward
                         + new Vector2(
-                            (float)(Rng.Noise(ps) - 0.5) * 14,
-                            (float)(Rng.Noise(ps + 1) - 0.5) * 10
+                            (float)(Rng.Noise(ps) - 0.5) * 12,
+                            (float)(Rng.Noise(ps + 1) - 0.5) * 8
                         );
                     Fill(
                         Poly.Ellipse(
                             pp.X,
                             pp.Y,
-                            4 + Rng.Noise(ps + 2) * 3.5,
-                            3 + Rng.Noise(ps + 3) * 2,
+                            3.5 + Rng.Noise(ps + 2) * 2.5,
+                            2 + Rng.Noise(ps + 3) * 1.2,
                             Rng.Noise(ps + 4) * 3
                         ),
                         Palette.Hex(pad % 2 == 1 ? "#4d7d41" : "#5c8f49")
                     );
                 }
-                if (Rng.Noise(i * 3.7 + waterSeed) > 0.72)
+                if (Rng.Noise(i * 3.7 + waterSeed) > 0.8)
                 {
                     var fp = side[i] + inward * 1.4f;
-                    DrawCircle(fp, 2.2f, Palette.Hex("#e08bb0"));
-                    DrawArc(fp, 2.2f, 0, Mathf.Tau, 10, Palette.Hex("#b35d82"), 0.9f);
+                    DrawCircle(fp, 1.8f, Palette.Hex("#e08bb0"));
                 }
             }
         }

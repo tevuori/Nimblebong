@@ -325,6 +325,47 @@ public partial class MapEditor : Node2D
         GD.Print(
             $"road-merge: {_view.Scene.Strokes.Count} strokes after (was {strokeCount}, expect same + 0 merged)"
         );
+        // Freehand regression: dense wiggly control points (like raw mouse
+        // input) must still produce filled surfaces, not empty outlines.
+        Commit(scene =>
+        {
+            var wiggle = new List<Vector2>();
+            for (var i = 0; i <= 90; i++)
+                wiggle.Add(
+                    new Vector2(
+                        60 + i * 14,
+                        150 + (float)(Math.Sin(i * 0.55) * 55 + Math.Sin(i * 1.7) * 18)
+                    )
+                );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.Road,
+                    Points = wiggle,
+                    Width = 18,
+                }
+            );
+            var wiggle2 = new List<Vector2>();
+            for (var i = 0; i <= 80; i++)
+                wiggle2.Add(
+                    new Vector2(
+                        1300 + (float)(Math.Sin(i * 0.5) * 60 + Math.Sin(i * 1.3) * 22),
+                        120 + i * 10
+                    )
+                );
+            Interactions.AddStroke(
+                scene,
+                new Stroke
+                {
+                    Id = scene.AllocId(),
+                    Kind = Kinds.River,
+                    Points = wiggle2,
+                    Width = 24,
+                }
+            );
+        });
         // Stone + rope bridge variants further down the river.
         Commit(scene =>
         {

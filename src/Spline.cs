@@ -12,7 +12,9 @@ namespace DmMap;
 public static class Spline
 {
     /// <summary>Catmull-Rom through the control points — `subdivisions`
-    /// samples per segment, endpoints pinned, neighbors clamped.</summary>
+    /// samples per segment, capped so spacing never drops below ~6 px;
+    /// dense freehand input stays wiggle-free instead of exploding into
+    /// thousands of sub-pixel samples.</summary>
     public static Vector2[] Resample(IReadOnlyList<Vector2> control, int subdivisions = 10)
     {
         if (control.Count < 2)
@@ -24,9 +26,13 @@ public static class Spline
             var p1 = control[i];
             var p2 = control[i + 1];
             var p3 = control[Math.Min(control.Count - 1, i + 2)];
-            for (var s = 0; s < subdivisions; s++)
+            var seg = Math.Max(
+                2,
+                Math.Min(subdivisions, (int)Math.Round(p1.DistanceTo(p2) / 6f))
+            );
+            for (var s = 0; s < seg; s++)
             {
-                var t = s / (double)subdivisions;
+                var t = s / (double)seg;
                 var t2 = t * t;
                 var t3 = t2 * t;
                 pts.Add(
