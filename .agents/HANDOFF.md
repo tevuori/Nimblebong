@@ -3,6 +3,47 @@
 Nejnovější záznam nahoře. Formát: `## YYYY-MM-DD — <agent>`, pak sekce
 Hotovo / Rozpracováno / Problémy / Další kroky.
 
+## 2026-11-25 (11) — Devin, fingerprint skip painterů
+
+**Hotovo:**
+- `SceneView.Rebuild` už nepřetváří všechny paintery při každém commitu.
+  Paintery jsou rozdělené do dvou fingerprinted skupin:
+  - **geo** (`areas`, `areaH`, `surfaces`, `water`, `crossings`, `fortify`,
+    `bridges`, `waterH`) — fingerprint: shapes + strokes + rock props
+    (foam) + look ids (biome/artpack/season/mood).
+  - **props** (`interiors`, `interiorsH`, `propsPainter`, `propsH`) —
+    fingerprint: shapes + všechny props + look ids. Strokes záměrně ne —
+    editace cest/řek tak přeskočí nejdražší painter (props) úplně.
+  - Z-order v AlbedoVp/HeightVp je teď explicitní `ZIndex` (massif 0,
+    areas 10, surfaces 11, interiors 20, water 30–33, props 40), nikdy
+    tree order — jinak by skipnutý painter změnil pořadí vrstev.
+  - Fingerprinty hashují obsah, ne id (prohození id bez změny geometrie
+    = žádný repaint). Kontrola pokrytí: Shape/Stroke/Prop pole všechna
+    v hash; water mask/glow/fog jsou persistent in-place nodes
+    (bez fingerprintu, levné).
+- Měření (reálná mapa, čistý běh):
+  - no-op commit: ~310 ms → **41 ms** (nic se nepřetváří, jen fog/mood)
+  - prop-move / stroke-edit: ~200 ms (předtím ~310 ms vždy)
+  - terrain-edit: ~460 ms (vše repaints — massifs + obě skupiny, inherentní)
+- Nový probe `DMMAP_COMMIT_PROBE=1` v MapEditor.cs — měří commit cost
+  podle typu editace (prop/stroke/terrain) + screenshot parity.
+- Regrese: DMMAP_PROBE plný pass, drag probe pass (counts OK, drag 96 ms).
+
+**Problémy / pozor:**
+- Měření je v prostředí hodně hlučná: občas se objeví frame s časem
+  přesně ~1000 ms (throttling artefakt — compositor/occluded window,
+  NE kód; v editoru žádný vteřinový Timer neexistuje). Měřit vždy čistě,
+  jeden Godot proces naráz, se settle framy.
+- Zbylých ~200 ms commitu = re-kreace canvas items skupiny (~115 ms)
+  + re-raster statických viewportů (~80 ms). Raster je per-viewport —
+  viewport zrasterizuje všechny viditelné canvas items bez ohledu na to,
+  co se změnilo, takže další zrychlení vyžaduje **per-prop canvas items**
+  v PropsPainteru (každý prop vlastní Node2D child, z-index podle y,
+  přesun = update jednoho childu). To je velký refactor PropsPainteru —
+  ale i tak se raster static viewports při commitu nevyhne, takže strop
+  výhry je nejistý. Zvážit, jestli ~200 ms hitch při puštění myši stojí
+  za tu složitost.
+
 ## 2026-11-25 (10) — Devin, globální rendering optimalizace
 
 **Hotovo:**

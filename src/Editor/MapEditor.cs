@@ -361,6 +361,8 @@ public partial class MapEditor : Node2D
             CallDeferred(nameof(VegShot), vegShot);
         if (System.Environment.GetEnvironmentVariable("DMMAP_DRAG_PROBE") == "1")
             CallDeferred(nameof(DragProbe));
+        if (System.Environment.GetEnvironmentVariable("DMMAP_COMMIT_PROBE") == "1")
+            CallDeferred(nameof(CommitProbe));
         if (System.Environment.GetEnvironmentVariable("DMMAP_ROTATE_PROBE") == "1")
             CallDeferred(nameof(RotateProbe));
     }
@@ -444,6 +446,83 @@ public partial class MapEditor : Node2D
     /// props and strokes, then simulate a real drag (live mutation +
     /// throttled rebuilds + release commit) and verify object counts
     /// and positions survive intact.</summary>
+
+    // DMMAP_COMMIT_PROBE=1 — measures the frame cost of a commit by
+    // edit type on the real user map: prop move (should skip the geo
+    // group), stroke edit (should skip props — the big win) and
+    // terrain edit (everything repaints). Frames are measured as wall
+    // time between ProcessFrame signals; a commit's cost lands in the
+    // frame right after it.
+    async void CommitProbe()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Load();
+        // Settle: thumbs, warmup, first bake.
+        for (var i = 0; i < 60; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        async System.Threading.Tasks.Task<long> MeasureFrames(int n)
+        {
+            var worst = 0L;
+            for (var i = 0; i < n; i++)
+            {
+                var t0 = Time.GetTicksMsec();
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                worst = Math.Max(worst, (long)(Time.GetTicksMsec() - t0));
+            }
+            return worst;
+        }
+
+        var baseline = await MeasureFrames(10);
+        GD.Print($"COMMIT baseline worst={baseline}ms");
+
+        // Prop move — geo group must be skipped.
+        var prop = _view.Scene.Props.FirstOrDefault(pr => pr.Kind == Kinds.House)
+            ?? _view.Scene.Props.FirstOrDefault();
+        if (prop != null)
+        {
+            var id = prop.Id;
+            Commit(sc => sc.Props.First(pr => pr.Id == id).X += 12);
+            var worst = await MeasureFrames(6);
+            GD.Print($"COMMIT prop-move worst={worst}ms");
+        }
+
+        // Stroke edit — props group must be skipped.
+        var stroke = _view.Scene.Strokes.FirstOrDefault();
+        if (stroke != null)
+        {
+            var id = stroke.Id;
+            Commit(sc =>
+            {
+                var st = sc.Strokes.First(x => x.Id == id);
+                st.Points[0] = new Vector2((float)(st.Points[0].X + 6), (float)st.Points[0].Y);
+            });
+            var worst = await MeasureFrames(6);
+            GD.Print($"COMMIT stroke-edit worst={worst}ms");
+        }
+
+        // Terrain edit — everything repaints.
+        var terr = _view.Scene.Shapes.FirstOrDefault(sh => sh.Kind == Kinds.Terrain);
+        if (terr != null)
+        {
+            var id = terr.Id;
+            Commit(sc => sc.Shapes.First(sh => sh.Id == id).Height += 1);
+            var worst = await MeasureFrames(6);
+            GD.Print($"COMMIT terrain-edit worst={worst}ms");
+        }
+        else
+            GD.Print("COMMIT terrain-edit skipped (no terrain in map)");
+
+        // Visual parity shot.
+        for (var i = 0; i < 8; i++)
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var img = GetViewport().GetTexture().GetImage();
+        img.SavePng("/tmp/godot-commit-probe.png");
+        GD.Print("COMMIT shot /tmp/godot-commit-probe.png");
+        GD.Print("COMMIT done");
+        GetTree().Quit();
+    }
+
     async void DragProbe()
     {
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

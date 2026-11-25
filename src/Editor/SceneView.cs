@@ -18,8 +18,16 @@ public partial class SceneView : Node2D
     /// editor for selection hit-testing and live previews.</summary>
     public List<Massif> Massifs = [];
 
-    // Per-layer painters, rebuilt from scratch each commit.
-    readonly List<Node> _layers = [];
+    // Per-layer painters, rebuilt from scratch each commit — split
+    // into two fingerprinted groups so a commit that only touches one
+    // input class skips re-creating (and re-submitting) the other
+    // group's canvas items entirely. Z-order inside the viewports is
+    // explicit (ZIndex), never tree order, so a skipped painter keeps
+    // its correct layer position.
+    readonly List<Node> _geoLayers = [];
+    readonly List<Node> _propLayers = [];
+    int _geoFp = -1;
+    int _propFp = -1;
     // Massif cache — props/strokes rebuilds skip the expensive clipper
     // when the terrain shapes didn't change.
     List<TerrainShape> _lastShapes = [];
@@ -95,10 +103,6 @@ public partial class SceneView : Node2D
     /// <summary>Repaint everything from the current Scene data.</summary>
     public void Rebuild()
     {
-        foreach (var n in _layers)
-            n.QueueFree();
-        _layers.Clear();
-
         var shapes = Scene
             .Shapes.Where(s => s.Kind == Kinds.Terrain)
             .Select(s => new TerrainShape
@@ -127,138 +131,165 @@ public partial class SceneView : Node2D
         }
         var massifs = Massifs;
 
-        // Area fills — ponds and fields under everything else.
-        var areas = new AreaPainter { Water = Biome.Water, Ground = Biome.Ground };
-        var areaH = new AreaHeight();
-        var fortify = new FortifyPainter { Stone = Biome.Stone, Wood = Biome.Wood };
-        foreach (var sh in Scene.Shapes)
-        {
-            if (sh.Kind is Kinds.Pond or Kinds.Field)
-            {
-                areas.Add(sh.Kind, sh.Points);
-                if (sh.Kind == Kinds.Pond)
-                    areaH.AddPond(sh.Points);
-            }
-        }
-        AddLayer(Stage.AlbedoVp, areas);
-        AddLayer(Stage.HeightVp, areaH);
-        // Ground surfaces (marsh, scree, dunes…) — JSON-defined washes
-        // over ponds/fields, under everything else.
-        var surfaces = new SurfacePainter { Biome = Biome };
-        foreach (var sh in Scene.Shapes)
-            if (SurfaceDefs.ForKind(sh.Kind) is { } sdef)
-                surfaces.Add(sdef, sh.Points);
-        AddLayer(Stage.AlbedoVp, surfaces);
+        // Fingerprinted groups — recreating a painter means thousands
+        // of canvas draw commands re-submitted to the rendering server,
+        // which dominates the per-commit cost. Inputs that did not
+        // change keep their existing canvas items byte-for-byte.
+        Fingerprints(out var geoFp, out var propFp);
+        var geoDirty = geoFp != _geoFp;
+        var propDirty = propFp != _propFp;
 
-        // Buildings & interiors — house/room/floor footprints with
-        // roofs, wall rings and door/window openings carved from props.
-        var interiors = new InteriorPainter { Biome = Biome };
-        var interiorsH = new InteriorHeight();
-        interiorsH.SetMassifs(massifs);
-        foreach (var sh in Scene.Shapes)
-            if (sh.Kind is Kinds.House or Kinds.Room or Kinds.Floor)
-            {
-                interiors.Add(sh, Scene.Props);
-                interiorsH.Add(sh);
-            }
-        AddLayer(Stage.AlbedoVp, interiors);
-        AddLayer(Stage.HeightVp, interiorsH);
+        if (geoDirty)
+        {
+            foreach (var n in _geoLayers)
+                n.QueueFree();
+            _geoLayers.Clear();
 
-        var water = new WaterPainter
-        {
-            Water = Biome.Water,
-            RoadDirt = Biome.At("road.dirt"),
-            RoadVerge = Biome.At("road.verge"),
-            RoadHalo = Biome.At("road.halo"),
-        };
-        // Natural bank treatment (TS sceneConfig.banks). The art/season
-        // override picks grass/sand/stone; the ink sheets read their
-        // canyon channels as rocky cuts, not lime lawn edging.
-        var bank = Biome.WaterBank ?? (Biome.ArtPack == "ink" ? "stone" : "grass");
-        (water.BankVerge, water.BankEdge) = bank switch
-        {
-            "stone" => (Palette.Hex("#57594d"), Palette.Hex("#8d8b76")),
-            "sand" => (Palette.Hex("#8f7c54"), Palette.Hex("#e6cf9a")),
-            _ => (Palette.Hex("#647750"), Palette.Hex("#b4c985")),
-        };
-        var waterH = new WaterHeight();
-        var crossings = new CrossingPainter { WaterLight = Biome.Water };
-        crossings.SetMassifs(massifs);
-        // Walls/fences open a gated gap wherever they cross a road.
-        var gateCuts = Scene
-            .Strokes.Where(s => s.Kind == Kinds.Road)
-            .Select(s => ((IReadOnlyList<Vector2>)s.Points, s.Width))
-            .ToList();
-        foreach (var st in Scene.Strokes)
-        {
-            if (st.Kind == Kinds.River)
+            // Area fills — ponds and fields under everything else.
+            var areas = new AreaPainter { Water = Biome.Water, Ground = Biome.Ground, ZIndex = 10 };
+            var areaH = new AreaHeight { ZIndex = 10 };
+            var fortify = new FortifyPainter { Stone = Biome.Stone, Wood = Biome.Wood, ZIndex = 32 };
+            foreach (var sh in Scene.Shapes)
             {
-                water.AddRiver(st.Points, st.Width);
-                waterH.AddRiver(st.Points, st.Width);
-                crossings.AddStroke(st.Kind, st.Points, st.Width);
+                if (sh.Kind is Kinds.Pond or Kinds.Field)
+                {
+                    areas.Add(sh.Kind, sh.Points);
+                    if (sh.Kind == Kinds.Pond)
+                        areaH.AddPond(sh.Points);
+                }
             }
-            else if (st.Kind == Kinds.Road)
+            AddGeo(Stage.AlbedoVp, areas);
+            AddGeo(Stage.HeightVp, areaH);
+            // Ground surfaces (marsh, scree, dunes…) — JSON-defined washes
+            // over ponds/fields, under everything else.
+            var surfaces = new SurfacePainter { Biome = Biome, ZIndex = 11 };
+            foreach (var sh in Scene.Shapes)
+                if (SurfaceDefs.ForKind(sh.Kind) is { } sdef)
+                    surfaces.Add(sdef, sh.Points);
+            AddGeo(Stage.AlbedoVp, surfaces);
+
+            var water = new WaterPainter
             {
-                water.AddRoad(st.Points, st.Width);
-                crossings.AddStroke(st.Kind, st.Points, st.Width);
-            }
-            else if (st.Kind is Kinds.Wall or Kinds.Fence)
+                Water = Biome.Water,
+                RoadDirt = Biome.At("road.dirt"),
+                RoadVerge = Biome.At("road.verge"),
+                RoadHalo = Biome.At("road.halo"),
+                ZIndex = 30,
+            };
+            // Natural bank treatment (TS sceneConfig.banks). The art/season
+            // override picks grass/sand/stone; the ink sheets read their
+            // canyon channels as rocky cuts, not lime lawn edging.
+            var bank = Biome.WaterBank ?? (Biome.ArtPack == "ink" ? "stone" : "grass");
+            (water.BankVerge, water.BankEdge) = bank switch
             {
-                fortify.Add(st.Kind, st.Points, st.Width, st.Model, gateCuts);
+                "stone" => (Palette.Hex("#57594d"), Palette.Hex("#8d8b76")),
+                "sand" => (Palette.Hex("#8f7c54"), Palette.Hex("#e6cf9a")),
+                _ => (Palette.Hex("#647750"), Palette.Hex("#b4c985")),
+            };
+            var waterH = new WaterHeight { ZIndex = 30 };
+            var crossings = new CrossingPainter { WaterLight = Biome.Water, ZIndex = 31 };
+            crossings.SetMassifs(massifs);
+            // Walls/fences open a gated gap wherever they cross a road.
+            var gateCuts = Scene
+                .Strokes.Where(s => s.Kind == Kinds.Road)
+                .Select(s => ((IReadOnlyList<Vector2>)s.Points, s.Width))
+                .ToList();
+            foreach (var st in Scene.Strokes)
+            {
+                if (st.Kind == Kinds.River)
+                {
+                    water.AddRiver(st.Points, st.Width);
+                    waterH.AddRiver(st.Points, st.Width);
+                    crossings.AddStroke(st.Kind, st.Points, st.Width);
+                }
+                else if (st.Kind == Kinds.Road)
+                {
+                    water.AddRoad(st.Points, st.Width);
+                    crossings.AddStroke(st.Kind, st.Points, st.Width);
+                }
+                else if (st.Kind is Kinds.Wall or Kinds.Fence)
+                {
+                    fortify.Add(st.Kind, st.Points, st.Width, st.Model, gateCuts);
+                }
             }
+            water.SetRocks(
+                Scene.Props.Where(p => MapProp(p.Kind) == PropKind.Rock).Select(p => (
+                    new Vector2((float)p.X, (float)p.Y),
+                    p.Scale
+                ))
+            );
+            var bridges = new BridgePainter { Stone = Biome.Stone, ArtPack = Biome.ArtPack, ZIndex = 33 };
+            bridges.SetStrokes(Scene.Strokes);
+            AddGeo(Stage.AlbedoVp, water);
+            AddGeo(Stage.AlbedoVp, crossings);
+            AddGeo(Stage.HeightVp, waterH);
+            AddGeo(Stage.AlbedoVp, fortify);
+            AddGeo(Stage.AlbedoVp, bridges);
+            _geoFp = geoFp;
         }
-        water.SetRocks(
-            Scene.Props.Where(p => MapProp(p.Kind) == PropKind.Rock).Select(p => (
-                new Vector2((float)p.X, (float)p.Y),
-                p.Scale
-            ))
-        );
-        var bridges = new BridgePainter { Stone = Biome.Stone, ArtPack = Biome.ArtPack };
-        bridges.SetStrokes(Scene.Strokes);
-        AddLayer(Stage.AlbedoVp, water);
+
+        if (propDirty)
+        {
+            foreach (var n in _propLayers)
+                n.QueueFree();
+            _propLayers.Clear();
+
+            // Buildings & interiors — house/room/floor footprints with
+            // roofs, wall rings and door/window openings carved from props.
+            var interiors = new InteriorPainter { Biome = Biome, ZIndex = 20 };
+            var interiorsH = new InteriorHeight { ZIndex = 20 };
+            interiorsH.SetMassifs(massifs);
+            foreach (var sh in Scene.Shapes)
+                if (sh.Kind is Kinds.House or Kinds.Room or Kinds.Floor)
+                {
+                    interiors.Add(sh, Scene.Props);
+                    interiorsH.Add(sh);
+                }
+            AddProp(Stage.AlbedoVp, interiors);
+            AddProp(Stage.HeightVp, interiorsH);
+
+            var anchored = interiors.AnchoredPropIds;
+            var props = Scene
+                .Props.Where(p => !anchored.Contains(p.Id))
+                .Select(p =>
+                    new PropPlacement(
+                        MapProp(p.Kind),
+                        p.X,
+                        p.Y,
+                        p.Scale / 24.0,
+                        p.Rotation,
+                        p.Seed
+                    )
+                    {
+                        Model = p.Model,
+                        Species = p.Species,
+                        Text = p.Text,
+                    }.WithDef(p.Kind)
+                )
+                .Concat(SurfacePainter.ScatterProps(Scene, Biome.Id))
+                .ToList();
+            var propsPainter = new PropsPainter
+            {
+                BiomeCfg = Biome,
+                Foliage = Biome.Foliage,
+                Stone = Biome.Stone,
+                Roof = Biome.Roof,
+                Wood = Biome.Wood,
+                ZIndex = 40,
+            };
+            AddProp(Stage.AlbedoVp, propsPainter);
+            propsPainter.SetProps(props);
+            var propsH = new PropsHeight { ZIndex = 40 };
+            AddProp(Stage.HeightVp, propsH);
+            propsH.SetMassifs(massifs);
+            propsH.SetProps(props);
+            _propFp = propFp;
+        }
+
+        // Cheap in-place persistent layers — masks and glow update
+        // inside their existing nodes, no canvas re-creation.
         Stage.Water.SetWater(Scene);
         Stage.Glow.SetGlow(Scene, Biome.Id);
-        AddLayer(Stage.AlbedoVp, crossings);
-        AddLayer(Stage.HeightVp, waterH);
-        AddLayer(Stage.AlbedoVp, fortify);
-        AddLayer(Stage.AlbedoVp, bridges);
-
-        var anchored = interiors.AnchoredPropIds;
-        var props = Scene
-            .Props.Where(p => !anchored.Contains(p.Id))
-            .Select(p =>
-                new PropPlacement(
-                    MapProp(p.Kind),
-                    p.X,
-                    p.Y,
-                    p.Scale / 24.0,
-                    p.Rotation,
-                    p.Seed
-                )
-                {
-                    Model = p.Model,
-                    Species = p.Species,
-                    Text = p.Text,
-                }.WithDef(p.Kind)
-            )
-            .Concat(SurfacePainter.ScatterProps(Scene, Biome.Id))
-            .ToList();
-        var propsPainter = new PropsPainter
-        {
-            BiomeCfg = Biome,
-            Foliage = Biome.Foliage,
-            Stone = Biome.Stone,
-            Roof = Biome.Roof,
-            Wood = Biome.Wood,
-        };
-        AddLayer(Stage.AlbedoVp, propsPainter);
-        propsPainter.SetProps(props);
-        var propsH = new PropsHeight();
-        AddLayer(Stage.HeightVp, propsH);
-        propsH.SetMassifs(massifs);
-        propsH.SetProps(props);
-
-        // Fog mask — repainted in place each commit.
         Stage.Fog.Strokes = Scene.Fog;
         Stage.Fog.CoverAll = Scene.FogCoverAll;
         Stage.Fog.Rooms = Scene.FogRooms
@@ -270,14 +301,104 @@ public partial class SceneView : Node2D
         Stage.Fog.QueueRedraw();
 
         Mood.ApplyTo(Stage);
-        if (System.Environment.GetEnvironmentVariable("DMMAP_NO_STATIC_REFRESH") != "1")
+        if (
+            (geoDirty || propDirty)
+            && System.Environment.GetEnvironmentVariable("DMMAP_NO_STATIC_REFRESH") != "1"
+        )
             Stage.RefreshStatic();
     }
 
-    void AddLayer(SubViewport vp, Node2D painter)
+    // Z-order inside the static viewports is explicit — never tree
+    // order — because a fingerprint-skipped painter keeps its node
+    // while others are re-created and appended. Matches the original
+    // creation order: massif painters (persistent, z=0) < areas (10)
+    // < surfaces (11) < interiors (20) < water (30) < crossings (31)
+    // < fortify (32) < bridges (33) < props (40).
+    void AddGeo(SubViewport vp, Node2D painter)
     {
         vp.AddChild(painter);
-        _layers.Add(painter);
+        _geoLayers.Add(painter);
+    }
+
+    void AddProp(SubViewport vp, Node2D painter)
+    {
+        vp.AddChild(painter);
+        _propLayers.Add(painter);
+    }
+
+    /// <summary>Content hashes of everything the two painter groups
+    /// read. geo = strokes + shapes + rock props (water foam) + the
+    /// look ids; props = shapes + all props + look ids. Strokes are
+    /// excluded from props — no prop rendering depends on them — so
+    /// road/river editing skips the most expensive painter entirely.
+    /// Ids are deliberately excluded: output depends on content, not
+    /// identity.</summary>
+    void Fingerprints(out int geo, out int props)
+    {
+        geo = 17;
+        props = 17;
+        foreach (var id in new[] { Scene.Biome, Scene.ArtPack, Scene.Season, Scene.Mood })
+        {
+            Mix(ref geo, id?.GetHashCode() ?? 0);
+            Mix(ref props, id?.GetHashCode() ?? 0);
+        }
+        foreach (var sh in Scene.Shapes)
+        {
+            MixShape(ref geo, sh);
+            MixShape(ref props, sh);
+        }
+        foreach (var st in Scene.Strokes)
+        {
+            Mix(ref geo, st.Kind.GetHashCode());
+            Mix(ref geo, st.Width.GetHashCode());
+            Mix(ref geo, st.Model);
+            foreach (var pt in st.Points)
+                MixV(ref geo, pt);
+        }
+        foreach (var pr in Scene.Props)
+        {
+            MixProp(ref props, pr);
+            if (MapProp(pr.Kind) == PropKind.Rock)
+            {
+                MixD(ref geo, pr.X);
+                MixD(ref geo, pr.Y);
+                MixD(ref geo, pr.Scale);
+            }
+        }
+    }
+
+    static void Mix(ref int h, int v) => h = h * 31 + v;
+    static void MixD(ref int h, double d) => Mix(ref h, d.GetHashCode());
+    static void MixV(ref int h, Vector2 v)
+    {
+        Mix(ref h, v.X.GetHashCode());
+        Mix(ref h, v.Y.GetHashCode());
+    }
+
+    static void MixShape(ref int h, Shape sh)
+    {
+        Mix(ref h, sh.Kind.GetHashCode());
+        MixD(ref h, sh.Size);
+        MixD(ref h, sh.Height);
+        MixD(ref h, sh.Roughness);
+        Mix(ref h, sh.Model);
+        MixD(ref h, sh.Angle);
+        Mix(ref h, sh.Color?.GetHashCode() ?? 0);
+        foreach (var pt in sh.Points)
+            MixV(ref h, pt);
+    }
+
+    static void MixProp(ref int h, Prop pr)
+    {
+        Mix(ref h, pr.Kind.GetHashCode());
+        MixD(ref h, pr.X);
+        MixD(ref h, pr.Y);
+        MixD(ref h, pr.Scale);
+        MixD(ref h, pr.Rotation);
+        Mix(ref h, pr.Seed);
+        Mix(ref h, pr.Model);
+        Mix(ref h, pr.Species?.GetHashCode() ?? 0);
+        Mix(ref h, pr.Text?.GetHashCode() ?? 0);
     }
 
     static bool ShapesEqual(List<TerrainShape> a, List<TerrainShape> b)
